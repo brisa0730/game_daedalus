@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Bash",
+      "Grep",
+      "Edit",
+      "Glob",
+      "Agent",
+      "TodoWrite",
+      "Skill",
+      "WebFetch",
+      "WebSearch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/validate-commit-title.py\"",
+            "if": "Bash(git *)",
+            "timeout": 10,
+            "statusMessage": "Validating commit title"
+          }
+        ]
+      }
+    ]
+  }
+}
