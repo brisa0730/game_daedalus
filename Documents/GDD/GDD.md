@@ -1,10 +1,10 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.01 · **Stack:** browser web app, TypeScript; runtime and editor framework not chosen yet (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.02 · **Stack:** browser web app, TypeScript; custom runtime with a Canvas 2D renderer, React editor (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
 
 ---
 
-> **Draft design.** Everything below is **Draft**. Recommendations are recorded as recommendations; Open decisions are listed below and in [Roadmap.md](../Operations/Roadmap.md) §4.
+> **Draft design.** Everything below is **Draft**. Settled decisions are recorded in `.claude/memory/decisions.md`; what is still open is listed below and in [Roadmap.md](../Operations/Roadmap.md) §4.
 
 ## The Pitch
 
@@ -29,7 +29,9 @@ It replaces an earlier idea, a simplified Unity kit: the goal is to remove the U
 
 ## Open Questions
 
-Open decisions, with recommendations, in [Roadmap.md](../Operations/Roadmap.md) §4: **attack type**, **wall climb**, **runtime**, **editor UI framework**, **tile size**, **hosting for shared links**, **student accounts**, **sound**, **default art pack**, **auto-tile layouts**. Tile-system questions (where collision comes from; spikes as tile or element): [systems.md](systems.md) § Tile System.
+- **Hosting for shared links**: decide before `assets-and-sharing` ([Roadmap.md](../Operations/Roadmap.md) §4).
+
+**Decided (v0.02):** custom runtime with a Canvas 2D renderer; React editor; 16 px tiles; auto-targeting attack only; wall climb only on climbable tiles; collision only from the collision layer; spikes are hazard tiles; all three auto-tile layouts (dual-grid + single built first); fixed default sound effects; a CC0 art pack to start; no student accounts in v1.
 
 ## GDD Files
 

@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.01
+**Last updated:** v0.02
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -22,7 +22,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Checkpoint | Draft | A placed element that sets the respawn point and saves in-game progress. |
 | Active radius | Draft | The area (~1.5 screens) around the camera inside which objects update. |
 | Chunk | Draft | A cached block of tiles (e.g. 32 × 32) rendered as one unit. |
-| Tile kind | Draft | A tile's or terrain's collision type: solid, one-way, climbable, hazard, none. |
+| Tile kind | Draft | A tile's or terrain's collision type: solid, one-way, climbable, hazard, none. Counts only on the collision layer. |
 | Terrain | Draft | An auto-tiling brush (e.g. "Grass ground"): a tileset, a layout, a collision kind and the tiles for each neighbor pattern. |
 | Auto-tiling | Draft | Picking each painted cell's edge / corner / inner-corner tile from its neighbors. |
 | Blob layout | Draft | The 47-tile auto-tile layout (8-neighbor bitmask; a diagonal counts only with both adjacent edges). |

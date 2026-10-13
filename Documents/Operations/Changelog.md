@@ -8,6 +8,11 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.02 — first decisions (2026-10-13) · **docs only, no code**
+
+- **Landed.** The operator settled the open decisions except hosting: a custom runtime with a Canvas 2D renderer (no game engine), a React editor, 16 px tiles, the auto-targeting attack only, wall climb only on climbable tiles, collision only from the collision layer, spikes as hazard tiles (no longer a placed element), all three auto-tile layouts with dual-grid + single built first, fixed default sound effects, a CC0 art pack to start, no student accounts in v1. Schedule: the runtime accepts a start position + ability set from `movement-prototype`, live movement sliders on the test map, a student check halfway through `editor-core`; the one-day engine spike shrinks to a render check inside the scaffold.
+- **GDD deltas.** GDD v0.01 → v0.02: [GDD.md](../GDD/GDD.md) (header, Open Questions), [architecture.md](../GDD/architecture.md) (§ Technology), [systems.md](../GDD/systems.md) (Player, World, Tile System, Editor), [entities.md](../GDD/entities.md) (spikes, terrain kind), [platforms.md](../GDD/platforms.md), [content.md](../GDD/content.md), [Glossary.md](../GDD/Glossary.md); [Roadmap.md](Roadmap.md) §1 and §4 (only hosting left open); CLAUDE.md § Project Config. Commit: `v0.02: first decisions — custom Canvas 2D runtime, React editor, 16 px tiles, tile-system rules`.
+
 ## v0.01 — project setup (2026-10-13) · **the workflow and the design docs; no code yet**
 
 - **Landed.** daedalus started (*Student Platformer Maker*). The Claude workflow is set up: `.claude/` rules, the agents, the skills (`/scope`, `/new-phase`, `/review`, `/design`, `/update`, `/audit`, `/handshake`), the commit-title hook, the memory ledgers, and the phase and plan templates. No code and no test suite yet.

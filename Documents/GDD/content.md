@@ -1,10 +1,10 @@
 # Content, Readability & Accessibility
-**Last updated:** v0.01
+**Last updated:** v0.02
 
 ## Art Direction
 
-- A **default art pack** ships with the tool: tiles, the player, a few enemies, props, so students can build immediately. **Open:** make in-house or license a free pack (CC0 recommended to start).
-- Tile size **open:** 16 px (pixel art, smaller assets; recommended) or 32 px.
+- A **default art pack** ships with the tool: tiles, the player, a few enemies, props, so students can build immediately. To start: a licensed **CC0** pack, mapped to the auto-tile layouts.
+- Tile size: **16 px** (pixel art, smaller assets).
 - Auto-tiling (systems.md § Tile System) is how simple student art ends up looking clean; blank template PNGs per layout let students draw terrain straight into the right slots.
 - Students can import their own tilesets and sprite sheets (systems.md § Asset Import). Good default art and animation fallbacks are the mitigation for sprite-import confusion.
 
@@ -14,7 +14,7 @@ None in v1: no dialogue, NPCs or story systems.
 
 ## Audio
 
-**Open:** none, fixed default sound effects (recommended), or student-importable. No sound editor in v1.
+**Fixed default sound effects** in v1. Students can't import or edit sound.
 
 ## Readability
 

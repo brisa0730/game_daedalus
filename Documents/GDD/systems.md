@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.01
+**Last updated:** v0.02
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -13,16 +13,16 @@ One player character with every ability built in. Per project, each ability is e
 | Jump | Variable height (release early = shorter jump) | Coyote time and jump buffering required |
 | Double jump | Extra jump(s) in the air; resets on landing, wall or rope | Count is a setting (default 1) |
 | Wall slide + wall jump | Slow slide when pressing into a wall; jump pushes away | Brief input lock after a wall jump so the player doesn't re-stick |
-| Wall climb | Cling and move up/down a wall | **Open:** all walls, only climbable tiles (recommended), or no climb |
+| Wall climb | Cling and move up/down a wall | Only on **climbable** tiles (tile kind `climbable`); other walls allow wall slide + wall jump only |
 | Rope / vine climb | Grab a vertical rope, climb up/down, jump off | Ladder-style, no swinging |
-| Attack | One attack; see Combat & Damage | **Open:** auto-targeting (recommended), melee slash, or both |
+| Attack | One attack: auto-targeting; see Combat & Damage | No melee slash in v1 |
 
 ## Combat & Damage
 
-- **Attack (auto-targeting, recommended):** picks the nearest enemy or destructible projectile within range and line of sight (raycast against solid tiles) and fires a fast homing bolt. No target in range: a short burst in the facing direction. No aiming. Damage, range and cooldown are settings.
+- **Attack (auto-targeting):** picks the nearest enemy or destructible projectile within range and line of sight (raycast against solid tiles) and fires a fast homing bolt. No target in range: a short burst in the facing direction. No aiming. Damage, range and cooldown are settings.
 - **On hit:** brief hit-stop (~50 ms), hit flash, enemy knockback.
 - **Taking damage:** lose HP, knockback, i-frames (~1 s) with sprite flicker.
-- **Hazards** (spikes, pits): damage, then return the player to the **last safe ground position** (not the checkpoint), unless HP hits 0.
+- **Hazards** (spike tiles, pits): damage, then return the player to the **last safe ground position** (not the checkpoint), unless HP hits 0.
 - **HP 0:** respawn at the last checkpoint with full HP. Unlocked abilities are kept.
 
 ## Enemies
@@ -44,8 +44,8 @@ Getting stuck on terrain is acceptable and expected. Enemies update only inside 
 
 One large continuous map: no rooms, no screen transitions. Progression comes from **ability gating**: areas are reachable only once the player has the right pickup (e.g. a high ledge needs double jump).
 
-- **Map:** a tile grid with a fixed tile size (**open:** 16 px recommended, or 32 px). Up to ~500 × 200 tiles.
-- **Layers:** background decoration, collision, foreground decoration. Only the collision layer affects gameplay (but see § Tile System → Open questions).
+- **Map:** a tile grid with a fixed tile size of **16 px**. Up to ~500 × 200 tiles.
+- **Layers:** background decoration, collision, foreground decoration. **Only the collision layer affects gameplay**: a tile's kind counts only there; background and foreground are always decoration.
 - **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System).
 - **Placeable elements:** [entities.md](entities.md) § Placeable elements.
 
@@ -66,7 +66,7 @@ Most of the work, and its usability decides whether students succeed. **Play-fro
 - **Entity placement:** a palette of elements; drag to place, move, delete. Multi-select is nice to have.
 - **Inspector:** select an entity to see its settings as sliders, toggles and dropdowns. Player settings in a project-level panel.
 - **Enemy presets:** create, name and edit presets; per-instance overrides on placed enemies.
-- **Play-from-here:** start at the cursor position with a chosen set of abilities (checkboxes). Esc returns to the editor at the same view.
+- **Play-from-here:** start at the cursor position with a chosen set of abilities (checkboxes). Esc returns to the editor at the same view. The runtime accepts a start position and an ability set from `movement-prototype` on, so the editor only has to pass them.
 - **Play from start:** the real experience, with only the starting abilities.
 - **Undo / redo** for every edit (command pattern).
 - **Save / load:** autosave to browser storage, plus export/import of a project file.
@@ -80,7 +80,7 @@ Tile painting works like Unity's Tilemap with Rule Tiles: students paint *terrai
 - **Terrain brushes (auto-tiling):** each terrain (e.g. "Grass ground", "Stone") is a brush. Painting or erasing updates the painted cell and its neighbors.
 - **Random tiles:** a terrain slot can hold several variants; the tool picks one per cell with a seed derived from the cell position, so the result is stable across reloads.
 - **Animated tiles:** a tile with a frame list and fps (water, lava, torches).
-- **Per-tile kind:** every tile or terrain carries a collision kind (solid, one-way, climbable wall, hazard, none). Painting spikes also places spike collision, so the collision layer is derived from what students paint.
+- **Per-tile kind:** every tile or terrain carries a collision kind (solid, one-way, climbable wall, hazard, none). The kind takes effect **only on the collision layer**, so gameplay comes from what students paint there. **Spikes are hazard tiles** painted on the collision layer, not placed elements.
 - **Layers:** background, collision and foreground (§ World & Level Elements). Auto-tiling works on every layer.
 
 ### Auto-tile layouts
@@ -93,7 +93,7 @@ No free-form rule editor. The tool supports fixed layouts, each with a template 
 | Dual-grid | 15–16 | Default for student-drawn terrain; clean corners with few tiles |
 | Single tile | 1 | Simple blocks, decoration, flat-color styles |
 
-Which layouts ship is an open decision (Roadmap §4; recommendation: blob + dual-grid).
+All three layouts are in v1: blob for imported packs, dual-grid for student-drawn art. **Build order:** dual-grid and single first (`editor-core`); blob when the default art pack needs it.
 
 - **Blob:** 8-neighbor bitmask; a diagonal bit counts only when both adjacent edge bits are set, which reduces 256 cases to 47.
 - **Dual-grid:** display tiles are offset half a tile from the logical grid; each display tile looks at its 4 surrounding logical cells (16 cases). **Collision uses the logical grid**, not the display grid.
@@ -106,11 +106,6 @@ Which layouts ship is an open decision (Roadmap §4; recommendation: blob + dual
 - Import a PNG, set the tile size, then drag tiles into the template slots for the chosen layout. The template shows each slot's neighbor pattern visually.
 - Downloadable blank template PNGs for each layout, so students can draw terrain directly in the right slots and import with no mapping step.
 - The default art pack ships pre-mapped.
-
-### Open questions
-
-- **Where collision comes from.** § World & Level Elements has a separate collision layer students paint; this section derives collision from each tile's or terrain's kind and auto-tiles every layer. Does a kind on a background/foreground tile count, or only tiles on the collision layer?
-- **Spikes: tile or element?** Spikes are a placeable element (entities.md § Placeable elements) and also a `hazard` tile kind. One, the other, or both?
 
 ## Asset Import
 

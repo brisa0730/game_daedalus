@@ -1,5 +1,5 @@
 # Entities & Data
-**Last updated:** v0.01
+**Last updated:** v0.02
 
 Values here mirror the single source of truth in `packages/format/` once it exists (CLAUDE.md § Coding Conventions → Tunable defaults). Until then the numbers below are a starting sketch, not tuned defaults. Milestone 1 tunes them with the operator.
 
@@ -57,12 +57,13 @@ Acceleration (ground and air), coyote time, jump buffer and the wall-jump lock h
 | Ability pickup | Unlocks one ability |
 | Health pickup / max-HP upgrade | Restores HP or raises max HP |
 | Rope / vine | Vertical climbable segment of any length |
-| Spikes | Damage + return to last safe ground |
 | Moving platform | Moves between two points; carries the player |
 | Crumbling platform | Falls shortly after the player stands on it, respawns |
 | Checkpoint | Sets the respawn point when touched; saves in-game progress |
 | Enemy | Instance of an enemy preset, with optional overrides |
 | Exit / goal | Ends the game with a win screen |
+
+Spikes are not a placed element: they are **hazard tiles** painted on the collision layer (§ Terrains).
 
 ## Terrains
 
@@ -77,7 +78,7 @@ A terrain is an auto-tiling brush (systems.md § Tile System).
 ```
 
 - `layout`: `blob` (47 slots), `dualGrid` (16 slots), `single` (1 slot).
-- `kind`: the collision kind: `solid`, `oneWay`, `climbable`, `hazard`, `none`.
+- `kind`: the collision kind: `solid`, `oneWay`, `climbable`, `hazard`, `none`. It takes effect only on the collision layer.
 - `slots`: neighbor-pattern index → tile indices in the tileset; more than one index means random variants, picked by a seed from the cell position.
 - Animated tiles: a frame list + fps per tile (shape set when the tile system is built).
 - Map layers store **terrain ids per logical cell**, not resolved tile indices; the runtime resolves tiles on load. Plain (non-terrain) tiles are stored as tile references.
@@ -132,4 +133,4 @@ A starting shape, not a contract. Versioned from day one so old student projects
 }
 ```
 
-Open in the sketch: the layer encoding (RLE vs base64); whether `gravity` is a multiplier or an absolute value; the `collision` layer above still holds "tile kinds" while § Terrains stores terrain ids and tile references per layer (settled with systems.md § Tile System → Open questions); where `terrains` sits in the project (top level or under `assets`).
+Open in the sketch: the layer encoding (RLE vs base64); whether `gravity` is a multiplier or an absolute value; the sketch's `collision` layer holds "tile kinds" while § Terrains stores terrain ids and tile references per layer (the format package settles the shape: kinds are derived from the collision layer's terrains and tiles); where `terrains` sits in the project (top level or under `assets`).

@@ -1,5 +1,5 @@
 # Claude AI Project Rules
-**Project:** daedalus (code name; working title *Student Platformer Maker*) | **Stack:** browser web app, TypeScript. Runtime and editor framework are not chosen yet (§ Project Config) | **Genre:** a 2D platformer *maker*. Students build simplified Ori / Hollow Knight-style games from ready-made parts and settings, without code.
+**Project:** daedalus (code name; working title *Student Platformer Maker*) | **Stack:** browser web app, TypeScript: custom runtime with a Canvas 2D renderer, React editor (§ Project Config) | **Genre:** a 2D platformer *maker*. Students build simplified Ori / Hollow Knight-style games from ready-made parts and settings, without code.
 
 > **Operating model.** Claude is the **developer and the keeper of the design docs**: it owns the code, the GDD (`Documents/GDD/`) and the operations ledgers (`Documents/Operations/`). **Open decisions (Roadmap §4) belong to the operator**: Claude recommends, the operator decides. **Movement feel is judged by the operator by hand**, and so is anything else a screenshot can't show. The stack is a browser app so Claude can **build, run, screenshot and verify autonomously** (headless runtime tests + Playwright). Activate the `platformer` genre profile (plus `action` for combat) in design discussions. `ux-lens` speaks for the student using the editor, since editor usability decides whether students succeed.
 
@@ -110,12 +110,12 @@ Every fact has ONE home. When you finish a unit of work:
 Skipping is a workflow violation.
 
 ## Project Config
-- **Stack:** **not chosen yet.** Browser, TypeScript. The runtime (custom Canvas/WebGL vs Phaser 3) is decided by a one-day spike; the editor UI framework (React recommended) is an Open decision (Roadmap §4). When chosen, list exact pins here (no `^`/`~` in `package.json`).
+- **Stack:** browser, TypeScript. **Custom runtime** (own tile collision, pure `step()`, no game engine) with a **Canvas 2D** renderer (WebGL only if the scaffold's render check fails); **React** editor. Exact pins land with the scaffold and are listed here (no `^`/`~` in `package.json`).
 - **Tooling Node:** **24.14.1** (LTS, `.nvmrc`), which runs npm, Vite, Vitest and Playwright. The product itself runs in the browser.
 - **Target platform:** desktop Chrome on a typical school laptop; keyboard + gamepad (Gamepad API). No mobile/touch in v1.
-- **Networking:** none in the editor or runtime. Shared links need a small hosting backend; the choice is an Open decision (Roadmap §4) to settle before the `assets-and-sharing` milestone. Student accounts: none in v1 unless decided otherwise.
+- **Networking:** none in the editor or runtime. Shared links need a small hosting backend; the choice is an Open decision (Roadmap §4) to settle before the `assets-and-sharing` milestone. Student accounts: none in v1.
 - **Working directories:** see Coding Conventions → Layout. Do not create other top-level directories without asking.
-- **Art:** a default art pack ships with the tool (CC0 recommended, Open decision). Every third-party pack in `assets/` carries its license file beside it.
+- **Art:** a default art pack ships with the tool (a CC0 pack to start), at 16 px tiles. Every third-party pack in `assets/` carries its license file beside it.
 - **Handshake review root:** `Documents/Review/` overrides the portable default of `handshake/` at the repo root (see `.claude/skills/handshake/protocol.md`). Created per handshake; nothing persists there between runs.
 - **Read-only directories** (do not edit): `node_modules/`, and any vendored third-party code (list each one here when it lands).
 - **Build / run:** defined by the scaffold plan; list every command here when it lands. Claude runs all of them.

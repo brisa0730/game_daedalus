@@ -1,11 +1,11 @@
 # Platforms
-**Last updated:** v0.01
+**Last updated:** v0.02
 
 ## Engine & Targets
 
 - **Browser web app, TypeScript.** No install for students; a finished game is a URL.
 - **Target:** desktop Chrome on a typical school laptop. No native builds, no store publishing in v1.
-- **Runtime:** custom Canvas/WebGL or Phaser 3: open, decided by a one-day spike (Roadmap §4).
+- **Runtime:** custom, rendering with Canvas 2D (architecture.md § Technology). **Editor:** React.
 
 ## Input
 
@@ -28,4 +28,4 @@
 
 - None in the editor or runtime.
 - **Shared links** need a small hosting backend (static JSON + assets). **Open:** static hosting + simple upload API, a BaaS (e.g. Firebase / Supabase), or file export only. Decide before `assets-and-sharing`.
-- **Student accounts:** open. None (anonymous links) recommended for v1; class codes or school login are the alternatives.
+- **Student accounts:** none in v1 (anonymous links).

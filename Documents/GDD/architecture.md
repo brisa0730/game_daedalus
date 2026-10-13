@@ -1,7 +1,7 @@
 # Architecture
-**Last updated:** v0.01
+**Last updated:** v0.02
 
-Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the scaffold and the runtime spike land.
+Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the scaffold lands.
 
 ## System Map
 
@@ -34,8 +34,11 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the sc
 
 Enemies, projectiles and moving objects update only within ~1.5 screens of the camera; outside it they freeze in place. Tiles render from cached chunks (e.g. 32 × 32 tiles).
 
+## Technology (v0.02)
+
+- **Runtime: custom.** Our own tile collision and pure `step()`; no game engine. **Renderer: Canvas 2D** with cached tile chunks. The scaffold's render check confirms 60 fps at 500 × 200 tiles with 200 entities on a throttled CPU; WebGL is the fallback only if it fails.
+- **Editor: React.** Panels, inspector, palette and presets are React; the game view is a canvas drawn by the runtime renderer, outside React's render tree.
+
 ## Open Questions
 
-- **Runtime:** custom Canvas/WebGL vs Phaser 3 (recommendation: custom tile collision for the player; decide after a one-day spike). If Phaser, where its scene loop ends and the pure `step()` begins.
-- **Editor UI framework:** React (recommended) vs plain TypeScript.
 - **Asset storage:** embedded in the project file vs stored alongside it for hosting.
