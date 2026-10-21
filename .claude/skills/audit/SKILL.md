@@ -9,7 +9,7 @@ argument-hint: "[optional: module cluster to narrow the audit to]"
 
 # Project Audit: $ARGUMENTS
 
-> **daedalus note.** Browser web app, TypeScript. Shared project format in `packages/format/`, the pure game runtime (`step(state, input)`) in `packages/runtime/src/sim/`, its renderer and input in `packages/runtime/src/render/` and `src/input/`, the editor in `apps/editor/`, the play-only page in `apps/player/`. Paths follow CLAUDE.md § Coding Conventions → Layout; if the scaffold changed them, CLAUDE.md wins — update the clusters below to match. Until the first phases land, most clusters will report `UNIMPL` against the GDD — that is expected, not a defect. A cluster whose directories don't exist yet is reported as not-yet-implemented.
+> **daedalus note.** A Unity 6 package, C#: `com.orcapafea.daedalus` in `Packages/com.orcapafea.daedalus/`. The pure sim (`Step(state, input)`, assembly `Orcapafea.Daedalus.Sim`, no engine references) in `Runtime/Sim/`; the Unity runtime glue (components, ScriptableObjects, rendering, input, saves) in `Runtime/`; the editor tools in `Editor/`; tests in `Tests/EditMode/` and `Tests/PlayMode/`; the starter in `Samples~/`. Paths follow CLAUDE.md § Coding Conventions → Layout; if the scaffold changed them, CLAUDE.md wins — update the clusters below to match. Until the first phases land, most clusters will report `UNIMPL` against the GDD — that is expected, not a defect. A cluster whose directories don't exist yet is reported as not-yet-implemented.
 
 Run a comprehensive health check by reading the actual project and comparing it against GDD definitions system by system. If `$ARGUMENTS` is provided, run only the matching agent(s) in Section 2 and narrow Sections 3–5 to that area.
 
@@ -58,49 +58,48 @@ Spawn **parallel Explore agents** (in focus mode, only the agent(s) covering `$A
 
 #### Agent Assignments (by directory path)
 
-Clusters are keyed to stable directory boundaries under `packages/` and `apps/`. Skip a cluster whose directories don't exist yet (report it as not-yet-implemented).
+Clusters are keyed to the package's assembly folders under `Packages/com.orcapafea.daedalus/`. Skip a cluster whose directories don't exist yet (report it as not-yet-implemented).
 
-**Agent A — Project Format & Data:**
-- Directories: `packages/format/` (project JSON types, schema validation, `formatVersion` migrations, default settings), `assets/default-pack/` metadata
+**Agent A — Authored Data & Defaults:**
+- Directories: `Runtime/` ScriptableObjects and serialized components, `Runtime/Sim/` defaults, `Samples~/` (starter scene, prefabs, presets, art + license files)
 - GDD refs: `architecture.md`, `entities.md`, `conventions.md`
-- Special focus: default player / enemy values vs `entities.md` tables (values must match; ONE source of truth, no code defaults duplicating them); every project validated at load; every past `formatVersion` has a migration and a fixture that still loads; units in tiles / tiles-per-second / seconds in the format, pixels only inside the runtime.
+- Special focus: default player / enemy values vs `entities.md` tables (values must match; ONE source of truth in the sim, no code defaults duplicating them); update safety (renamed serialized fields keep `[FormerlySerializedAs]`, every structural change has an upgrade step keyed by a data version, a fixture project per released package version); units in tiles / tiles-per-second / seconds, 1 Unity unit = 1 tile; every asset committed with its `.meta`.
 
-**Agent B — Runtime Simulation:**
-- Directories: `packages/runtime/src/sim/`
+**Agent B — Sim:**
+- Directories: `Runtime/Sim/`
 - GDD refs: `systems.md` (Player, Combat, Enemies, World & Level Elements, Camera)
-- Special focus: purity (no DOM, `window`, `document`, canvas, Web APIs or editor imports); determinism (fixed 60 Hz step, no `Date.now()` / `performance.now()` / `Math.random()` inside the sim — injected seams only); the step advances by fixed ticks, never by render frame; collision edge cases (one-way, moving platforms, ropes, wall climb) covered by headless scenario tests; values verified against `entities.md`.
+- Special focus: purity (asmdef has no references and `noEngineReferences: true`; no `UnityEngine` / `UnityEditor`, no `DateTime` / `Stopwatch` / `System.Random` / `UnityEngine.Random` — injected seams only); the step advances by fixed 60 Hz ticks, never by frame time; collision edge cases (one-way, moving platforms, ropes, wall climb) covered by EditMode scenario tests; values verified against `entities.md`.
 
-**Agent C — Rendering, Input & Player Page:**
-- Directories: `packages/runtime/src/render/`, `packages/runtime/src/input/`, `apps/player/`
-- GDD refs: `systems.md` (Camera, Presentation), `platforms.md` (input, performance), `content.md`
-- Special focus: rendering reads sim state and never mutates it; interpolated rendering between fixed ticks; chunked tile rendering and the active radius; no per-frame allocations in the render loop; keyboard + Gamepad API mapped to one `Input` shape; the player page loads a project and runs it without any editor code.
+**Agent C — Runtime Glue:**
+- Directories: `Runtime/` (outside `Sim/`)
+- GDD refs: `systems.md` (Camera, In-game Progress), `platforms.md` (input, performance, storage), `content.md`
+- Special focus: rendering reads sim state and never mutates it; interpolation between fixed ticks; the Collision Tilemap and placed elements are read into the sim at play start; active radius; Tilemaps in Chunk mode; no per-frame allocations, LINQ, `GetComponent` or `Find` in per-frame paths; Input System mapped to one `Input` shape; runtime code never writes to authored assets; checkpoint saves through `PlayerPrefs`.
 
-**Agent D — Editor & Wiring:**
-- Directories: `apps/editor/`, entry points
-- GDD refs: `systems.md` (Editor, Tile System, Asset Import, Share), `architecture.md`, `conventions.md`
-- Special focus: **the editor contains no gameplay logic** — play-from-here hands a project + start position + ability set to the runtime; every edit goes through the command stack (undo/redo); autosave and export/import round-trip a project byte-for-byte; validation warnings cover the GDD list.
+**Agent D — Editor Tools & Wiring:**
+- Directories: `Editor/`
+- GDD refs: `systems.md` (Editor Tools, Tile System, Asset Import, Share), `architecture.md`, `conventions.md`
+- Special focus: **the editor tools contain no gameplay logic** — play-from-here hands a start position + ability set to the runtime and enters Play mode; every edit goes through Unity's `Undo`; scene autosave works; validation warnings cover the GDD list; every student-facing field has a slider / toggle / dropdown, a default and a tooltip, and internals stay hidden.
 - **Inter-module wiring verification** (this agent's unique responsibility):
-  - Read the entry points end-to-end and trace the dependency-injection graph: verify every module receives correct dependencies via constructor.
+  - Read the entry points end-to-end and trace the dependency graph: verify every system receives its dependencies explicitly (constructor or Inspector), with no static instances or `Find`-style lookups.
   - Check that no module is wired to another module's internals — only to interfaces or shared infrastructure.
-  - Verify data-flow direction matches architecture.md (editor → format → runtime; runtime never imports editor); flag backward or circular dependencies not documented there.
+  - Verify assembly references match architecture.md (editor tools → runtime → sim; the sim references nothing); flag backward or circular references.
   - Verify every class claiming to implement an interface actually satisfies it.
-  - Confirm the shared-infrastructure components in architecture.md (project format, the runtime's public API) are the *only* cross-package channels.
   - Every producer has a consumer, and every decision-influencing value reaches the code that needs it (CLAUDE.md Architecture rule 7).
 
 **Each agent reports per-system:** `[OK/DRIFT/VIOLATION/UNIMPL/UNDOC] SystemName — detail (file:line)`
 
 ### 3. Cross-Cutting Checks
-Run these via Grep in parallel (fast pattern-based, complements the deep audit), scoped to `packages/` and `apps/`:
-- `packages/runtime/src/sim/` importing anything from `render/`, `input/`, `apps/`, a UI framework, or touching `document` / `window` / `navigator` / `localStorage` / `Date.now` / `performance.now` / `Math.random` — purity violation.
-- `packages/runtime/` or `packages/format/` importing from `apps/` — dependency-direction violation.
-- Gameplay rules (collision, damage, AI, ability checks) implemented under `apps/editor/` — the editor must call the runtime instead.
-- `any` without an explaining comment.
-- Allocations (`new`, object/array literals), closures or array-chaining (`.map(` / `.filter(` / `.forEach(`) inside per-tick sim paths or the per-frame render loop — should be zero.
-- Performance regressions against the GDD budget (60 fps, ~200 entities, school laptop): entities updated outside the active radius, tiles redrawn per frame instead of per chunk — flag each.
-- `console.log` in `packages/` or `apps/` outside tests.
-- `passWithNoTests` anywhere — must be absent.
+Run these via Grep in parallel (fast pattern-based, complements the deep audit), scoped to `Packages/com.orcapafea.daedalus/`:
+- `Runtime/Sim/` using `UnityEngine`, `UnityEditor`, `DateTime`, `Stopwatch`, `System.Random`, `Time.` or `Random.` — purity violation; its asmdef gaining any reference or losing `noEngineReferences` — same.
+- `Runtime/` referencing `UnityEditor` outside `#if UNITY_EDITOR`, or the editor assembly — dependency-direction violation.
+- Gameplay rules (collision, damage, AI, ability checks) implemented under `Editor/` — the tools must call the runtime instead.
+- Allocations (`new` of reference types), LINQ, closures, `GetComponent` / `Find` inside per-tick sim paths or `Update` / `LateUpdate` — should be zero.
+- Performance regressions against the GDD budget (60 fps, ~200 entities, school laptop): entities updated outside the active radius, Tilemaps not in Chunk mode — flag each.
+- `Debug.Log` outside tests (warnings and errors with a student-facing message are fine).
+- Serialized fields renamed without `[FormerlySerializedAs]` (compare against the last release tag).
+- Assets missing their `.meta`, or `.meta` files without an asset.
 - `TODO|FIXME|HACK|XXX` in source.
-- Direct edits under the read-only dirs listed in CLAUDE.md (`node_modules/`, vendored third-party code) — should be zero in the diff.
+- Direct edits under the read-only dirs listed in CLAUDE.md (`Library/`, `Temp/`, `Logs/`, `UserSettings/`, vendored third-party code) — should be zero in the diff.
 
 ### 4. Memory Freshness
 - Does `GDD.md` version match `Changelog.md`'s latest version entry?

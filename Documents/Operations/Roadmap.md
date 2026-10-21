@@ -18,32 +18,34 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 Each milestone ends with something playable.
 
 ### Milestone 0 — Foundation
-- **Scaffold** (plan `scaffold`): the npm-workspaces repo (`packages/format`, `packages/runtime`, `apps/editor`, `apps/player`), exact-pinned tooling, Vitest seen failing then passing, Playwright with a first screenshot, and the **render check** (Canvas 2D, 500 × 200 chunked map, 200 moving entities, fps under a throttled CPU). Fills CLAUDE.md § Project Config (stack pins, build/run commands) and confirms the Layout line.
+- **Scaffold** (plan `scaffold`): the dev Unity project at the repo root (6000.6.7f1, URP 2D Renderer, Input System) with Unity's `.gitignore`, text serialization and `.vscode` setup; the package skeleton `Packages/com.orcapafea.daedalus` (`package.json` with `"unity": "6000.0"`, the three assemblies, the guards); EditMode and PlayMode suites seen failing then passing in batch mode on **both** 6000.0.85f1 and 6000.6.7f1; a first PlayMode screenshot; the package installed by git URL into a fresh 6000.0 project as proof; and the **performance check** (WebGL build, 500 × 200 Tilemap, 200 moving sprites, fps in Chrome). Fills CLAUDE.md § Project Config (package pins, build/run commands) and confirms the Layout line.
 
 ### Milestone 1 — `movement-prototype` (days 1–4)
-Hard-coded test map; run, jump (variable height, coyote time, buffering), double jump, wall slide / jump / climb (climbable tiles), rope climb. Scenario tests for every collision edge case. The runtime accepts a **start position and an ability set** from the start (the hook play-from-here needs). The test map has **live sliders** for the movement settings so feel is tuned together, early. **Gate:** the operator play-checks the feel and tunes the defaults; this is the quality bar for everything else.
+A dev test scene; run, jump (variable height, coyote time, buffering), double jump, wall slide / jump / climb (climbable tiles), rope climb. Scenario tests for every collision edge case. The runtime accepts a **start position and an ability set** from the start (the hook play-from-here needs). The player settings asset is **tuned live** in Play mode so feel is tuned together, early. **Gate:** the operator play-checks the feel and tunes the defaults; this is the quality bar for everything else.
 
 ### Milestone 2 — `combat-and-enemies` (days 5–8)
-The attack, HP, damage, i-frames, knockback, hit-stop, hazards and safe-ground return; the enemy object with all movement types and projectiles.
+The attack, HP, damage, i-frames, knockback, hit-stop, hazards and safe-ground return; the enemy with all movement types and projectiles; enemy preset assets.
 
 ### Milestone 3 — `world-systems` (days 9–11)
-Load maps from the project JSON, chunked rendering, active radius, camera, checkpoints (with in-game progress save), ability pickups, moving and crumbling platforms, exit and win screen.
+Read the scene's Tilemaps and placed elements into the sim, active radius, camera, checkpoints (with in-game progress save), ability pickups, moving and crumbling platforms, exit and win screen.
 
-### Milestone 4 — `editor-core` (days 12–24)
-Pan / zoom / minimap, the tile system (palette, auto-tiling with **dual-grid + single** layouts, random and animated tiles, tileset mapping), entity placement, inspector, enemy presets, undo/redo, autosave + export/import, validation warnings, play-from-here with ability selection, play from start. Build play-from-here early: editor usability is the biggest risk. **Mid-milestone student check:** put a student in front of the editor about halfway through, not at the classroom test.
+### Milestone 4 — `editor-tools` (days 12–20)
+Play-from-here with ability selection (build it first), the daedalus window, custom inspectors and gizmos, per-instance enemy overrides, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + element prefabs). Much smaller than the browser plan's editor: Unity provides painting, navigation, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test.
 
-### Milestone 5 — `assets-and-sharing` (days 25–30)
-Default art pack (CC0, pre-mapped), the **blob** auto-tile layout if the pack needs it, tileset and sprite-sheet import with animation mapping and fallbacks, publish-to-link. Needs the hosting decision (§4).
+### Milestone 5 — `assets-and-sharing` (days 21–26)
+Default art pack (CC0, pre-mapped) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, the WebGL build-and-share path, and the first OpenUPM release. Needs the hosting decision (§4).
 
-### Milestone 6 — `classroom-test` (days 31+)
-Run a class session with students; fix what blocks them.
+### Milestone 6 — `classroom-test` (days 27+)
+Run a class session with students, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter); fix what blocks them.
 
 ## 2. Pre-launch gates
 
 - **Classroom test passed.** A student completes the five v1 success steps (GDD.md § Core Loop: paint, place, tune, play-from-here, save + share) in one class session.
-- **Performance.** 60 fps in Chrome on a typical school laptop with ~200 entities on the map.
-- **Default art pack licensed.** License file beside every third-party pack in `assets/`.
-- **Hosting for shared links** running, with whatever moderation / takedown path the operator wants for student content.
+- **Performance.** 60 fps on a typical school laptop with ~200 entities on the map, in the WebGL build in Chrome and in Play mode.
+- **Both editors.** Every suite green on 6000.0.85f1 and the current dev editor.
+- **Update safety.** A fixture project from each released package version opens, upgrades and plays on the newest version.
+- **Default art pack licensed.** License file beside every third-party pack in the package's `Samples~/`.
+- **Hosting for shared builds** running, with whatever moderation / takedown path the operator wants for student content.
 
 ## 3. Deferred features
 
@@ -53,16 +55,17 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 - **Multiple attacks, combos, magic, ranged player attacks.**
 - **Pathfinding enemy AI.** Getting stuck on terrain is accepted in v1.
 - **Boss scripting, multi-phase patterns.**
-- **Event / scripting system for students.** Against the design pillar "students use the tool, they don't read its code"; treat as the strongest scope-creep signal.
+- **Event / scripting system for students, including C# scripting.** Against the design pillar "students use the tool, they don't read its code"; treat as the strongest scope-creep signal.
 - **Separate rooms with screen transitions.** v1 is one continuous map.
 - **Dialogue, NPCs, shops, inventory.**
 - **Multiplayer, online leaderboards.**
 - **Mobile / touch controls.** Keyboard + gamepad only.
 - **Collaborative real-time editing.**
-- **Sound editor / student-importable sound.** v1 may ship fixed sound effects (§4).
-- **Store publishing / native builds.**
+- **Sound editor / student-importable sound.** v1 ships fixed sound effects.
+- **Store publishing / native builds.** v1 shares WebGL builds only.
 - **Terrain-to-terrain auto-tile transitions.** In v1 each terrain auto-tiles only against itself.
-- **Free-form auto-tile rule editor.** v1 has fixed layouts only.
+- **Student-authored auto-tile rules.** v1 ships preconfigured terrains; students fill sprite slots, never rules.
+- **Minimap.** Scene-view zoom covers it in v1.
 - **Camera-bound zones.**
 - **Input rebinding.** Not needed in v1.
 - **Enemy drops.** Death drops nothing in v1.
@@ -73,4 +76,5 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 
 | Decision | Options | Recommendation | Blocks |
 | --- | --- | --- | --- |
-| Hosting for shared links | Static hosting + simple upload API · a BaaS (e.g. Firebase/Supabase) · file export only | Decide before milestone 5 | `assets-and-sharing` |
+| Auto-tile layouts on Unity's Tilemap (reopens v0.02's "all three, dual-grid first") | Rule Tiles for blob + single only · plus a custom dual-grid tool (a display Tilemap offset half a tile, driven from the logical Collision Tilemap) | Blob + single on Rule Tiles first: they come with 2D Tilemap Extras and cover a CC0 pack. Build dual-grid only if the mid-`editor-tools` student check shows students drawing their own terrain need it | `editor-tools` |
+| Hosting for shared WebGL builds | A teacher-run static site (e.g. GitHub Pages) · itch.io under a teacher account · handing the build folder around (no hosting) | Decide before milestone 5 | `assets-and-sharing` |

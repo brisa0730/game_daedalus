@@ -22,7 +22,7 @@ local machine with the repo mounted, it can `grep`, `find`, read files and run
 short scripts over the connected folders. It may also have none. Neither side
 assumes: the Reviewer states what it could run in each round file.
 
-It never runs the app, the test suites (`npm test`, `npm run e2e`), a
+It never runs the app, the test suites (Unity batch mode), a
 build, or anything else outside the connected folders, and it cannot give the
 Author a turn. Anything on that list is raised as a finding for the Author to run
 and report.

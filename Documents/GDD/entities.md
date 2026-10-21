@@ -1,16 +1,16 @@
 # Entities & Data
-**Last updated:** v0.02
+**Last updated:** v0.03
 
-Values here mirror the single source of truth in `packages/format/` once it exists (CLAUDE.md § Coding Conventions → Tunable defaults). Until then the numbers below are a starting sketch, not tuned defaults. Milestone 1 tunes them with the operator.
+Values here mirror the single source of truth in the sim assembly once it exists (CLAUDE.md § Coding Conventions → Tunable defaults). Until then the numbers below are a starting sketch, not tuned defaults. Milestone 1 tunes them with the operator.
 
-**Units:** positions and distances in tiles; speeds in tiles per second; times in seconds. The runtime converts to pixels internally.
+**Units:** 1 Unity unit = 1 tile; positions and distances in tiles; speeds in tiles per second; times in seconds.
 
 ## Player tunables
 
 **Exposed to students as sliders:** run speed, acceleration, jump height, double-jump count, gravity, max fall speed, wall slide speed, climb speed, max HP, attack damage, attack range, attack cooldown.
 **Internal (good defaults, not exposed):** coyote time, jump buffer, hit-stop, wall-jump input lock, i-frame duration.
 
-| Setting | Format key | Sketch value |
+| Setting | Field (sketch) | Sketch value |
 |---|---|---|
 | Run speed | `runSpeed` | 6 |
 | Jump height | `jumpHeight` | 3.5 |
@@ -31,7 +31,7 @@ Acceleration (ground and air), coyote time, jump buffer and the wall-jump lock h
 
 ## Abilities
 
-`run`, `jump`, `doubleJump`, `wallJump` (wall slide + wall jump), `wallClimb`, `ropeClimb`, `attack`. Pickups can unlock: double jump, wall jump, wall climb, rope climb, attack. Exact identifiers are set by the format package.
+`run`, `jump`, `doubleJump`, `wallJump` (wall slide + wall jump), `wallClimb`, `ropeClimb`, `attack`. Pickups can unlock: double jump, wall jump, wall climb, rope climb, attack. Exact identifiers are set by the sim.
 
 ## Enemy settings
 
@@ -63,74 +63,35 @@ Acceleration (ground and air), coyote time, jump buffer and the wall-jump lock h
 | Enemy | Instance of an enemy preset, with optional overrides |
 | Exit / goal | Ends the game with a win screen |
 
-Spikes are not a placed element: they are **hazard tiles** painted on the collision layer (§ Terrains).
+Each placeable element is a prefab in the starter; its settings are fields on its component.
+
+Spikes are not a placed element: they are **hazard tiles** painted on the Collision Tilemap (§ Terrains).
 
 ## Terrains
 
-A terrain is an auto-tiling brush (systems.md § Tile System).
+A terrain is an auto-tiling brush (systems.md § Tile System): a tile asset students paint with the Tile Palette.
 
-```json
-"terrains": [{
-  "id": "grass", "name": "Grass ground", "tileset": "ts_forest",
-  "layout": "dualGrid", "kind": "solid",
-  "slots": { "0": [12], "5": [13, 14], "15": [20, 21, 22] }
-}]
-```
-
-- `layout`: `blob` (47 slots), `dualGrid` (16 slots), `single` (1 slot).
-- `kind`: the collision kind: `solid`, `oneWay`, `climbable`, `hazard`, `none`. It takes effect only on the collision layer.
-- `slots`: neighbor-pattern index → tile indices in the tileset; more than one index means random variants, picked by a seed from the cell position.
-- Animated tiles: a frame list + fps per tile (shape set when the tile system is built).
-- Map layers store **terrain ids per logical cell**, not resolved tile indices; the runtime resolves tiles on load. Plain (non-terrain) tiles are stored as tile references.
+- **Layout:** blob (47 slots), dual-grid (16 slots) or single (1 slot); which layouts v1 builds is open (Roadmap §4).
+- **Kind:** the collision kind: solid, one-way, climbable, hazard, none. It takes effect only on the Collision Tilemap.
+- **Slots:** neighbor pattern → sprites; more than one sprite means random variants, picked per cell by position.
+- **Animated tiles:** a frame list + speed per tile (shape set when the tile system is built).
+- Tilemaps store the terrain asset per cell; the displayed sprite is resolved from the neighbors.
 
 ## Animation states
 
 `idle`, `run`, `jump`, `fall`, `wall-slide`, `climb-wall`, `climb-rope`, `attack`, `hurt`, `death`. A missing animation falls back to the closest state (e.g. no `fall` → `jump` → `idle`); the full fallback chain is set when sprite import is built.
 
-## Project format (sketch)
+## Authored data (sketch)
 
-A starting shape, not a contract. Versioned from day one so old student projects keep loading.
+A starting shape, not a contract. What a student saves is a Unity scene plus our assets; each of our assets and components carries a data version so a package update can upgrade it (CLAUDE.md Architecture rule 4).
 
-```json
-{
-  "formatVersion": 1,
-  "meta": { "title": "My Game", "author": "" },
-  "settings": {
-    "tileSize": 16,
-    "player": {
-      "runSpeed": 6, "jumpHeight": 3.5, "gravity": 1, "maxFallSpeed": 12,
-      "maxHp": 5, "airJumps": 1, "wallSlideSpeed": 2, "climbSpeed": 3,
-      "attack": { "damage": 1, "range": 6, "cooldown": 0.25 },
-      "startingAbilities": ["jump"]
-    }
-  },
-  "assets": {
-    "tilesets": [{ "id": "ts_forest", "src": "...", "tileSize": 16 }],
-    "sprites": [{ "id": "spr_player", "src": "...", "frameW": 32, "frameH": 32,
-                   "anims": { "idle": { "frames": [0, 3], "fps": 8 } } }]
-  },
-  "enemyPresets": [{
-    "id": "bat", "name": "Bat", "sprite": "spr_bat",
-    "movement": "fly", "passWalls": true, "speed": 3, "hp": 2,
-    "aggroRange": 8, "idle": "patrol", "contactDamage": 1,
-    "projectile": null
-  }],
-  "map": {
-    "width": 400, "height": 150,
-    "layers": {
-      "background": "<RLE or base64 tile ids>",
-      "collision":  "<RLE or base64 tile kinds>",
-      "foreground": "<RLE or base64 tile ids>"
-    }
-  },
-  "entities": [
-    { "id": "e1", "type": "playerStart", "x": 3, "y": 140 },
-    { "id": "e2", "type": "abilityPickup", "x": 40, "y": 120, "ability": "doubleJump" },
-    { "id": "e3", "type": "enemy", "x": 60, "y": 118, "preset": "bat", "overrides": { "hp": 3 } },
-    { "id": "e4", "type": "rope", "x": 80, "y": 100, "length": 8 },
-    { "id": "e5", "type": "movingPlatform", "x": 90, "y": 110, "to": { "x": 98, "y": 110 }, "speed": 2 }
-  ]
-}
-```
+| Piece | Kind | Holds |
+| --- | --- | --- |
+| Player settings | ScriptableObject asset | The player tunables above, the starting abilities |
+| Enemy preset | ScriptableObject asset | The enemy settings above, a name, an animation set |
+| Terrain | Tile asset | Layout, kind, slots (§ Terrains) |
+| Animation set | ScriptableObject asset | Sprite frames and frame rate per animation state |
+| Map | Scene: a Grid with Background, Collision and Foreground Tilemaps | Terrains and plain tiles per cell |
+| Placed elements | Scene: prefab instances | Player start; ability pickup (ability); enemy (preset + overrides); rope (length); moving platform (end point, speed); crumbling platform; checkpoint; health pickup; exit |
 
-Open in the sketch: the layer encoding (RLE vs base64); whether `gravity` is a multiplier or an absolute value; the sketch's `collision` layer holds "tile kinds" while § Terrains stores terrain ids and tile references per layer (the format package settles the shape: kinds are derived from the collision layer's terrains and tiles); where `terrains` sits in the project (top level or under `assets`).
+Open in the sketch: whether `gravity` is a multiplier or an absolute value; whether a project has one player settings asset or settings on the Player start.

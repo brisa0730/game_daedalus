@@ -7,9 +7,9 @@
 
 Version + stack: [GDD.md](../Documents/GDD/GDD.md) header · Open issues: [Issues.md](../Documents/Operations/Issues.md) · Work plan: [Roadmap.md](../Documents/Operations/Roadmap.md) §1 · Open decisions: Roadmap §4 · Deferred cleanup: [Deferred.md](../Documents/Operations/Deferred.md).
 
-- **Latest: v0.02**: first decisions (custom Canvas 2D runtime, React editor, 16 px tiles, tile-system rules); only hosting still open. v0.01: project setup. No code yet.
+- **Latest: v0.03**: Unity platform (a Unity 6 package, code-free students in the Unity Editor, OpenUPM). v0.02: first decisions. v0.01: project setup. No code yet.
 - **Milestone:** **0 — Foundation** ([Roadmap.md](../Documents/Operations/Roadmap.md) §1).
-- **Next:** the `scaffold` plan ([Documents/Plans/scaffold.md](../Documents/Plans/scaffold.md)) with its render check; then `movement-prototype`. Next free phase number: **1**.
+- **Next:** write the Unity `scaffold` plan (`Documents/Plans/scaffold.md`, not yet written) with its performance check; then `movement-prototype`. Next free phase number: **1**.
 - ⚠️ **Phase numbers are assigned when a phase STARTS, never in advance.** Take the next free integer from the highest `phaseN-*.md` in `Documents/Phases/` and `Documents/Phases/archive/`, **never** from `Roadmap.md` §1, which lists unstarted work by name and order only.
 
 ## Recent work
@@ -22,7 +22,7 @@ Version + stack: [GDD.md](../Documents/GDD/GDD.md) header · Open issues: [Issue
 
 ## Architecture & references
 - [architecture.md](../Documents/GDD/architecture.md): system map, ownership, package boundaries (the GDD is the home)
-- [framework.md](memory/framework.md): browser / library gotchas
+- [framework.md](memory/framework.md): Unity / package gotchas
 
 ## Logs
 - [logs/phases/](memory/logs/phases/): per-phase implementation logs
