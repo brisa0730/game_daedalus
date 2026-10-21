@@ -1,7 +1,7 @@
 # Architecture
-**Last updated:** v0.05
+**Last updated:** v0.06
 
-Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the scaffold lands.
+Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assemblies and their reference direction landed with the scaffold (v0.06) and are guarded by EditMode tests.
 
 ## System Map
 
@@ -16,7 +16,8 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the sc
 
 ## Time Model
 
-- The sim advances in **fixed 60 Hz ticks**, driven by the runtime from Unity's frame loop with an accumulator; Unity's physics step is not used for gameplay. Rendering runs at the display rate and interpolates transforms between the last two sim states.
+- The sim advances in **fixed 60 Hz ticks**, driven by the runtime from Unity's frame loop with an accumulator (`FixedStepAccumulator`, in the sim); Unity's physics step is not used for gameplay. Rendering runs at the display rate and interpolates transforms between the last two sim states using the accumulator's interpolation fraction, always in [0, 1).
+- **Hitch policy:** after a long frame at most **5 ticks** run at once; whole ticks beyond that are dropped (the game slows down for a moment instead of spiralling), and only the fraction of a tick carries over.
 - Hit-stop (~50 ms) pauses the sim's gameplay advance, not rendering. Exact mechanism: decided in `combat-and-enemies`.
 - Authored times are seconds; the runtime converts them to ticks.
 

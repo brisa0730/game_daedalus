@@ -1,15 +1,19 @@
 {
-  "files.exclude": {
-    "**/.git": true,
-    "**/.DS_Store": true,
-    "**/Thumbs.db": true
-  },
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "TestResults": true
-  },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "editor.tabSize": 2,
-  "files.eol": "\n"
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/*.meta": true
+    },
+    "search.exclude": {
+        "Library": true,
+        "Temp": true,
+        "Logs": true,
+        "UserSettings": true,
+        "TestResults": true,
+        "Tools/compat": true
+    },
+    "editor.tabSize": 4,
+    "files.eol": "\n",
+    "dotnet.defaultSolution": "daedalus.slnx"
 }

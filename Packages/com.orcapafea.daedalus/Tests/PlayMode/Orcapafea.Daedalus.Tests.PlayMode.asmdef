@@ -1,0 +1,22 @@
+{
+    "name": "Orcapafea.Daedalus.Tests.PlayMode",
+    "rootNamespace": "Orcapafea.Daedalus.Tests",
+    "references": [
+        "Orcapafea.Daedalus.Sim",
+        "Orcapafea.Daedalus",
+        "UnityEngine.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

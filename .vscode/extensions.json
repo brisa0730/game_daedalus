@@ -1,6 +1,5 @@
 {
   "recommendations": [
-    "vitest.explorer",
-    "ms-playwright.playwright"
+    "visualstudiotoolsforunity.vstuc"
   ]
 }

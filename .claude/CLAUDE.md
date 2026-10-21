@@ -45,7 +45,7 @@ Read `.claude/MEMORY.md` and `Documents/GDD/GDD.md` to orient.
 ## Coding Conventions
 - **Language:** C#, as Unity 6000.0 supports it. The package must compile without warnings on 6000.0 (the minimum); an API added after 6.0 needs a version define and a 6000.0 fallback.
 - **Naming:** PascalCase for types, methods, properties, events and constants; camelCase for fields, locals and parameters (serialized private fields use `[SerializeField]`, no prefix). One primary type per file, and the filename matches it (`PlayerStepper.cs`, `TileGrid.cs`); Unity requires this for MonoBehaviours and ScriptableObjects. Namespaces: `Orcapafea.Daedalus.Sim`, `Orcapafea.Daedalus`, `Orcapafea.Daedalus.Editor`.
-- **Layout (proposed; the scaffold plan confirms it, then this line is updated):** the repo root is the dev Unity project (6000.6.7f1). `Packages/com.orcapafea.daedalus/` is the package: `Runtime/Sim/` (asmdef `Orcapafea.Daedalus.Sim`, no engine references), `Runtime/` (`Orcapafea.Daedalus`), `Editor/` (`Orcapafea.Daedalus.Editor`), `Tests/EditMode/`, `Tests/PlayMode/`, `Samples~/` (the starter: scene, example prefabs and the default art pack, imported from Package Manager). `Assets/`: dev-only test scenes, never shipped. `ProjectSettings/`. `Tools/`: scripts (batch-mode test and build wrappers).
+- **Layout:** the repo root is the dev Unity project (6000.6.7f1, cloned from the 2D template). `Packages/com.orcapafea.daedalus/` is the package: `Runtime/Sim/` (asmdef `Orcapafea.Daedalus.Sim`, no engine references), `Runtime/` (`Orcapafea.Daedalus`), `Editor/` (`Orcapafea.Daedalus.Editor`), `Tests/EditMode/` (`Orcapafea.Daedalus.Tests.EditMode`), `Tests/PlayMode/` (`Orcapafea.Daedalus.Tests.PlayMode`); `Samples~/` (the starter: scene, example prefabs and the default art pack) arrives with `editor-tools`. `Assets/`: the template's URP 2D settings and `Assets/Dev/` (dev-only harnesses such as the performance check; never shipped). `ProjectSettings/`. `Tools/`: Python scripts (`unity_tests.py`, `perf_check.py`); `Tools/compat/` holds the generated minimum-editor project (ignored).
 - **Data-driven systems:** the player, enemies and level elements are GameObjects with Daedalus components; terrains and animation sets are assets; the map is three Tilemaps. At play start the runtime converts them into sim data and validates them. Runtime objects own their transient state, and runtime code never writes to authored data. Play mode behaves as Unity's always does: edits made during it are thrown away when it ends, and students learn that.
 - **Tunable defaults:** every default value (run speed, gravity, coyote time, attack cooldown…) lives in ONE source of truth in the sim assembly, and the components take their initial values from it; never duplicated as a code default elsewhere. `Documents/GDD/entities.md` mirrors the values.
 - **Student projects:** a lost or broken student project is the worst bug this tool can have. Scene autosave from the editor tools (Unity does not autosave scenes), update safety per Architecture rule 4, and a fixture project per released package version that must still open. Validation warns; it never rejects a project because a tunable default changed.
@@ -59,8 +59,6 @@ Read `.claude/MEMORY.md` and `Documents/GDD/GDD.md` to orient.
 - **Commit titles:** version-bumping commits (Changelog entry + `GDD.md` bump) lead with the version prefix: `vX.YY: <subject> — <desc>`, where `<subject>` is `Phase NN` / `ISS-NNN` / a short topic, never the prefix itself. Non-version commits get a plain area prefix (`docs:`, `art:`, `memory:`, `Issues.md:`, etc.). The `validate-commit-title.py` hook blocks the disallowed `ISS-NNN:` and `[phaseNN]` prefixes.
 
 ## Testing
-> The test stack lands with the scaffold. Until then there is nothing to run; this section is the contract the scaffold must meet.
-
 - **EditMode (unit + scenario):** Unity Test Framework (NUnit), run in batch mode. Covers the sim and the data upgrade path. **Scenario tests** drive `Step()` with a scripted input sequence on a small hand-built map and assert positions and states tick by tick. They cover the collision edge cases (one-way platforms, moving platforms, ropes, wall climb, and their interactions), coyote time, jump buffering, the ability gates and the enemy AI rules. A run with zero tests must **fail** (the wrapper checks the result count).
 - **PlayMode:** batch mode with graphics (never `-nographics`) loads test scenes, exercises the runtime glue (Tilemap → sim, input, play-from-here entry, checkpoint saves) and captures screenshots to `TestResults/`. Claude **looks at the screenshots** before calling visible work done.
 - **Both editors:** every suite runs on **6000.0.85f1** (the minimum) and **6000.6.7f1** (dev).
@@ -71,10 +69,10 @@ Read `.claude/MEMORY.md` and `Documents/GDD/GDD.md` to orient.
 
 | Change touches | Run |
 |---|---|
-| Docs, tunable defaults, pure sim | EditMode suite, both editors |
-| Runtime glue, anything visible in Play mode | + PlayMode suite, and inspect the screenshots |
+| Docs, tunable defaults, pure sim | `python Tools/unity_tests.py --platform editmode` (both editors) |
+| Runtime glue, anything visible in Play mode | `python Tools/unity_tests.py` (both editors, both modes), and inspect `TestResults/*-render-smoke.png` |
 | Editor tools, inspectors | + an operator editor check |
-| Active radius, Tilemap rendering, entity counts | + the performance check (defined by the scaffold: a WebGL build with 200 entities, fps read in Chrome) |
+| Active radius, Tilemap rendering, entity counts | + `python Tools/perf_check.py`: read `TestResults/perf-check.json`, look at `perf-check.png` |
 
 ## Log Discipline — Write Once
 
@@ -114,7 +112,9 @@ Every fact has ONE home. When you finish a unit of work:
 Skipping is a workflow violation.
 
 ## Project Config
-- **Stack:** Unity 6, C#, shipped as the UPM package **`com.orcapafea.daedalus`** (`"unity": "6000.0"` minimum). A **custom kinematic sim** (own tile collision on the Collision Tilemap's grid, pure `Step()`; no Unity 2D physics for gameplay), Unity's Tilemap and SpriteRenderer for drawing, the **URP 2D Renderer**, the **Input System**, **2D Tilemap Extras** for rule, random and animated tiles. Exact package dependency versions land with the scaffold and are listed here.
+- **Stack:** Unity 6, C#, shipped as the UPM package **`com.orcapafea.daedalus`** (`"unity": "6000.0"` minimum). A **custom kinematic sim** (own tile collision on the Collision Tilemap's grid, pure `Step()`; no Unity 2D physics for gameplay), Unity's Tilemap and SpriteRenderer for drawing, the **URP 2D Renderer**, the **Input System**, **2D Tilemap Extras** for rule, random and animated tiles.
+- **Package dependencies** (`package.json`, exact versions, checked by `PackageManifestTests`): `com.unity.modules.tilemap` 1.0.0, `com.unity.modules.imageconversion` 1.0.0. **Rule:** a new dependency declares the version Unity 6000.0's 2D template ships (e.g. Input System 1.11.2, URP 17.0.3, Test Framework 1.4.5), never a newer one; newer editors resolve upward. An API that differs between versions needs a version define.
+- **Dev project packages** (`Packages/manifest.json`, from the 6000.6.7f1 2D template, minus Unity Version Control, Visual Scripting and the tutorial framework): 2D Animation 16.0.1 · Aseprite 6.0.0 · PSD Importer 15.0.1 · 2D Sprite 1.0.0 · SpriteShape 16.0.0 · 2D Tilemap 1.0.0 · Tilemap Extras 9.0.1 · 2D Tooling 4.0.1 · Rider 3.1.0 · Visual Studio 2.0.26 · Input System 1.20.1 · URP 17.6.0 · Test Framework 1.8.0 · Timeline 6.6.0 · uGUI 2.6.0; `testables`: the package.
 - **Editors:** develop on **6000.6.7f1**; every test also runs on **6000.0.85f1**, the minimum. Both installed through Unity Hub (`C:\Program Files\Unity\Hub\Editor\<version>`).
 - **Distribution:** students install from **OpenUPM** (a scoped registry added once per project; Package Manager's Update button; no Git needed on student machines). Development installs use the git URL `https://github.com/brisa0730/game_daedalus.git?path=/Packages/com.orcapafea.daedalus`. Releases are semver git tags on the public GitHub repo.
 - **Target platform:** students run the Unity Editor on their school laptops (the operator confirmed the hardware). Finished games are WebGL builds played in desktop Chrome. Keyboard + gamepad (Input System). No mobile/touch in v1.
@@ -122,8 +122,10 @@ Skipping is a workflow violation.
 - **Working directories:** see Coding Conventions → Layout. Do not create other top-level directories without asking.
 - **Art:** a default art pack ships with the tool (a CC0 pack to start), at 16 px tiles. It ships in the package's `Samples~/`; every third-party pack carries its license file beside it.
 - **Handshake review root:** `Documents/Review/` overrides the portable default of `handshake/` at the repo root (see `.claude/skills/handshake/protocol.md`). Created per handshake; nothing persists there between runs.
-- **Read-only directories** (do not edit): `Library/` (including the package cache), `Temp/`, `Logs/`, `UserSettings/`, and any vendored third-party code (list each one here when it lands).
-- **Build / run:** defined by the scaffold plan (batch-mode test wrappers per editor, the WebGL build); list every command here when it lands. Claude runs all of them.
+- **Read-only directories** (do not edit): `Library/` (including the package cache), `Temp/`, `Logs/`, `UserSettings/`, `Tools/compat/` (generated), and any vendored third-party code (list each one here when it lands).
+- **Build / run:** Claude runs all of them. Close the dev project in the Unity Editor first: batch mode can't open a project that is already open (the wrapper reports it).
+  - `python Tools/unity_tests.py [--editor 6000.0|6000.6|all] [--platform editmode|playmode|all] [--filter NAME] [--project PATH]`: runs the suites in batch mode; 6000.6 on the dev project, 6000.0 on `Tools/compat/6000.0/` (created on first run, package referenced by `file:` path). Fails on a non-zero Unity exit, a missing or incomplete `results.xml` in the run's own fresh folder (`TestResults/runs/…`), zero tests, any failure, the mode's test assembly not running (unfiltered runs), our assemblies not being compiled in the run (the wrapper deletes them first so warnings are always checked) or a compiler warning in our package. Passing results are copied to `TestResults/<editor>-<platform>.xml`; PlayMode writes `TestResults/<unity version>-render-smoke.png`.
+  - `python Tools/perf_check.py [--skip-build]`: release WebGL build of `Assets/Dev/PerfCheck` (500 × 200 Tilemap, 200 moving sprites, full-width camera sweep) with 6000.6.7f1 into `TestResults/perf-build/`, served on localhost and measured in Chrome. Gate: p95 frame interval ≤ 20 ms (primary), mean ≥ 58 fps, sweep ≥ 500 tiles. Writes `TestResults/perf-check.json` + `perf-check.png`.
 - **Version control:** GitHub remote `origin`. Git LFS tracked types: see `.gitattributes`.
 
 ## Agents & Skills

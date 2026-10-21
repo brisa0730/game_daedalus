@@ -1,21 +1,30 @@
-# Dependencies
-node_modules/
+# Unity generated
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
 
-# Build output
-dist/
-out/
-build/
-.vite/
+# IDE / solution files Unity regenerates
+.vs/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb.meta
+*.mdb.meta
 
-# Test and measurement output (Playwright screenshots, traces, coverage)
+# Test, build and measurement output
 TestResults/
-test-results/
-playwright-report/
-coverage/
 
-# Logs
-*.log
-npm-debug.log*
+# Throwaway compat project for the minimum editor (Tools/unity_tests.py)
+/Tools/compat/
 
 # Environment
 .env

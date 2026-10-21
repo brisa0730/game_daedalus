@@ -27,6 +27,8 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **When a measurement disagrees with the record, prove which one moved.** Do not assume it was the code; the environment or the measurement may have changed.
 - **Measure performance against a bare control before trusting a frame cap or an fps number.** Framework internals (a library's own ticker, vsync wake-ups) can cost more than your loop.
 - **Stopping a background test run means confirming every process in it is gone.** Kill the runner itself, list again, and report only what the listing shows.
+- **A planted failure must change the expectation only, never a value the code under test also reads.** Changing a shared constant moves both sides and the test still passes (scaffold: the PlayMode colour plant first changed `SpriteColor`, which also drew the sprite).
+- **A compiler-warning gate only sees what was compiled in that run.** Unity prints warnings only when it builds the assembly; on a warm cache the gate checks nothing. Force the build and assert it happened before trusting "no warnings" (scaffold code review).
 
 ## Data & state
 - **A save/project validator must not depend on tunable data.** Comparing stored values with current defaults turns every retune into a rejected (lost) save. Validate shape, invariants and content only; re-derive caches on load.
@@ -49,6 +51,7 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **The orientation file (`MEMORY.md`) must never carry content.** It is read before anything can correct it.
 - **A handshake fold-in is new text with the same defect rate as any other: re-verify your own fix before handing it back.** Corrections are written fast under the authority of a finding and skip scrutiny; the residue concentrates in whatever was rewritten most.
 - **`/scope` → `/new-phase` writes the phase prompt as a real file and asks approval by showing it; do NOT run it inside plan mode.** Plan mode blocks the write. Exit plan mode before invoking `/new-phase`.
+- **When `/scope` routes to a plan, follow its plan path; don't also enter Claude Code's plan mode.** Plan mode can only write a private file, so it blocks `Documents/Plans/` and the handshake files and puts an approval prompt in front of the operator that `/scope` doesn't have (operator correction, 2026-10-21).
 
 ## Tooling / environment
 - **Never put a PowerShell here-string (`@'…'@`) in a Bash tool call.** Bash parses it as a literal `@` + quoted string + `@`, silently corrupting the argument. For a multi-line commit message in Bash use `git commit -F <file>` or a POSIX heredoc; keep `@'…'@` for the PowerShell tool.

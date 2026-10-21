@@ -1,0 +1,26 @@
+{
+    "name": "Orcapafea.Daedalus.Tests.EditMode",
+    "rootNamespace": "Orcapafea.Daedalus.Tests",
+    "references": [
+        "Orcapafea.Daedalus.Sim",
+        "Orcapafea.Daedalus",
+        "Orcapafea.Daedalus.Editor",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

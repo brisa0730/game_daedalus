@@ -12,13 +12,11 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 | # | Phase | Shipped | Record |
 |---|---|---|---|
+| — | Scaffold (plan, Milestone 0) | v0.06 | [Changelog v0.06](Changelog.md), [plan](../Plans/archive/scaffold.md) |
 
 ## 1. Milestones & Phases
 
 Each milestone ends with something playable.
-
-### Milestone 0 — Foundation
-- **Scaffold** (plan `scaffold`): the dev Unity project at the repo root (6000.6.7f1, URP 2D Renderer, Input System) with Unity's `.gitignore`, text serialization and `.vscode` setup; the package skeleton `Packages/com.orcapafea.daedalus` (`package.json` with `"unity": "6000.0"`, the three assemblies, the guards); EditMode and PlayMode suites seen failing then passing in batch mode on **both** 6000.0.85f1 and 6000.6.7f1; a first PlayMode screenshot; the package installed by git URL into a fresh 6000.0 project as proof; and the **performance check** (WebGL build, 500 × 200 Tilemap, 200 moving sprites, fps in Chrome). Fills CLAUDE.md § Project Config (package pins, build/run commands) and confirms the Layout line.
 
 ### Milestone 1 — `movement-prototype` (days 1–4)
 A dev test scene; run, jump (variable height, coyote time, buffering), double jump, wall slide / jump / climb (climbable tiles), rope climb. Scenario tests for every collision edge case. The runtime accepts a **start position and an ability set** from the start (the hook play-from-here needs). The Player component is tuned in Play mode (values copied out with Copy / Paste Component Values) so feel is tuned together, early. **Gate:** the operator play-checks the feel and tunes the defaults; this is the quality bar for everything else.
@@ -77,4 +75,5 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 | Decision | Options | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | Auto-tile layouts on Unity's Tilemap (reopens v0.02's "all three, dual-grid first") | Rule Tiles for blob + single only · plus a custom dual-grid tool (a display Tilemap offset half a tile, driven from the logical Collision Tilemap) | Blob + single on Rule Tiles first: they come with 2D Tilemap Extras and cover a CC0 pack. Build dual-grid only if the mid-`editor-tools` student check shows students drawing their own terrain need it | `editor-tools` |
+| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before milestone 5: OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |
 | Hosting for shared WebGL builds | A teacher-run static site (e.g. GitHub Pages) · itch.io under a teacher account · handing the build folder around (no hosting) | Decide before milestone 5 | `assets-and-sharing` |
