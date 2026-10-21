@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.04
+**Last updated:** v0.05
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -65,7 +65,7 @@ Students work in the Unity Editor, and its usability with our tools decides whet
 - **Play from start:** Unity's Play button, with only the starting abilities.
 - **Daedalus components:** every kind of game object is one component in the Add Component menu under **Daedalus** (§ Placeable elements in [entities.md](entities.md)). Adding it makes the object work; it needs nothing else from Unity. A few add-ons extend one component (e.g. Shoots Projectiles on an Enemy). The starter's ready-made prefabs are examples to inspect and copy, not the main way to build.
 - **Inspectors:** at most ~8 settings per component (the Player: per collapsible section), each a slider, toggle or dropdown with a tooltip; mode-specific settings show only in their mode; internals hidden.
-- **Live tuning:** edits to Daedalus components made during Play mode are kept when Play mode ends, instead of reverting like other Unity edits; Unity's Play-mode tint shows when edits are live.
+- **Play mode:** no special treatment. Edits made during Play mode are thrown away when it ends, as everywhere in Unity; this is one of the things students learn. Unity's Play-mode tint (set in the starter's guidance) shows when edits won't stick.
 - **Missing-piece hints:** a component that needs something (e.g. an Enemy with no sprite) says so in a help box in plain words.
 - **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.

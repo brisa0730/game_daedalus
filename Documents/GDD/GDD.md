@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.04 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1), C#; custom kinematic sim, Unity Tilemap + sprites, students build in the Unity Editor (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.05 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1), C#; custom kinematic sim, Unity Tilemap + sprites, students build in the Unity Editor (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
 
 ---
 
@@ -36,7 +36,8 @@ A Unity package where students build their own Ori / Hollow Knight-style platfor
 - **Hosting for shared builds**: decide before `assets-and-sharing` ([Roadmap.md](../Operations/Roadmap.md) §4).
 - **Auto-tile layouts on Unity's Tilemap**: Unity has no dual-grid tilemap ([Roadmap.md](../Operations/Roadmap.md) §4).
 
-**Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs; Play-mode edits to Daedalus components are kept.
+**Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs (students learn prefabs and overrides).
+**Decided (v0.05):** no special Play-mode treatment: edits made in Play mode are thrown away as everywhere in Unity; students learn it (and Copy / Paste Component Values to keep a tuned result).
 **Decided (v0.03):** a Unity 6 package, `com.orcapafea.daedalus`, installed from OpenUPM; any Unity 6 (minimum 6000.0), developed on 6000.6.7f1 and tested on 6000.0.85f1 too; code-free for students; a custom kinematic sim (no Unity 2D physics for gameplay) on Unity's Tilemap and sprites; Unity's editor replaces the planned React editor.
 **Still in force from v0.02:** 16 px tiles; auto-targeting attack only; wall climb only on climbable tiles; collision only from the collision layer; spikes are hazard tiles; fixed default sound effects; a CC0 art pack to start; no student accounts in v1.
 

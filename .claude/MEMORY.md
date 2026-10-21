@@ -7,7 +7,7 @@
 
 Version + stack: [GDD.md](../Documents/GDD/GDD.md) header · Open issues: [Issues.md](../Documents/Operations/Issues.md) · Work plan: [Roadmap.md](../Documents/Operations/Roadmap.md) §1 · Open decisions: Roadmap §4 · Deferred cleanup: [Deferred.md](../Documents/Operations/Deferred.md).
 
-- **Latest: v0.04**: component model (Add Component workflow, ≤ ~8 settings per component, enemy prefabs). v0.03: Unity platform (Unity 6 package, OpenUPM). v0.02: first decisions. v0.01: project setup. No code yet.
+- **Latest: v0.05**: plain Unity behavior (enemy prefabs confirmed, no Play-mode special case). v0.04: component model (Add Component workflow, ≤ ~8 settings per component). v0.03: Unity platform (Unity 6 package, OpenUPM). v0.02: first decisions. v0.01: project setup. No code yet.
 - **Milestone:** **0 — Foundation** ([Roadmap.md](../Documents/Operations/Roadmap.md) §1).
 - **Next:** write the Unity `scaffold` plan (`Documents/Plans/scaffold.md`, not yet written) with its performance check; then `movement-prototype`. Next free phase number: **1**.
 - ⚠️ **Phase numbers are assigned when a phase STARTS, never in advance.** Take the next free integer from the highest `phaseN-*.md` in `Documents/Phases/` and `Documents/Phases/archive/`, **never** from `Roadmap.md` §1, which lists unstarted work by name and order only.

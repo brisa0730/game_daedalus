@@ -1,5 +1,5 @@
 # Architecture
-**Last updated:** v0.04
+**Last updated:** v0.05
 
 Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the scaffold lands.
 
@@ -9,7 +9,7 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the sc
 |---|---|---|
 | **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
 | **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The Daedalus components students add and tune, and our assets; reading the scene (Collision Tilemap, objects with Daedalus components) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
-| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, keeping Play-mode edits (live tuning), the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
+| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
 | **Unity** (not ours) | Scene view, Tile Palette, Tilemap, Inspector, prefabs, undo/redo, scene saving, Sprite Editor, Package Manager, WebGL build | — |
 
 **Dependency direction:** editor tools → runtime → sim, enforced by assembly references. The sim references nothing.

@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.04
+**Last updated:** v0.05
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -18,7 +18,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Shared build | Draft | A WebGL build of a student's game, played in a browser. |
 | Play-from-here | Draft | Entering Play mode at the Scene-view cursor with a chosen ability set; leaving Play mode returns to the same view. |
 | Play from start | Draft | Unity's Play button: starting at the Player start with only the starting abilities, the real experience. |
-| Live tuning | Draft | Changing Daedalus components in the Inspector during Play mode; unlike other Unity edits, the changes are kept when Play mode ends. |
+| Live tuning | Draft | Changing component settings in the Inspector during Play mode to try them out. As everywhere in Unity, the changes are thrown away when Play mode ends; Copy / Paste Component Values keeps a result. |
 | Ability | Draft | One of the player's built-in moves (run, jump, double jump, wall jump, wall climb, rope climb, attack); on from the start or unlocked by a pickup. |
 | Ability pickup | Draft | A placed element that unlocks one ability. |
 | Ability gating | Draft | Progression by making areas reachable only with a given ability. |

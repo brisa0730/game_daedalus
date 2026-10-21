@@ -8,6 +8,11 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.05 — plain Unity behavior (2026-10-21) · **docs only, no code**
+
+- **Landed.** The operator confirmed enemy types as plain Unity prefabs (students should learn prefabs and overrides) and dropped the planned "keep Play-mode edits" tool: Play mode throws edits away as everywhere in Unity, and students learn that. Tuning results are kept with Copy / Paste Component Values.
+- **GDD deltas.** GDD v0.04 → v0.05: [GDD.md](../GDD/GDD.md) (Decided), [systems.md](../GDD/systems.md) (Editor Tools → Play mode), [architecture.md](../GDD/architecture.md) (editor tools), [Glossary.md](../GDD/Glossary.md) (Live tuning); [Roadmap.md](Roadmap.md) milestones 1 and 4; CLAUDE.md Data-driven systems; `decisions.md`. Commit: `v0.05: plain Unity behavior — enemy prefabs confirmed, no Play-mode special case`.
+
 ## v0.04 — component model (2026-10-21) · **docs only, no code**
 
 - **Landed.** The operator set the audience and learning goals: adults in their early 20s who barely know Unity learn to place objects, add components through the Inspector and tweak settings, on a tool simpler than Corgi Engine / Flare with only basic platformer features. Students now build objects with Add Component: one Daedalus component per kind of object plus a few add-ons, at most ~8 visible settings each (the Player per collapsible section), mode-specific settings hidden. Enemy types become Unity prefabs (presets dropped); Play-mode edits to Daedalus components are kept (live tuning without settings assets).
