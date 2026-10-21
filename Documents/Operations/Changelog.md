@@ -8,6 +8,11 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.04 — component model (2026-10-21) · **docs only, no code**
+
+- **Landed.** The operator set the audience and learning goals: adults in their early 20s who barely know Unity learn to place objects, add components through the Inspector and tweak settings, on a tool simpler than Corgi Engine / Flare with only basic platformer features. Students now build objects with Add Component: one Daedalus component per kind of object plus a few add-ons, at most ~8 visible settings each (the Player per collapsible section), mode-specific settings hidden. Enemy types become Unity prefabs (presets dropped); Play-mode edits to Daedalus components are kept (live tuning without settings assets).
+- **GDD deltas.** GDD v0.03 → v0.04: [GDD.md](../GDD/GDD.md) (pitch: audience, learning goals, why; pillar 7 "Few settings, good defaults"; core loop), [systems.md](../GDD/systems.md) (Enemies, Editor Tools), [entities.md](../GDD/entities.md) (enemy settings, placeable elements, authored data), [architecture.md](../GDD/architecture.md), [platforms.md](../GDD/platforms.md), [Glossary.md](../GDD/Glossary.md); [Roadmap.md](Roadmap.md) §1; CLAUDE.md Architecture rules 1, 4, 8 and conventions; `decisions.md`. Commit: `v0.04: component model — Add Component workflow, ≤8 settings per component, enemy prefabs`.
+
 ## v0.03 — Unity platform (2026-10-21) · **docs only, no code**
 
 - **Landed.** The operator moved the project from a browser tool to a **Unity 6 package** that students use inside the Unity Editor, code-free: package `com.orcapafea.daedalus`, installed from OpenUPM, minimum Unity 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1 too. The custom pure sim carries over (its own assembly, no engine references, no Unity 2D physics for gameplay); Unity's Tilemap, sprites, URP 2D, Input System and editor replace the Canvas 2D renderer and the React editor. The browser scaffold (its plan and code) was removed from git history at the operator's request, so this v0.03 follows v0.02 directly.

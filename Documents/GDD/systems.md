@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.03
+**Last updated:** v0.04
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -27,7 +27,7 @@ One player character with every ability built in. Per project, each ability is e
 
 ## Enemies
 
-One enemy object. Students make enemy types by combining settings ([entities.md](entities.md) § Enemy settings) and save them as named presets ("Bat", "Slime"). Placed enemies reference a preset, with optional per-instance overrides.
+One **Enemy** component. Students make enemy types by choosing its settings ([entities.md](entities.md) § Enemy settings) and, for shooters, adding the **Shoots Projectiles** add-on; they save a finished enemy as a prefab ("Bat", "Slime"). Placed copies of the prefab can override values (Unity's prefab overrides).
 
 **AI rules (no pathfinding):**
 - **Idle:** stand still or patrol back and forth until the player enters aggro range.
@@ -59,12 +59,14 @@ On touching a checkpoint, the played game saves position, unlocked abilities and
 
 ## Editor Tools
 
-Students work in the Unity Editor, and its usability with our tools decides whether they succeed. **Unity provides** navigation (Scene view pan and zoom), tile painting (Tile Palette: brush, box fill, eraser, picker; the active Tilemap picks the layer), placement (dragging the starter's prefabs into the scene; move, delete, multi-select), the Inspector, undo/redo and saving. **Our tools add only what Unity lacks.** **Play-from-here is the most important one.**
+Students work in the Unity Editor, and its usability with our tools decides whether they succeed. **Unity provides** navigation (Scene view pan and zoom), tile painting (Tile Palette: brush, box fill, eraser, picker; the active Tilemap picks the layer), creating and placing objects, Add Component, prefabs and prefab overrides, the Inspector, undo/redo and saving. **Our tools add only what Unity lacks.** **Play-from-here is the most important one.**
 
 - **Play-from-here:** a Scene-view shortcut enters Play mode at the cursor position with a chosen set of abilities (checkboxes in the daedalus window). Leaving Play mode returns to the same Scene view. The runtime accepts a start position and an ability set from `movement-prototype` on, so the tool only has to pass them.
 - **Play from start:** Unity's Play button, with only the starting abilities.
-- **Inspectors:** every student-facing setting as a slider, toggle or dropdown with a tooltip; internals hidden. Player settings live on a settings asset, so changes made during Play mode persist (live tuning) instead of reverting like ordinary component edits.
-- **Enemy presets:** preset assets students create, name and edit; placed enemies reference one, with per-instance overrides.
+- **Daedalus components:** every kind of game object is one component in the Add Component menu under **Daedalus** (§ Placeable elements in [entities.md](entities.md)). Adding it makes the object work; it needs nothing else from Unity. A few add-ons extend one component (e.g. Shoots Projectiles on an Enemy). The starter's ready-made prefabs are examples to inspect and copy, not the main way to build.
+- **Inspectors:** at most ~8 settings per component (the Player: per collapsible section), each a slider, toggle or dropdown with a tooltip; mode-specific settings show only in their mode; internals hidden.
+- **Live tuning:** edits to Daedalus components made during Play mode are kept when Play mode ends, instead of reverting like other Unity edits; Unity's Play-mode tint shows when edits are live.
+- **Missing-piece hints:** a component that needs something (e.g. an Enemy with no sprite) says so in a help box in plain words.
 - **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.
 - **Scene autosave:** Unity does not autosave scenes; the tools save the open scene on entering Play mode and on a timer.

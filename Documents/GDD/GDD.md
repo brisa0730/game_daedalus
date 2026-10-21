@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.03 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1), C#; custom kinematic sim, Unity Tilemap + sprites, students build in the Unity Editor (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.04 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1), C#; custom kinematic sim, Unity Tilemap + sprites, students build in the Unity Editor (no code yet; exact versions will live in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
 
 ---
 
@@ -8,9 +8,11 @@
 
 ## The Pitch
 
-A Unity package where students build their own Ori / Hollow Knight-style platformer **inside the Unity Editor**, without code. They paint a big map with the Tile Palette, drag in a player start, enemies, ropes, checkpoints, ability pickups and an exit, tune the hero and the enemies with Inspector sliders, press play from anywhere to test, and share the finished game as a WebGL build.
+A Unity package where students build their own Ori / Hollow Knight-style platformer **inside the Unity Editor**, without code. They paint a big map with the Tile Palette, place objects and turn them into a player, enemies, ropes, checkpoints, ability pickups and an exit by adding our components, tune them with Inspector sliders, press play from anywhere to test, and share the finished game as a WebGL build.
 
-Learning the Unity Editor is part of the point: the Scene view, the Tile Palette, the Inspector, prefabs, Play mode and builds are skills students keep. Code is not: students never open a script. (v0.03 replaces the v0.01–v0.02 browser tool; see `decisions.md`.)
+**Audience:** adults in their early 20s who have barely used Unity. **Learning goals:** placing objects, adding components through the Inspector, and tweaking settings; along the way the Scene view, the Tile Palette, prefabs, Play mode and builds. Code is not a goal: students never open a script.
+
+**Why build it:** asset-store platformer kits such as Corgi Engine and Flare are too hard for beginners: abilities spread over many components, each full of complex settings. daedalus covers only the basics of a normal platformer, with few settings per component and good defaults. (v0.03 replaces the v0.01–v0.02 browser tool; see `decisions.md`.)
 
 ## Design Pillars
 
@@ -19,20 +21,22 @@ Learning the Unity Editor is part of the point: the Scene view, the Tile Palette
 3. **One class session.** On a machine with the package installed, in one session a student can paint, place, tune, test from anywhere, save and share.
 4. **Play-from-here.** Testing any spot, with any set of abilities, is one keypress away. It is the most important editor tool.
 5. **One genre, done well.** One player, one attack, one configurable enemy, one big continuous map. Scope creep pushes students toward scripting.
-6. **Unity's tools first.** Students use Unity's own Scene view, Tile Palette, Inspector, prefabs, undo and builds wherever they exist. We add only what Unity lacks: the game rules, play-from-here, presets, validation.
+6. **Unity's tools first.** Students use Unity's own Scene view, Tile Palette, Inspector, prefabs, undo and builds wherever they exist. We add only what Unity lacks: the game rules as components, play-from-here, validation. Enemy types are ordinary Unity prefabs.
+7. **Few settings, good defaults.** One component makes a thing work; each shows at most ~8 settings. If a component needs more, it is doing too much.
 
 ## Core Loop
 
-**Student (maker):** paint (Tile Palette) and place (prefabs) → tune (Inspector) → play-from-here → fix → repeat → save → WebGL build → share.
+**Student (maker):** paint (Tile Palette) → place objects and add components (Inspector) → tune (Inspector) → play-from-here → fix → repeat → save → WebGL build → share.
 **Classmate (player):** open the shared build in a browser → explore one continuous map → collect ability pickups that open new areas → survive enemies and hazards → reach the exit.
 
-**v1 success:** in one class session a student can (1) paint a large map with tiles; (2) place the player start, enemies, hazards, ropes, checkpoints, ability pickups and an exit; (3) tune the player and enemies with Inspector sliders and toggles; (4) press play from any spot, with chosen abilities, and test; (5) save the scene and share the finished game as a WebGL build.
+**v1 success:** in one class session a student can (1) paint a large map with tiles; (2) place the player, enemies, ropes, checkpoints, ability pickups and an exit by adding components to objects, and paint hazards; (3) tune the player and enemies with Inspector sliders and toggles; (4) press play from any spot, with chosen abilities, and test; (5) save the scene and share the finished game as a WebGL build.
 
 ## Open Questions
 
 - **Hosting for shared builds**: decide before `assets-and-sharing` ([Roadmap.md](../Operations/Roadmap.md) §4).
 - **Auto-tile layouts on Unity's Tilemap**: Unity has no dual-grid tilemap ([Roadmap.md](../Operations/Roadmap.md) §4).
 
+**Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs; Play-mode edits to Daedalus components are kept.
 **Decided (v0.03):** a Unity 6 package, `com.orcapafea.daedalus`, installed from OpenUPM; any Unity 6 (minimum 6000.0), developed on 6000.6.7f1 and tested on 6000.0.85f1 too; code-free for students; a custom kinematic sim (no Unity 2D physics for gameplay) on Unity's Tilemap and sprites; Unity's editor replaces the planned React editor.
 **Still in force from v0.02:** 16 px tiles; auto-targeting attack only; wall climb only on climbable tiles; collision only from the collision layer; spikes are hazard tiles; fixed default sound effects; a CC0 art pack to start; no student accounts in v1.
 

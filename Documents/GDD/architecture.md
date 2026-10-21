@@ -1,5 +1,5 @@
 # Architecture
-**Last updated:** v0.03
+**Last updated:** v0.04
 
 Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the scaffold lands.
 
@@ -8,8 +8,8 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the sc
 | Part | Owns | Must not |
 |---|---|---|
 | **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
-| **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The components and ScriptableObjects students place and edit; reading the scene (Collision Tilemap, placed elements, settings assets) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
-| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
+| **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The Daedalus components students add and tune, and our assets; reading the scene (Collision Tilemap, objects with Daedalus components) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
+| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, keeping Play-mode edits (live tuning), the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
 | **Unity** (not ours) | Scene view, Tile Palette, Tilemap, Inspector, prefabs, undo/redo, scene saving, Sprite Editor, Package Manager, WebGL build | — |
 
 **Dependency direction:** editor tools → runtime → sim, enforced by assembly references. The sim references nothing.
@@ -23,7 +23,7 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. Draft until the sc
 ## Data Flow
 
 1. Students edit the scene and our assets with Unity's tools; Unity owns undo/redo and saving.
-2. **Play from start** (Unity's Play button): the runtime reads the Collision Tilemap, the placed elements and the settings assets into the sim; the player starts at the Player start with the starting abilities.
+2. **Play from start** (Unity's Play button): the runtime reads the Collision Tilemap and the Daedalus components into the sim; the player starts where it was placed with the starting abilities.
 3. **Play-from-here:** an editor tool records a start position and an ability set (the student's checkboxes) and enters Play mode; the runtime reads them at start instead of the Player start. Leaving Play mode returns to the same Scene view.
 4. A WebGL build runs step 2.
 5. **1 Unity unit = 1 tile.** Sprites import at 16 pixels per unit; nothing else sees pixels.

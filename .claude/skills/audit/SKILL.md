@@ -61,7 +61,7 @@ Spawn **parallel Explore agents** (in focus mode, only the agent(s) covering `$A
 Clusters are keyed to the package's assembly folders under `Packages/com.orcapafea.daedalus/`. Skip a cluster whose directories don't exist yet (report it as not-yet-implemented).
 
 **Agent A — Authored Data & Defaults:**
-- Directories: `Runtime/` ScriptableObjects and serialized components, `Runtime/Sim/` defaults, `Samples~/` (starter scene, prefabs, presets, art + license files)
+- Directories: `Runtime/` ScriptableObjects and serialized components, `Runtime/Sim/` defaults, `Samples~/` (starter scene, example prefabs, art + license files)
 - GDD refs: `architecture.md`, `entities.md`, `conventions.md`
 - Special focus: default player / enemy values vs `entities.md` tables (values must match; ONE source of truth in the sim, no code defaults duplicating them); update safety (renamed serialized fields keep `[FormerlySerializedAs]`, every structural change has an upgrade step keyed by a data version, a fixture project per released package version); units in tiles / tiles-per-second / seconds, 1 Unity unit = 1 tile; every asset committed with its `.meta`.
 
@@ -78,7 +78,7 @@ Clusters are keyed to the package's assembly folders under `Packages/com.orcapaf
 **Agent D — Editor Tools & Wiring:**
 - Directories: `Editor/`
 - GDD refs: `systems.md` (Editor Tools, Tile System, Asset Import, Share), `architecture.md`, `conventions.md`
-- Special focus: **the editor tools contain no gameplay logic** — play-from-here hands a start position + ability set to the runtime and enters Play mode; every edit goes through Unity's `Undo`; scene autosave works; validation warnings cover the GDD list; every student-facing field has a slider / toggle / dropdown, a default and a tooltip, and internals stay hidden.
+- Special focus: **the editor tools contain no gameplay logic** — play-from-here hands a start position + ability set to the runtime and enters Play mode; every edit goes through Unity's `Undo`; scene autosave works; validation warnings cover the GDD list; every student-facing field has a slider / toggle / dropdown, a default and a tooltip; no component shows more than ~8 settings (Player: per section); a component needs nothing else from Unity; internals stay hidden.
 - **Inter-module wiring verification** (this agent's unique responsibility):
   - Read the entry points end-to-end and trace the dependency graph: verify every system receives its dependencies explicitly (constructor or Inspector), with no static instances or `Find`-style lookups.
   - Check that no module is wired to another module's internals — only to interfaces or shared infrastructure.

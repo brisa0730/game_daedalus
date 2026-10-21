@@ -1,5 +1,5 @@
 # Platforms
-**Last updated:** v0.03
+**Last updated:** v0.04
 
 ## Engine & Targets
 
@@ -13,7 +13,7 @@
 - **Development:** the git URL `https://github.com/brisa0730/game_daedalus.git?path=/Packages/com.orcapafea.daedalus`.
 - **Releases** are semver git tags on the public GitHub repo; OpenUPM builds each tag.
 - **Update safety:** an update must never break a saved student project (CLAUDE.md Architecture rule 4). Students update when the teacher says so, not mid-project on their own.
-- The **starter** (a scene, element prefabs, presets, the default art pack) imports from Package Manager as a package sample.
+- The **starter** (a scene, example prefabs, the default art pack) imports from Package Manager as a package sample.
 
 ## Input
 
