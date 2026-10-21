@@ -3,6 +3,7 @@
 Each entry leads with a **bolded one-line rule**, then as much context (the why, the tell, the source issue/version) as the lesson needs. Full incident narratives live in `Documents/Operations/Changelog.md`; durable architectural decisions live in `decisions.md`. When a lesson recurs 3+ times, promote it into `CLAUDE.md`.
 
 ## Universal Rules
+- **Ask right before every push, even when an approved plan includes it.** A plan approval or a "go" is not consent to an outward-facing action buried in its steps; stop and confirm at the moment of pushing (operator correction, 2026-10-21, scaffold Step 10).
 - **Do NOT over-implement beyond requested scope.** Stubs mean stubs.
 - **"Computed/produced but never consumed/enforced" is a defect class: trace BOTH ends of every decision-influencing wire.** When adding a producer, grep for the consumer first. The most dangerous variant is a safety/validation check that fails OPEN on missing input.
 - **A value that lives in more than one place (design table > data file > code default) drifts.** Keep one source of truth, or a fresh build silently behaves differently from the shipped one.

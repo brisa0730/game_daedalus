@@ -15,6 +15,7 @@ type: reference
 - Compiler warnings appear in the log only when Unity builds the assembly in that run; a Bee **cache hit** (`Csc … [CacheHit …]`) still prints them, a fully warm run (no `Csc` line) prints nothing. Deleting `Library/ScriptAssemblies/<asm>.*` and `Library/Bee/artifacts/*/<asm>.*` forces a cheap cache-hit rebuild.
 - A package referenced by `file:` path from a 6000.0 project is not modified by the older editor (package files byte-identical after a run).
 - The Visual Studio package writes `.vscode/launch.json` on first open.
+- **Windows 260-character paths:** a git-installed package lives in `Library/PackageCache/<name>@<hash>/`. Unity compiles it fine from a deep folder, but `File.ReadAllText` in our EditMode guards throws `DirectoryNotFoundException` once a file path reaches 260 characters, even though `File.Exists` returned true. Keep generated test projects in short paths (`Tools/compat/`); a typical student path is ~150 characters.
 
 ## Rendering checks (6000.0.85f1, 6000.6.7f1)
 - `Camera.targetTexture` + `Camera.Render()` + `ReadPixels` works in batch-mode PlayMode tests (with graphics) under URP 2D; with `Sprite-Unlit-Default` and point-filtered generated textures the colours come back exactly.

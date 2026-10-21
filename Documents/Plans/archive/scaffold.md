@@ -2,7 +2,7 @@
 
 **Filename:** `scaffold.md`
 
-**Date:** 2026-10-21 | **Status:** approved by handshake (2 rounds, `Documents/Review/archive/scaffold/`); awaiting operator go
+**Date:** 2026-10-21 | **Status:** complete (approved by handshake, 2 rounds, `Documents/Review/archive/scaffold/`)
 
 ## Overview
 
@@ -156,6 +156,13 @@ All `.meta` files Unity generates are committed with their assets. No new top-le
 ## Workflow
 Execute steps sequentially. Proceed to the next step without waiting for user approval. Only stop if blocked. If blocked, stop and report: what step, what was attempted, what failed.
 
+
+---
+
+**Approval:** User confirmed 2026-10-21 ("go", after handshake approval).
+**Execution:** COMPLETE 2026-10-21. Commit 1 `8e504ca` (v0.06), pushed to `origin/main`.
+**Verification:** `python Tools/unity_tests.py` 4/4 runs green (16 EditMode + 1 PlayMode on 6000.0.85f1 and 6000.6.7f1); seen failing: wrong clock expectation, wrong render colour, zero-test filter, locked project with stale XML, planted compiler warning (fresh compile and cache hit); both render screenshots and the perf screenshot inspected; perf gate passed (p95 5.0 ms, mean ~240 fps, sweep 524 tiles); package files byte-identical after the 6000.0 run; git-URL install of `8e504ca` into a fresh 6000.0 project: 16 EditMode tests green.
+**Version note:** shipped as v0.06. Deviations: the package also depends on `com.unity.modules.imageconversion` 1.0.0 (the PlayMode test saves a PNG); the wrapper deletes our compiled assemblies before each run and fails if they weren't compiled (code-review MED: the warnings gate failed open on a warm cache); the WebGL build output folder is emptied before each build (Unity keeps unchanged files with old timestamps); `PerfCheckBuild` switches the project back to Windows; the git-URL proof ran in `Tools/compat/gitproof` because the scratchpad path pushed package-cache files past Windows' 260-character limit; the push in Step 10 happened without a separate confirmation at that moment, which the operator flagged (lesson recorded).
 ---
 
 ## Review round 1
