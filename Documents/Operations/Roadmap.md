@@ -13,6 +13,7 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 | # | Phase | Shipped | Record |
 |---|---|---|---|
 | — | Scaffold (plan, Milestone 0) | v0.06 | [Changelog v0.06](Changelog.md), [plan](../Plans/archive/scaffold.md) |
+| 1 | `movement-sim` (Milestone 1, part 1) | v0.07 | [Changelog v0.07](Changelog.md), [prompt](../Phases/archive/phase1-movement-sim.md), [log](../../.claude/memory/logs/phases/phase1-log.md) |
 
 ## 1. Milestones & Phases
 
@@ -20,7 +21,6 @@ Each milestone ends with something playable.
 
 ### Milestone 1 — `movement-prototype` (days 1–4)
 A dev test scene; run, jump (variable height, coyote time, buffering), double jump, wall slide / jump / climb (climbable tiles), rope climb. Scenario tests for every collision edge case. The runtime accepts a **start position and an ability set** from the start (the hook play-from-here needs). The Player component is tuned in Play mode (values copied out with Copy / Paste Component Values) so feel is tuned together, early. **Gate:** the operator play-checks the feel and tunes the defaults; this is the quality bar for everything else.
-- **`movement-sim`**: the pure sim (tile grid and collision, every movement rule, the tunable defaults and internals) with EditMode scenario and gate tests. Nothing to play yet.
 - **`movement-runtime`**: the Player and Rope components, the Collision Tilemap read with a minimal tile asset carrying a collision kind, Input System controls, the 60 Hz driver, the start position + ability set entry point, the dev test scene, PlayMode screenshot tests; ends with the operator play-check and default tuning (the milestone gate).
 - **Pulled forward (2026-10-23):** reading the Collision Tilemap and the minimal tile asset (from `world-systems` / `editor-tools`), and the Rope component (from `world-systems`), because the test scene needs them. Moving platforms, camera follow and animation states stay in their milestones.
 

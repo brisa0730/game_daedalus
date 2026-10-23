@@ -1,37 +1,57 @@
 # Entities & Data
-**Last updated:** v0.04
+**Last updated:** v0.07
 
-Values here mirror the single source of truth in the sim assembly once it exists (CLAUDE.md § Coding Conventions → Tunable defaults). Until then the numbers below are a starting sketch, not tuned defaults. Milestone 1 tunes them with the operator.
+Values here mirror the single source of truth in the sim assembly (CLAUDE.md § Coding Conventions → Tunable defaults): movement defaults and ranges in `MovementSettings`, movement internals in `MovementInternals` (both pinned by `MovementSettingsTests`; change the code, the test and this file together). Movement values are **starting values**: Phase 2's operator play-check tunes them. Combat values are still a sketch.
 
 **Units:** 1 Unity unit = 1 tile; positions and distances in tiles; speeds in tiles per second; times in seconds.
 
 ## Player tunables
 
-**Exposed to students as sliders:** run speed, acceleration, jump height, double-jump count, gravity, max fall speed, wall slide speed, climb speed, max HP, attack damage, attack range, attack cooldown.
-**Internal (good defaults, not exposed):** coyote time, jump buffer, hit-stop, wall-jump input lock, i-frame duration.
+Student-facing settings, by Player section (field = `MovementSettings` identifier):
 
-| Setting | Field (sketch) | Sketch value |
+| Section | Setting | Field | Default | Range |
+|---|---|---|---|---|
+| Movement | Run speed (tiles/s) | `RunSpeed` | 6 | 1–12 |
+| Movement | Time to full speed (s, from rest on the ground) | `TimeToFullSpeed` | 0.1 | 0–0.5 |
+| Movement | Jump height (tiles) | `JumpHeight` | 3.5 | 1–6 |
+| Movement | Gravity (multiplier over base gravity) | `Gravity` | 1 | 0.25–2 |
+| Movement | Max fall speed (tiles/s) | `MaxFallSpeed` | 12 | 2–24 |
+| Abilities | Toggles: double jump, wall jump, wall climb, rope climb | `Abilities` | jump only | — |
+| Abilities | Air jumps (with double jump) | `AirJumps` | 1 | 1–3 |
+| Abilities | Wall slide speed (tiles/s, with wall jump; never above max fall) | `WallSlideSpeed` | 2 | 0.5–6 |
+| Abilities | Climb speed (tiles/s, walls and ropes) | `ClimbSpeed` | 3 | 1–8 |
+
+- **Time to full speed** replaces "acceleration". Ground deceleration (× 1.5) and turnaround (× 2) are derived from it; air control is internal (× 0.75 of the ground rates).
+- **Gravity** is a multiplier over base gravity 57.142857 tiles/s², which comes from a 0.35 s time to apex at jump height 3.5. Jump velocity is derived from jump height and rising gravity, so changing gravity changes timing only, never the jump height.
+- Out-of-range or non-finite values are clamped (non-finite → default) when applied.
+
+Combat (sketch, combat-and-enemies): max HP 5, attack damage 1, attack range 6, attack cooldown 0.25; internal hit-stop ~0.05 s, i-frames ~1 s. The Player-start question is settled by Phase 2 (`movement-runtime`).
+
+**Movement internals** (hidden; `MovementInternals`; 60 Hz ticks):
+
+| Internal | Value | Derived at defaults |
 |---|---|---|
-| Run speed | `runSpeed` | 6 |
-| Jump height | `jumpHeight` | 3.5 |
-| Gravity | `gravity` | 1 |
-| Max fall speed | `maxFallSpeed` | 12 |
-| Max HP | `maxHp` | 5 |
-| Air jumps (double-jump count) | `airJumps` | 1 |
-| Wall slide speed | `wallSlideSpeed` | 2 |
-| Climb speed | `climbSpeed` | 3 |
-| Attack damage | `attack.damage` | 1 |
-| Attack range | `attack.range` | 6 |
-| Attack cooldown | `attack.cooldown` | 0.25 |
-| Starting abilities | `startingAbilities` | `["jump"]` |
-| Hit-stop | (internal) | ~0.05 s |
-| I-frames | (internal) | ~1 s |
-
-Acceleration (ground and air), coyote time, jump buffer and the wall-jump lock have no sketch value yet; Milestone 1 sets them.
+| Time to apex (sets base gravity) | 0.35 s | base gravity 57.142857 tiles/s², jump velocity 20 tiles/s |
+| Fall gravity factor (while vy ≤ 0) | 1.75 | fall gravity 100 tiles/s² |
+| Minimum hop (a jump released at once) | 1.25 tiles | cut velocity 11.952 tiles/s |
+| Coyote time / jump buffer / wall coyote | 0.1 s each | 6 ticks each |
+| Wall-jump input lock / rope re-grab lockout | 0.2 s each | 12 ticks each |
+| Air control factor | 0.75 | air accel 45, decel 67.5, turnaround 90 tiles/s² |
+| Deceleration / turnaround factor | 1.5 / 2 | ground accel 60, decel 90, turnaround 120 tiles/s² |
+| Wall-jump push factor (× run speed) | 1.5 | push-off 9 tiles/s |
+| Wall-jump reach | 0.125 tile | |
+| Ceiling-corner correction (max) | 0.25 tile | |
+| Hitbox | 0.75 × 1.5 tiles | position = feet centre; grip point = hitbox centre (0.75 above the feet) |
+| Ledge-pop inset | 0.375 tile | popped centre 0.75 past the wall face |
+| Rope grab reach | 0.375 tile | |
+| Rope top tolerance | 0.0625 tile | |
+| Drop-through nudge | 0.0625 tile | |
+| Contact epsilon | 0.0001 tile | |
+| Start search radius | 8 cells | |
 
 ## Abilities
 
-`run`, `jump`, `doubleJump`, `wallJump` (wall slide + wall jump), `wallClimb`, `ropeClimb`, `attack`. Pickups can unlock: double jump, wall jump, wall climb, rope climb, attack. Exact identifiers are set by the sim.
+Sim identifiers (`Abilities` flags): `Jump`, `DoubleJump`, `WallJump` (wall slide + wall jump), `WallClimb`, `RopeClimb`. **Run is always on and has no flag** (a toggle that gates nothing would do nothing). `Attack` arrives with combat-and-enemies. Pickups can unlock: double jump, wall jump, wall climb, rope climb, attack.
 
 ## Enemy settings
 

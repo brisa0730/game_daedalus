@@ -118,11 +118,12 @@ def check(run_dir, exit_code, started, platform, filtered, project):
             return False, f"results.xml does not parse: {error}"
 
     if exit_code != 0:
-        if looks_locked(log_text, project):
+        errors = sorted(set(OUR_ERROR.findall(log_text)))[:10]
+        # A compile error also exits early and leaves Temp/UnityLockfile behind, so it must not read as "open".
+        if not errors and looks_locked(log_text, project):
             return False, "the project is open in another Unity instance; close it and rerun"
         if exit_code == 2 and root is not None:
             return False, "test failures: " + ", ".join(failed_test_names(root))
-        errors = sorted(set(OUR_ERROR.findall(log_text)))[:10]
         detail = ("\n    " + "\n    ".join(errors)) if errors else f" (see {log_path})"
         return False, f"Unity exited with code {exit_code}{detail}"
 

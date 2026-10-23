@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.06
+**Last updated:** v0.07
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -36,3 +36,30 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Dual-grid layout | Draft | The 16-tile auto-tile layout drawn half a tile off the logical grid; collision stays on the logical grid. |
 | Tile Palette | Draft | Unity's window for painting tiles and terrains onto a Tilemap. |
 | Operator | Draft | The person directing the project and making its design decisions. |
+| Contact state | Draft | What the player is touching and moving by: air, ground, one-way top, wall slide, wall cling or rope (`PlayerContact`). |
+| Coyote time | Draft | A short window (0.1 s) after walking off a ledge in which a jump still counts as a ground jump. |
+| Wall coyote | Draft | The same window after leaving a wall slide or cling: a wall jump still works. |
+| Jump buffer | Draft | A jump pressed shortly (0.1 s) before landing or reaching a wall fires as soon as it can. |
+| Air jump | Draft | A jump in mid-air with double jump; as many as the Air jumps setting. |
+| Minimum hop | Draft | The height (1.25 tiles) of a jump released at once. |
+| Jump-press priority | Draft | The one order in which a jump press is resolved: drop-through > ground/coyote > rope > wall > air > buffer. |
+| Wall slide | Draft | Sliding slowly down an ordinary wall while pressing into it (needs wall jump). |
+| Wall jump | Draft | A jump off a wall that pushes away from it. |
+| Wall-jump input lock | Draft | A short time (0.2 s) after a wall jump in which horizontal input is ignored. |
+| Wall cling | Draft | Holding onto a climbable wall, climbing up and down it (needs wall climb). |
+| Ledge pop | Draft | Climbing over the open top of a climbable wall onto its top. |
+| Drop-through | Draft | Down + jump on a one-way platform: falling through it. |
+| One-way platform | Draft | A tile you jump through from below and stand on from above. |
+| Climbable wall | Draft | A tile (kind climbable) that wall climb can cling to; otherwise a solid wall. |
+| Rope | Draft | A vertical, ladder-style rope or vine; in the sim a rope segment (centre x, bottom, top). |
+| Re-grab lockout | Draft | A short time (0.2 s) after jumping off or letting go of a rope in which it can't be grabbed again. |
+| Hitbox | Draft | The player's collision box: 0.75 × 1.5 tiles; its position is the feet centre. |
+| Grip point | Draft | The hitbox centre, 0.75 tile above the feet: where ropes and climbable walls are gripped. |
+| Base gravity | Draft | Gravity at multiplier 1: 57.142857 tiles/s², from a 0.35 s time to apex at jump height 3.5. |
+| Gravity multiplier | Draft | The Gravity setting: a multiple of base gravity; it changes jump timing, never jump height. |
+| Time to full speed | Draft | The setting for how fast the player reaches run speed from rest on the ground, in seconds. |
+| Ceiling-corner correction | Draft | Sliding a rising head at most 0.25 tile sideways past a ceiling corner it barely clips. |
+| Nearest free start | Draft | Moving a start that is inside solid to the nearest free spot within 8 cells. |
+| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out resets to the start for now). |
+| Tile grid | Draft | The sim's 0-based grid of tile kinds, filled from the Collision Tilemap at play start. |
+| Scenario test | Draft | An EditMode test that steps the sim through a scripted input sequence on a small ASCII map and checks it tick by tick. |

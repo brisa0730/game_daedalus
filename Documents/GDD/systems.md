@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.05
+**Last updated:** v0.07
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -9,13 +9,43 @@ One player character with every ability built in. Per project, each ability is e
 
 | Ability | Behavior | Notes |
 | --- | --- | --- |
-| Run | Accelerate / decelerate on ground and in air | Separate ground and air acceleration |
+| Run | Accelerate / decelerate on ground and in air | Air control is a fixed fraction of ground (internal) |
 | Jump | Variable height (release early = shorter jump) | Coyote time and jump buffering required |
 | Double jump | Extra jump(s) in the air; resets on landing, wall or rope | Count is a setting (default 1) |
 | Wall slide + wall jump | Slow slide when pressing into a wall; jump pushes away | Brief input lock after a wall jump so the player doesn't re-stick |
 | Wall climb | Cling and move up/down a wall | Only on **climbable** tiles (tile kind `climbable`); other walls allow wall slide + wall jump only |
 | Rope / vine climb | Grab a vertical rope, climb up/down, jump off | Ladder-style, no swinging |
 | Attack | One attack: auto-targeting; see Combat & Damage | No melee slash in v1 |
+
+### Movement rules (sim, v0.07)
+
+Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](entities.md) § Player tunables. Settled with the operator on 2026-10-23 unless marked **(proposal)**; proposals are confirmed or changed at Phase 2's play-check.
+
+- **Contact states:** air, ground (≥ 1 solid or climbable cell underfoot), one-way top (one-way cells only), wall slide, wall cling, rope.
+- **Tick order:** tick-start contacts → jump press → input transitions (rope grab, leaving a slide or cling) → velocity by contact → move (X swept first at the old height, then Y; trapezoid integration, impulses before gravity) → post-move classification (land, walk off, slide/cling entry, climb and rope limits, head bump, fall-out) → facing → counters.
+- **Jump-press priority** (one rule, first match wins): drop-through > ground/coyote jump > rope jump > wall jump (touching or within 0.125) > air jump > buffer.
+- **Coyote** only after walking off a ledge; a coyote jump spends no air jump and clears the window. **Wall coyote:** yes. **Rope coyote:** no.
+- **Buffer** fires only ground or wall jumps; a buffered press released before landing gives a minimum hop.
+- **Variable height** by velocity cut; minimum hop 1.25 tiles; air-jump height = jump height.
+- **Air jumps reset** only on landing, an active wall state (slide or cling, which need the ability) or a rope grab. A wall slide refills only on a **different wall face** than the one last jumped from (including a jump from wall coyote), so double jump + wall jump can't scale one wall; chimneys refill as usual (operator, 2026-10-23, option (b)).
+- **Drop-through:** Down + a fresh press on a one-way top; works with jump off, consumes the press, no coyote. Straddling one-way and solid, solid wins (normal jump). A buffered jump landing on a one-way with Down held jumps.
+- **One-way:** catches the feet only if they were at or above its top before the move; its sides are never walls; it is never a ceiling.
+- **Walls:** slide only while falling and pressing in; the wall-jump input lock (0.2 s) holds the push speed. **No single-wall scaling on ordinary walls at defaults (deliberate, unlike HK/Celeste):** repeated wall jumps lose ~0.8–1.0 tile per jump (measured). Chimneys up to 5 tiles wide are climbable with wall jump; 6 wide is not (measured at defaults).
+- **Wall climb** only on climbable tiles; climbable with wall climb off is an ordinary wall; ledge pop at an open top; wall climb without wall jump is allowed, and jumping off a cling always pushes away.
+- **Ropes:** ladder-style; grab with Up or Down only and snap to the rope's centre; climb up/down; re-grab lockout 0.2 s; at the top, step onto a one-way platform there, else stop; off the bottom, let go; full-height rope jump that spends no air jump; overlapping ropes: the first in list order wins.
+- **Collision:** X then Y sweeps (correct at any speed); falling diagonally onto an outside corner lands on top; a head bump zeroes upward speed; ceiling-corner correction slides a rising head at most 0.25 tile past a corner (never while on a rope).
+- **Map bounds:** the sides and top are solid; falling out of the bottom resets to the start (temporary, until pits damage in combat-and-enemies).
+- **Nearest free start:** a start inside solid moves to the nearest free cell-centred spot within 8 cells (ties: up, then left).
+- **(proposal)** With jump off there are no ground or coyote jumps, but air jumps work after walking off a ledge.
+- **(proposal)** Wall jump: full jump height at 1.5 × run speed push-off. Two walls in reach: the pressed side, then the nearer, then the left.
+- **(proposal)** Cling entry: toward a climbable wall in the air while falling or holding Up, or Up + toward on the ground. Neutral holds; pressing away lets go (with wall coyote). A rising jump past a climbable face doesn't cling by itself. Climbing off the bottom of a climbable run lets go without wall coyote.
+- **(proposal)** Timer convention: a window of N ticks is active on the N ticks after it is set (coyote, buffer, wall coyote 6; lock, lockout 12).
+- **(proposal)** A rope can be grabbed from above with Down while standing on a one-way at its top. Standing, Up grabs a rope in reach; Down grabs only in that case. Ropes are grabbed only from the air or standing.
+- **(proposal, from phase 1 code review)** Down + jump while on a rope lets go without a jump (the re-grab lockout applies), so "hold Down, then jump" on a rope's platform drops instead of rope-jumping. Climbing down onto a one-way just under a rope's bottom stands on it.
+- **(proposal)** Rope jump horizontal speed = input × run speed. Climb speed is shared by walls and ropes.
+- **(proposal)** Landing ends the wall-jump input lock.
+- **(proposal)** Every numeric internal value ([entities.md](entities.md) § Player tunables).
+- **Observed for the play-check (not a rule change):** against a wall with wall jump unlocked, a press at the apex is a wall jump (priority), not an air jump. A ledge that needs double jump is reached by air-jumping away from the wall, not while hugging it.
 
 ## Combat & Damage
 
@@ -46,7 +76,8 @@ One large continuous map: no rooms, no screen transitions. Progression comes fro
 
 - **Map:** a Unity Grid of 1-unit cells, with 16 px tile art. Up to ~500 × 200 tiles.
 - **Layers:** three Tilemaps: Background, Collision, Foreground. **Only the Collision Tilemap affects gameplay**: a tile's kind counts only there; Background and Foreground are always decoration.
-- **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System).
+- **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System). In the sim (`TileKind`): None 0, Solid 1, OneWay 2, Climbable 3 (collides as solid); 4 is reserved for hazard (combat-and-enemies). The runtime fills a 0-based `TileGrid` from the Collision Tilemap at play start.
+- **Ropes** reach the sim as a list of vertical segments (`RopeSegment`: centre x, bottom, top).
 - **Placeable elements:** [entities.md](entities.md) § Placeable elements.
 
 ## Camera

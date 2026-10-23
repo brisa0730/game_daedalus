@@ -29,6 +29,8 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **Measure performance against a bare control before trusting a frame cap or an fps number.** Framework internals (a library's own ticker, vsync wake-ups) can cost more than your loop.
 - **Stopping a background test run means confirming every process in it is gone.** Kill the runner itself, list again, and report only what the listing shows.
 - **A planted failure must change the expectation only, never a value the code under test also reads.** Changing a shared constant moves both sides and the test still passes (scaffold: the PlayMode colour plant first changed `SpriteColor`, which also drew the sprite).
+- **A planted failure must be observable to the compiler, or the compiler removes it.** An unused boxed local in `Step` never allocated, so the allocation guard stayed green; plant an allocation whose result is used (phase 1).
+- **A diagnosis heuristic must check the definite signal before the circumstantial one.** `unity_tests.py` read "lockfile present + early exit" as "project open" and hid a compile error that also leaves the lockfile; check `error CS` first (phase 1).
 - **A compiler-warning gate only sees what was compiled in that run.** Unity prints warnings only when it builds the assembly; on a warm cache the gate checks nothing. Force the build and assert it happened before trusting "no warnings" (scaffold code review).
 
 ## Data & state

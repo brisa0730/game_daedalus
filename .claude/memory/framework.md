@@ -17,6 +17,13 @@ type: reference
 - The Visual Studio package writes `.vscode/launch.json` on first open.
 - **Windows 260-character paths:** a git-installed package lives in `Library/PackageCache/<name>@<hash>/`. Unity compiles it fine from a deep folder, but `File.ReadAllText` in our EditMode guards throws `DirectoryNotFoundException` once a file path reaches 260 characters, even though `File.Exists` returned true. Keep generated test projects in short paths (`Tools/compat/`); a typical student path is ~150 characters.
 
+- A **compile error** in batch mode also exits right after "Successfully changed project path to:" and **leaves `Temp/UnityLockfile` behind** (no Unity process running), so it looks exactly like "project already open". `unity_tests.py` checks for `error CS` lines before applying the lock heuristic (phase 1).
+
+## Allocation checks in EditMode tests (6000.0.85f1, 6000.6.7f1, Windows 11)
+- `GC.GetAllocatedBytesForCurrentThread()` compiles but **does not see allocations** in either editor's EditMode tests (a planted `new byte[1024]` gives a delta of 0). Never trust a zero from it without a planted-allocation check.
+- The Test Framework's `Is.Not.AllocatingGCMemory()` (namespace `UnityEngine.TestTools.Constraints`; `.Not.AllocatingGCMemory()` is an extension method, so import the namespace and alias NUnit's `Is` to avoid CS0104) **works in batch mode on both editors**: it detects a planted `new byte[1024]` and a planted `new int[1]` inside `PlayerStepper.Step`.
+- A planted `object x = someEnum;` boxing whose result is unused **did not register**: the compiled code doesn't allocate. Plant an allocation whose result is used.
+
 ## Rendering checks (6000.0.85f1, 6000.6.7f1)
 - `Camera.targetTexture` + `Camera.Render()` + `ReadPixels` works in batch-mode PlayMode tests (with graphics) under URP 2D; with `Sprite-Unlit-Default` and point-filtered generated textures the colours come back exactly.
 

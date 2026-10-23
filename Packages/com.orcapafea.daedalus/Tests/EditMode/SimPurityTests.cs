@@ -1,8 +1,12 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using Orcapafea.Daedalus.Sim;
 
 namespace Orcapafea.Daedalus.Tests
 {
@@ -19,6 +23,7 @@ namespace Orcapafea.Daedalus.Tests
             new Regex(@"\bGuid\s*\.\s*NewGuid\b"),
             new Regex(@"\bEnvironment\b"),
             new Regex(@"\bTickCount"),
+            new Regex(@"\bSystem\s*\.\s*Linq\b"),
         };
 
         // Strings and comments are blanked together, so "//" inside a string can't hide the rest of a line.
@@ -61,7 +66,38 @@ namespace Orcapafea.Daedalus.Tests
             Assert.IsNotEmpty(FindForbidden("using UnityEngine;"));
             Assert.IsNotEmpty(FindForbidden("var now = DateTimeOffset.UtcNow;"));
             Assert.IsNotEmpty(FindForbidden("var url = \"http://x\"; var t = Environment.TickCount;"));
+            Assert.IsNotEmpty(FindForbidden("using System.Linq;"));
             Assert.IsEmpty(FindForbidden("// Random is fine in a comment\n/* so is DateTime */ int x = 1;"));
+        }
+
+        // Static mutable state is a singleton (CLAUDE.md Architecture rule 5). Compiler-generated types are
+        // skipped on purpose: their lambda caches hold no game state, and lambdas in Step are banned by review.
+        [Test]
+        public void SimHasNoStaticMutableState()
+        {
+            var hits = new List<string>();
+            int checkedFields = 0;
+            foreach (Type type in typeof(FixedStepAccumulator).Assembly.GetTypes())
+            {
+                if (type.IsDefined(typeof(CompilerGeneratedAttribute), false))
+                {
+                    continue;
+                }
+                const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                foreach (FieldInfo field in type.GetFields(flags))
+                {
+                    checkedFields++;
+                    bool immutable = field.IsLiteral
+                        || (field.IsInitOnly && (field.FieldType.IsValueType || field.FieldType == typeof(string)));
+                    if (!immutable)
+                    {
+                        hits.Add($"{type.FullName}.{field.Name}");
+                    }
+                }
+            }
+            Assert.That(checkedFields, Is.GreaterThan(0), "The scan found no static fields; it would pass without checking anything.");
+            Assert.IsEmpty(hits, "Static mutable fields in the sim (only const, or static readonly of a value type or string, is allowed):\n"
+                + string.Join("\n", hits));
         }
 
         static IEnumerable<string> FindForbidden(string source)

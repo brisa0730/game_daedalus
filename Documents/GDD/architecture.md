@@ -1,5 +1,5 @@
 # Architecture
-**Last updated:** v0.06
+**Last updated:** v0.07
 
 Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assemblies and their reference direction landed with the scaffold (v0.06) and are guarded by EditMode tests.
 
@@ -7,7 +7,7 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assembli
 
 | Part | Owns | Must not |
 |---|---|---|
-| **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
+| **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults. Since v0.07: the tile grid and tile collision (filled by the runtime at play start), player movement (`PlayerStepper`), `MovementSettings` / `MovementInternals` | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
 | **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The Daedalus components students add and tune, and our assets; reading the scene (Collision Tilemap, objects with Daedalus components) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
 | **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
 | **Unity** (not ours) | Scene view, Tile Palette, Tilemap, Inspector, prefabs, undo/redo, scene saving, Sprite Editor, Package Manager, WebGL build | — |
