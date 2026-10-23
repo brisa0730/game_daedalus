@@ -53,9 +53,8 @@ Package root `P/` = `Packages/com.orcapafea.daedalus/`.
 | NEW | `P/Runtime/Player.cs` | The Player component |
 | NEW | `P/Runtime/PlayStart.cs` | Readonly start: feet (world) + abilities |
 | NEW | `P/Runtime/Rope.cs` | The Rope component: length + Scene-view line |
-| MODIFY | `P/Runtime/Sim/RopeSegment.cs` | `DefaultLength` / `MinLength` / `MaxLength` consts |
-| MODIFY | `P/Runtime/Sim/MovementInternals.cs` | `MapHeadroomRows`, `RopeTopSnap` |
-| MODIFY | `P/Runtime/Sim/RopeSegment.cs` | `SnapTopTo(TileGrid)`: rope tops snap onto a one-way surface |
+| MODIFY | `P/Runtime/Sim/RopeSegment.cs` | `DefaultLength` / `MinLength` / `MaxLength` consts (Step 4); `SnapTopTo(TileGrid)`: rope tops snap onto a one-way surface (Step 6) |
+| MODIFY | `P/Runtime/Sim/MovementInternals.cs` | `MapHeadroomRows` (Step 5), `RopeTopSnap` (Step 6) |
 | MODIFY | `P/Runtime/Sim/PlayerState.cs` | `Teleported` one-tick flag |
 | MODIFY | `P/Runtime/Sim/PlayerStepper.cs` | Sets `Teleported` on fall-out reset |
 | NEW | `P/Runtime/CollisionMap.cs` | Read result: `TileGrid` + world origin |
@@ -108,7 +107,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
   - `Debug.LogWarning(text, context)` in plain words, with the object as context
   - every text lives in `PlayerWarnings` so tests assert the same string
   - a warning says what is wrong and what to do; it never names code
-- **During a step:** run `python Tools/unity_tests.py --editor 6000.6` with the relevant `--platform`. Both editors run at Step 15. Close the dev project in the Unity Editor first.
+- **During a step:** run `python Tools/unity_tests.py --editor 6000.6` with the relevant `--platform`. Both editors run at Step 16. Close the dev project in the Unity Editor first.
 - **Tests:** assert through the real entry points (`Player` lifecycle, `PlayerSession.Tick`, the real Input System actions). Every test asserts its precondition. Screenshots go to `DAEDALUS_TEST_RESULTS` / `TestResults` as `<unity version>-movement-<name>.png`.
 
 ---
@@ -411,7 +410,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
 ### Step 12: Dev test scene generator
 - **NEW `Assets/Dev/Editor/MovementTestSceneBuilder.cs`**: `Orcapafea.Daedalus.Dev`, Assembly-CSharp-Editor, following the `PerfCheckBuild` pattern.
     - **Entry points:** menu `Daedalus Dev/Rebuild Movement Test Scene`, and `public static void Build()` for batch mode, which ends with `EditorApplication.Exit(0|1)`.
-    - **Layout:** built from an ASCII array in the builder: `#` plain Tile, `-` one-way, `C` climbable, `R` rope cells, `P` player, `b` Background-only decoration.
+    - **Layout:** built from an ASCII array in the builder, with Phase 1's `AsciiLevel` symbols: `#` plain Tile, `-` one-way, `C` climbable, `R` rope cells, `+` one-way with a rope through it, `P` player; plus `b` Background-only decoration.
     - **One screen, fixed orthographic camera:** at most 35 × 22 tiles, camera size 11, centred, so the whole level fits a 16:10 school-laptop Game view (size 11 shows 22 rows and 35.2 columns at 16:10; 40 columns would lose about 5). Features may share rows to fit. It contains:
       - a floor
       - 3- and 4-tile ledges, and a 6-tile ledge for double jump
@@ -445,7 +444,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
 - **NEW `P/Tests/PlayMode/TestImages.cs`**: `Save(Texture2D, string name)`, `ReadBack(RenderTexture)`, `Count(Color32[], Color32)`, `SolidSprite(Color32, w, h, pivot)`. All moved from `RenderSmokeTests` with identical behaviour; the caller passes created objects in for teardown.
 - **MODIFY `RenderSmokeTests.cs`**: uses `TestImages`. The render-smoke picture and asserts are unchanged.
 - **NEW `P/Tests/PlayMode/Movement/TestLevel.cs`** (started in Step 9, finished here):
-    - ASCII → Grid + Collision/Background Tilemaps + plain/`DaedalusTile` tiles + Rope objects + a Player (abilities via internal accessors, created inactive then activated so `Awake` sees the setup)
+    - ASCII (the `AsciiLevel` symbols, Step 12) → Grid + Collision/Background Tilemaps + plain/`DaedalusTile` tiles + Rope objects + a Player (abilities via internal accessors, created inactive then activated so `Awake` sees the setup)
     - a camera on a `RenderTexture` at 16 px per tile
     - `Shot(name)`; cleanup of everything created
 - **NEW `MovementTourTests.cs`** (`InputTestFixture`, `captureFramerate = 60`). Each scripted run asserts its outcome state and saves a picture:
@@ -461,11 +460,11 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
     - **Setup:** build a tour level and warm up for 120 frames.
     - **Freeze Unity's own calls:** set `Time.timeScale = 0`. `Update` still runs but advances no ticks.
     - **Measure:** call `player.RunFrame(1/60f)` directly 600 times, in batches. Between batches, change the device state (hold right, press/release Space, hold Down, Up at the rope) and call `InputSystem.Update()`.
-      - Around each `RunFrame` call only, sum `GC.GetAllocatedBytesForCurrentThread()` deltas.
-      - Assert a total of 0, and that the run passed through Ground, Air, OneWayTop, Rope and a reset.
+      - Each batch of `RunFrame` calls (and nothing else) runs inside the Test Framework's `Is.Not.AllocatingGCMemory()` constraint, as in Phase 1's `StepAllocationTests` (`GC.GetAllocatedBytesForCurrentThread` sees nothing in Unity; `framework.md`). The batch delegates are created before the window.
+      - Assert every batch passes, and that the run passed through Ground, Air, OneWayTop, Rope and a reset.
       - The `settingsDirty` path is exercised once inside the window.
-    - **Probe sanity first:** `new byte[1024]` must show ≥ 1024, otherwise fail with "probe unsupported" (no vacuous pass).
-    - **Fallback:** follow Phase 1 Step 13: Unity Test Framework's `Is.Not.AllocatingGCMemory()` constraint around the same calls; if neither probe works on an editor, record it in `framework.md`, `[Ignore]` with the reason, and code review alone carries the guarantee there.
+    - **Probe sanity first:** the same constraint around a used `new byte[1024]` must fail (no vacuous pass).
+    - **Fallback:** Phase 1 proved the constraint in EditMode only. If it doesn't detect the planted allocation in PlayMode on an editor, record it in `framework.md`, `[Ignore]` with the reason, and code review alone carries the guarantee there.
 - **Verify:** `[automated]` PlayMode green with the sanity branch observed.
 
 ### Step 15: Student-path test
@@ -539,6 +538,7 @@ In the dev scene `Assets/Dev/MovementTest/MovementTest.unity`, every ability on.
     - fall into the pit
     - press Up with nothing around
     - stop Play, untick one ability at a time and replay: that surface must stay passive
+    - **Phase 1's hand-over** (phase 1 log, "For the operator"): try each **(proposal)** in `systems.md` § Movement rules and confirm or change it, including Down + Jump on a rope (lets go without a jump) and climbing down a rope onto a one-way just under its bottom (lands on it); a jump pressed at the apex next to a wall is a wall jump, not an air jump; Phase 1's open questions: the 5 / 6 gap breakpoint, and no Run ability flag
 - **Observe:**
     - movement feels responsive and the jump arc is satisfying
     - the full jump clears the 3-tile ledge and visibly not the 4
@@ -648,13 +648,15 @@ Synced at completion (GDD v0.07 → v0.08). **(proposal)** marks Claude's fill-i
 
 **conventions.md**
 - § Authored Data & Upgrades: every component/asset has a hidden `dataVersion` (starts at 1); explicit enum values that are never renumbered; serialized names fixed from first release.
-- § Performance Idioms: the frame loop rules; one-shot warnings; the `PlayerAllocationTests` guard.
+- § Performance Idioms (extending Phase 1's `Step` rules): the frame loop rules; one-shot warnings; the `PlayerAllocationTests` guard.
 - § Error Handling: warning texts live in one class, plain words, the object as context.
 - § Testing & Playtesting: `InputTestFixture` by composition; `Time.captureFramerate = 60`; PlayMode levels built in code (`TestLevel`) so both editors run them; the dev scene is generated and verified by its self-check and picture.
 
-**Glossary.md (Draft):** Player (component), Rope (component), Daedalus tile, Collision kind, Play start, Player session, Feet offset, Map headroom, Reset snap, Play-start scan.
+**systems.md § Movement rules:** drop the **(proposal)** marker from each rule the play-check confirmed; rewrite the ones it changed.
 
-**framework.md:** Input System versions per project; `InputTestFixture` setup; `ObjectFactory.AddComponent` and `Reset()`; `EnterPlayMode` in batch mode; any `FindObjectsByType` obsolescence; `GetAllocatedBytesForCurrentThread` in PlayMode.
+**Glossary.md (Draft):** new: Player (component), Daedalus tile, Collision kind, Play start, Player session, Feet offset, Reset snap, Play-start scan. Extend Phase 1's existing entries instead of adding duplicates: **Rope** (+ the Rope component, its length and top snap), **Map bounds** (+ the grown bounds and 24-row map headroom).
+
+**framework.md:** Input System versions per project; `InputTestFixture` setup; `ObjectFactory.AddComponent` and `Reset()`; `EnterPlayMode` in batch mode; any `FindObjectsByType` obsolescence; `Is.Not.AllocatingGCMemory()` in PlayMode.
 
 **Operations (same commit):**
 - Roadmap §0 rows for `movement-sim` and `movement-runtime`; Milestone 1 removed from §1.
@@ -677,7 +679,7 @@ Synced at completion (GDD v0.07 → v0.08). **(proposal)** marks Claude's fill-i
 ## Post-Phase Cleanup
 After code review passes:
 1. Move this prompt to `Documents/Phases/archive/`.
-2. Update the phase status in CLAUDE.md.
+2. CLAUDE.md has no phase-status line; nothing to update (as in Phase 1).
 3. Write `memory/logs/phases/phase2-log.md` (including the tuning table, the inspected screenshots, the fallbacks that fired, and the editor/play-check outcomes).
 4. Update `MEMORY.md` current state.
 5. Apply the Notes to GDD: CLAUDE.md rule 5 exception + Project Config; `architecture.md` rule-5 note; the rule-5 ADR in `memory/decisions.md`; `framework.md`; `lessons-learned.md` if a rule was learned.
