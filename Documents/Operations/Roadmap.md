@@ -20,12 +20,15 @@ Each milestone ends with something playable.
 
 ### Milestone 1 — `movement-prototype` (days 1–4)
 A dev test scene; run, jump (variable height, coyote time, buffering), double jump, wall slide / jump / climb (climbable tiles), rope climb. Scenario tests for every collision edge case. The runtime accepts a **start position and an ability set** from the start (the hook play-from-here needs). The Player component is tuned in Play mode (values copied out with Copy / Paste Component Values) so feel is tuned together, early. **Gate:** the operator play-checks the feel and tunes the defaults; this is the quality bar for everything else.
+- **`movement-sim`**: the pure sim (tile grid and collision, every movement rule, the tunable defaults and internals) with EditMode scenario and gate tests. Nothing to play yet.
+- **`movement-runtime`**: the Player and Rope components, the Collision Tilemap read with a minimal tile asset carrying a collision kind, Input System controls, the 60 Hz driver, the start position + ability set entry point, the dev test scene, PlayMode screenshot tests; ends with the operator play-check and default tuning (the milestone gate).
+- **Pulled forward (2026-10-23):** reading the Collision Tilemap and the minimal tile asset (from `world-systems` / `editor-tools`), and the Rope component (from `world-systems`), because the test scene needs them. Moving platforms, camera follow and animation states stay in their milestones.
 
 ### Milestone 2 — `combat-and-enemies` (days 5–8)
 The attack, HP, damage, i-frames, knockback, hit-stop, hazards and safe-ground return; the Enemy component with all movement types and the Shoots Projectiles add-on.
 
 ### Milestone 3 — `world-systems` (days 9–11)
-Read the scene's Tilemaps and placed elements into the sim, active radius, camera, checkpoints (with in-game progress save), ability pickups, moving and crumbling platforms, exit and win screen.
+Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`), active radius, camera, checkpoints (with in-game progress save), ability pickups, moving and crumbling platforms, exit and win screen.
 
 ### Milestone 4 — `editor-tools` (days 12–20)
 Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
