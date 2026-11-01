@@ -19,10 +19,26 @@ type: reference
 
 - A **compile error** in batch mode also exits right after "Successfully changed project path to:" and **leaves `Temp/UnityLockfile` behind** (no Unity process running), so it looks exactly like "project already open". `unity_tests.py` checks for `error CS` lines before applying the lock heuristic (phase 1).
 
+## Input System (1.11.2 on 6000.0.85f1, 1.20.1 on 6000.6.7f1)
+- Active Input Handling: dev project `activeInputHandler: 1` (Input System), the compat project `2` (Both).
+- Marking `com.unity.inputsystem` testable (needed for `InputTestFixture`) also runs its own `IntegrationTests` in PlayMode; `unity_tests.py` passes `-assemblyNames` with our test assembly only.
+- `InputTestFixture` works by composition (`Setup()` / `TearDown()` from our `[SetUp]` / `[TearDown]`) on both editors. A press and a release queued in one frame read as `WasPressedThisFrame` true, `IsPressed` false.
+- A Value action with several bindings follows **one** control at a time (conflict resolution), so two 2D-vector composites lost Right when Down was added. `PlayerControls` uses one Button action per direction.
+- In tests, sequential `InputTestFixture.Press` / `Release` of different keys did not give the intended multi-key keyboard state; send the whole state with `InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys))`.
+
+## Editor, scenes and play mode in batch tests (6000.0.85f1, 6000.6.7f1)
+- `ObjectFactory.AddComponent<T>` (the Inspector's Add Component path) calls `Reset()` on both editors.
+- **6000.6 deprecates every `FindObjectsByType` overload taking `FindObjectsSortMode`** (CS0618; "InstanceID will be replaced … with EntityId"). Use `FindObjectsByType<T>(FindObjectsInactive)` under `UNITY_6000_6_OR_NEWER`, the 6000.0 call otherwise. The first 6.x that deprecated it is unknown (6.1–6.5 untested).
+- A new Tilemap's `cellBounds` grows from cell (0, 0) and never shrinks when tiles are erased; read the painted cells, never trust `cellBounds` as the content's extent (and never `CompressBounds()`, which writes authored data).
+- `yield return new EnterPlayMode()` works in batch-mode EditMode tests on both editors. The dev project disables domain reload on Play (`m_EnterPlayModeOptions: 1`); the compat project (like a fresh 6000.0 project) reloads, which clears iterator locals (keep them in `SessionState`) and drops in-memory textures, sprites and tiles from the scene (save them as temporary assets).
+- Batch mode runs Play-mode frames unthrottled (90 frames ≈ 0.03 s); set `Time.captureFramerate` for frame-based waits.
+- URP 2D's default sprite material is lit; a generated scene needs a Global Light 2D (`Light2D.lightType = Global`) to show its art.
+
 ## Allocation checks in EditMode tests (6000.0.85f1, 6000.6.7f1, Windows 11)
 - `GC.GetAllocatedBytesForCurrentThread()` compiles but **does not see allocations** in either editor's EditMode tests (a planted `new byte[1024]` gives a delta of 0). Never trust a zero from it without a planted-allocation check.
 - The Test Framework's `Is.Not.AllocatingGCMemory()` (namespace `UnityEngine.TestTools.Constraints`; `.Not.AllocatingGCMemory()` is an extension method, so import the namespace and alias NUnit's `Is` to avoid CS0104) **works in batch mode on both editors**: it detects a planted `new byte[1024]` and a planted `new int[1]` inside `PlayerStepper.Step`.
 - A planted `object x = someEnum;` boxing whose result is unused **did not register**: the compiled code doesn't allocate. Plant an allocation whose result is used.
+- `Is.Not.AllocatingGCMemory()` also works in **PlayMode** on 6000.6 (and on 6000.0 in the v0.08 runs): it sees a planted 1 KB, and a used `new int[1]` planted in `Player.RunFrame` turned `PlayerAllocationTests` red.
 
 ## Rendering checks (6000.0.85f1, 6000.6.7f1)
 - `Camera.targetTexture` + `Camera.Render()` + `ReadPixels` works in batch-mode PlayMode tests (with graphics) under URP 2D; with `Sprite-Unlit-Default` and point-filtered generated textures the colours come back exactly.

@@ -1,5 +1,5 @@
 # Entities & Data
-**Last updated:** v0.07
+**Last updated:** v0.08
 
 Values here mirror the single source of truth in the sim assembly (CLAUDE.md § Coding Conventions → Tunable defaults): movement defaults and ranges in `MovementSettings`, movement internals in `MovementInternals` (both pinned by `MovementSettingsTests`; change the code, the test and this file together). Movement values are **starting values**: Phase 2's operator play-check tunes them. Combat values are still a sketch.
 
@@ -16,7 +16,7 @@ Student-facing settings, by Player section (field = `MovementSettings` identifie
 | Movement | Jump height (tiles) | `JumpHeight` | 3.5 | 1–6 |
 | Movement | Gravity (multiplier over base gravity) | `Gravity` | 1 | 0.25–2 |
 | Movement | Max fall speed (tiles/s) | `MaxFallSpeed` | 12 | 2–24 |
-| Abilities | Toggles: double jump, wall jump, wall climb, rope climb | `Abilities` | jump only | — |
+| Abilities | Toggles: double jump, wall jump, wall climb, rope climb | `Abilities` | all off (jump only) **(proposal)** | — |
 | Abilities | Air jumps (with double jump) | `AirJumps` | 1 | 1–3 |
 | Abilities | Wall slide speed (tiles/s, with wall jump; never above max fall) | `WallSlideSpeed` | 2 | 0.5–6 |
 | Abilities | Climb speed (tiles/s, walls and ropes) | `ClimbSpeed` | 3 | 1–8 |
@@ -24,8 +24,10 @@ Student-facing settings, by Player section (field = `MovementSettings` identifie
 - **Time to full speed** replaces "acceleration". Ground deceleration (× 1.5) and turnaround (× 2) are derived from it; air control is internal (× 0.75 of the ground rates).
 - **Gravity** is a multiplier over base gravity 57.142857 tiles/s², which comes from a 0.35 s time to apex at jump height 3.5. Jump velocity is derived from jump height and rising gravity, so changing gravity changes timing only, never the jump height.
 - Out-of-range or non-finite values are clamped (non-finite → default) when applied.
+- The defaults above passed the operator's play-check unchanged (Phase 2, 2026-11-02).
+- **Player component** (`Player`, Add Component → Daedalus → Player): field `collisionTilemap` (filled in automatically with the Tilemap named Collision, else the only Tilemap); section `movement`: `runSpeed`, `timeToFullSpeed`, `jumpHeight`, `gravity`, `maxFallSpeed`; section `abilities`: `doubleJump`, `wallJump`, `wallClimb`, `ropeClimb`, `airJumps`, `wallSlideSpeed`, `climbSpeed`; hidden `dataVersion`. Initial values and ranges come from `MovementSettings`. Every setting applies live in Play mode; an ability toggle switches only its own ability (operator, 2026-10-26).
 
-Combat (sketch, combat-and-enemies): max HP 5, attack damage 1, attack range 6, attack cooldown 0.25; internal hit-stop ~0.05 s, i-frames ~1 s. The Player-start question is settled by Phase 2 (`movement-runtime`).
+Combat (sketch, combat-and-enemies): max HP 5, attack damage 1, attack range 6, attack cooldown 0.25; internal hit-stop ~0.05 s, i-frames ~1 s. The Player component sits on the player object, and its placed position is the start (Phase 2).
 
 **Movement internals** (hidden; `MovementInternals`; 60 Hz ticks):
 
@@ -75,10 +77,10 @@ Settings marked for walkers, flyers or jumpers show only for that movement type,
 
 | Element | Behavior |
 | --- | --- |
-| Player start | Exactly one per map |
+| Player | Its placed position is the start |
 | Ability pickup | Unlocks one ability |
 | Health pickup / max-HP upgrade | Restores HP or raises max HP |
-| Rope / vine | Vertical climbable segment of any length |
+| Rope / vine | `Rope` component: hangs down from its object; Length in tiles (default 4, range 1–50 **(proposal)**), read once at play start (operator, 2026-11-02); a Scene-view line shows it. Its top snaps onto a one-way surface within 0.5 tile at play start, so a freely placed rope still lets the player step off |
 | Moving platform | Moves between two points; carries the player |
 | Crumbling platform | Falls shortly after the player stands on it, respawns |
 | Checkpoint | Sets the respawn point when touched; saves in-game progress |
@@ -94,7 +96,7 @@ Spikes are not a placed element: they are **hazard tiles** painted on the Collis
 A terrain is an auto-tiling brush (systems.md § Tile System): a tile asset students paint with the Tile Palette.
 
 - **Layout:** blob (47 slots), dual-grid (16 slots) or single (1 slot); which layouts v1 builds is open (Roadmap §4).
-- **Kind:** the collision kind: solid, one-way, climbable, hazard, none. It takes effect only on the Collision Tilemap.
+- **Kind:** the collision kind: solid, one-way, climbable, hazard, none. It takes effect only on the Collision Tilemap. Built so far (v0.08): `DaedalusTile` (Create → Daedalus → Tile) with `kind` None 0 / Solid 1 / One-way 2 / Climbable 3; 4 is reserved for hazard, declared in combat-and-enemies. Plain Unity tiles on the Collision Tilemap count as Solid.
 - **Slots:** neighbor pattern → sprites; more than one sprite means random variants, picked per cell by position.
 - **Animated tiles:** a frame list + speed per tile (shape set when the tile system is built).
 - Tilemaps store the terrain asset per cell; the displayed sprite is resolved from the neighbors.
@@ -114,6 +116,6 @@ A starting shape, not a contract. What a student saves is a Unity scene plus our
 | Terrain | Tile asset | Layout, kind, slots (§ Terrains) |
 | Animation set | ScriptableObject asset | Sprite frames and frame rate per animation state |
 | Map | Scene: a Grid with Background, Collision and Foreground Tilemaps | Terrains and plain tiles per cell |
-| Placed elements | Scene: GameObjects with Daedalus components | Player start; ability pickup (ability); enemy; rope (length); moving platform (end point, speed); crumbling platform; checkpoint; health pickup; exit |
+| Placed elements | Scene: GameObjects with Daedalus components | Player (placed position = start); ability pickup (ability); enemy; rope (length); moving platform (end point, speed); crumbling platform; checkpoint; health pickup; exit |
 
-Open in the sketch: whether `gravity` is a multiplier or an absolute value; whether the Player component sits on the player object itself or on a Player start marker.
+Built (v0.08): `Player`, `Rope` and `DaedalusTile` each carry a hidden `dataVersion` = 1. Gravity is a multiplier; the Player component sits on the player object.

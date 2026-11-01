@@ -4,7 +4,9 @@
     "references": [
         "Orcapafea.Daedalus.Sim",
         "Orcapafea.Daedalus",
-        "UnityEngine.TestRunner"
+        "UnityEngine.TestRunner",
+        "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

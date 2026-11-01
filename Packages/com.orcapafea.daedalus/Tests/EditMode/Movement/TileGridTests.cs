@@ -106,6 +106,14 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void RopeLengthDefaultAndRangeArePinned()
+        {
+            Assert.AreEqual(4f, RopeSegment.DefaultLength);
+            Assert.AreEqual(1f, RopeSegment.MinLength);
+            Assert.AreEqual(50f, RopeSegment.MaxLength);
+        }
+
+        [Test]
         public void RopeNeedsTopAboveBottom()
         {
             Assert.Throws<ArgumentException>(() => new RopeSegment(0.5f, 2f, 2f));

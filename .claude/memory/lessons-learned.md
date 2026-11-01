@@ -39,6 +39,7 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **Check balance / tuning targets against each other by arithmetic before a tuning pass.** Targets can be mutually impossible; a back-of-envelope over the target table catches it before the work starts.
 
 ## Play-checks
+- **Every Inspector edit made in Play mode must take effect at once; Unity throwing Play-mode edits away on Stop is a separate rule, not a reason to ignore them.** Phase 2 read the ability toggles only at play start, so ticking Double Jump in Play did nothing (operator correction, 2026-10-26). When one change notification covers every field, apply only what changed, or a slider edit resets state set from elsewhere.
 - **Write the harsh clause into a play-check.** A "does it look right" check passes on anything not obviously wrong; say what must be absent.
 - **A play-check whose correct answer is written in the GDD measures the operator's memory, not the build.** Ask for what they observe, not whether it matches.
 - **When a phase's verification is play-checks only, say so per step.**

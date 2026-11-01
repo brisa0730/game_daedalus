@@ -53,6 +53,7 @@
     "com.unity.modules.xr": "1.0.0"
   },
   "testables": [
-    "com.orcapafea.daedalus"
+    "com.orcapafea.daedalus",
+    "com.unity.inputsystem"
   ]
 }

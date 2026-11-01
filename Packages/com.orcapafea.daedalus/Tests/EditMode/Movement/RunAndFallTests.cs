@@ -225,6 +225,51 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void TeleportedIsSetOnlyOnTheResetTick()
+        {
+            var p = new PlayerScenario(Abilities.Jump,
+                "............",
+                ".P..........",
+                "####........",
+                "............",
+                "............",
+                "............");
+            int teleportedTicks = 0;
+            int resetTick = -1;
+            for (int tick = 0; tick < 600 && resetTick < 0; tick++)
+            {
+                p.Tick(Hold(1));
+                if (p.State.Teleported)
+                {
+                    teleportedTicks++;
+                    resetTick = tick;
+                }
+            }
+            Assert.That(resetTick, Is.GreaterThan(0), "walked into the pit and fell out");
+            Assert.AreEqual(1, teleportedTicks);
+            Assert.AreEqual(p.Level.StartX, p.State.X, "the reset tick is at the start");
+            Assert.AreEqual(p.Level.StartY, p.State.Y);
+            Assert.That(p.Previous.Y, Is.LessThan(0f), "the tick before was below the map");
+            p.Tick(Idle);
+            Assert.IsFalse(p.State.Teleported, "the tick after a reset");
+        }
+
+        [Test]
+        public void TeleportedStaysFalseInOrdinaryPlay()
+        {
+            var p = new PlayerScenario(Abilities.Jump, Floor);
+            p.Tick(Hold(1), 20);
+            Assert.IsFalse(p.State.Teleported);
+            p.Tick(Press(1));
+            for (int tick = 0; tick < 60; tick++)
+            {
+                p.Tick(Hold(-1, 0, tick < 10));
+                Assert.IsFalse(p.State.Teleported, $"tick {tick}");
+            }
+            CollectionAssert.IsSupersetOf(p.ContactsSeen, new[] { PlayerContact.Air, PlayerContact.Ground }, "ran and jumped");
+        }
+
+        [Test]
         public void ApplySettingsChangesTheRunTargetLive()
         {
             var p = new PlayerScenario(Abilities.Jump, Floor);

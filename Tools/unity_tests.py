@@ -6,12 +6,13 @@ Usage:
 
 6000.6 runs against the dev project (the repo root). 6000.0, the minimum, runs against a
 throwaway project in Tools/compat/6000.0/ that references the package by file path, so the
-dev project is never opened (and downgraded) by the older editor.
+dev project is never opened (and downgraded) by the older editor. The compat project pins
+the Input System to the version our package declares.
 
 A run passes only when Unity exits 0, this run's own results.xml exists and is complete,
 at least one test ran and none failed, the mode's own test assembly ran (unless --filter
 is given), our assemblies were compiled in this run (the wrapper deletes them first) and
-the log has no compiler warning from our package. Every run writes to a
+the log has no compiler warning from our package. Only our test assemblies run. Every run writes to a
 fresh folder under TestResults/runs/, so an earlier result can never stand in for it.
 """
 
@@ -30,6 +31,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE_NAME = "com.orcapafea.daedalus"
 PACKAGE_DIR = REPO / "Packages" / PACKAGE_NAME
+INPUT_SYSTEM = "com.unity.inputsystem"
 RESULTS = REPO / "TestResults"
 EDITORS = {"6000.0": "6000.0.85f1", "6000.6": "6000.6.7f1"}
 PLATFORMS = {"editmode": "EditMode", "playmode": "PlayMode"}
@@ -56,7 +58,12 @@ def editor_exe(version):
 
 
 def ensure_compat_project(editor_key):
-    """Create (once) the throwaway project for an editor other than the dev one."""
+    """Create (once) the throwaway project for an editor other than the dev one.
+
+    Every run re-points it at our package, marks our package and the Input System testable
+    (InputTestFixture lives in the Input System's test framework) and pins the Input System
+    to the version our package.json declares, so the minimum editor runs the minimum dependency.
+    """
     version = EDITORS[editor_key]
     project = REPO / "Tools" / "compat" / editor_key
     if not (project / "ProjectSettings" / "ProjectVersion.txt").exists():
@@ -78,7 +85,9 @@ def ensure_compat_project(editor_key):
     manifest_path = project / "Packages" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["dependencies"][PACKAGE_NAME] = "file:" + PACKAGE_DIR.as_posix()
-    manifest["testables"] = [PACKAGE_NAME]
+    declared = json.loads((PACKAGE_DIR / "package.json").read_text(encoding="utf-8"))["dependencies"]
+    manifest["dependencies"][INPUT_SYSTEM] = declared[INPUT_SYSTEM]
+    manifest["testables"] = [PACKAGE_NAME, INPUT_SYSTEM]
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     return project
 
@@ -151,6 +160,10 @@ def check(run_dir, exit_code, started, platform, filtered, project):
     if warnings:
         return False, "compiler warnings in our package:\n    " + "\n    ".join(warnings)
 
+    skipped = [case.get("fullname") for case in root.iter("test-case") if case.get("result") == "Skipped"]
+    if skipped:
+        # An ignored test is a fallback that fired (e.g. a probe unsupported on this editor): say so.
+        return True, f"{total} tests, {total - len(skipped)} passed, {len(skipped)} skipped: " + ", ".join(skipped)
     return True, f"{total} tests passed"
 
 
@@ -182,6 +195,9 @@ def run(editor_key, platform, test_filter, project_override):
 
     command = [str(exe), "-batchmode", "-projectPath", str(project), "-runTests",
                "-testPlatform", PLATFORMS[platform],
+               # Only our assemblies: the Input System is testable (for InputTestFixture) and
+               # would otherwise run its own integration tests too.
+               "-assemblyNames", ASSEMBLIES[platform],
                "-testResults", str(run_dir / "results.xml"),
                "-logFile", str(run_dir / "unity.log")]
     if test_filter:

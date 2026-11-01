@@ -1,5 +1,5 @@
 # Platforms
-**Last updated:** v0.04
+**Last updated:** v0.08
 
 ## Engine & Targets
 
@@ -18,7 +18,8 @@
 ## Input
 
 - Keyboard and gamepad through the Input System package. No rebinding in v1. No mobile / touch controls in v1.
-- Default bindings: set in `movement-prototype` (e.g. down + jump drops through a one-way platform). The play-from-here shortcut: set in `editor-tools`.
+- Default bindings (v0.08): move with the arrows, WASD, the gamepad d-pad or the left stick (dead zone 0.5; the stick's down counts only when it outweighs sideways, so a running diagonal never drops through a platform); jump with Space or gamepad South; Down + Jump drops through a one-way; **Up never jumps**. A press and release within one frame is a tap. Actions are built in code, never the project-wide actions asset. Input System 1.11.2 minimum.
+- The play-from-here shortcut: set in `editor-tools`.
 
 ## Performance Budget
 

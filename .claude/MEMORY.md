@@ -7,9 +7,9 @@
 
 Version + stack: [GDD.md](../Documents/GDD/GDD.md) header · Open issues: [Issues.md](../Documents/Operations/Issues.md) · Work plan: [Roadmap.md](../Documents/Operations/Roadmap.md) §1 · Open decisions: Roadmap §4 · Deferred cleanup: [Deferred.md](../Documents/Operations/Deferred.md).
 
-- **Latest: v0.07**: Phase 1 `movement-sim` (pure movement sim, scenario + gate tests; [phase1-log](memory/logs/phases/phase1-log.md)). v0.06: scaffold. v0.05: plain Unity behavior. v0.04: component model. v0.03: Unity platform. v0.02: first decisions. v0.01: project setup.
-- **Milestone:** **1 — `movement-prototype`** ([Roadmap.md](../Documents/Operations/Roadmap.md) §1): `movement-sim` done, `movement-runtime` next.
-- **Next:** phase 2 `movement-runtime` (prompt ready, handshake-approved: [phase2-movement-runtime.md](../Documents/Phases/phase2-movement-runtime.md)). Next free phase number: **2**.
+- **Latest: v0.08**: Phase 2 `movement-runtime` (Player, Rope, Collision Tilemap read, controls, dev scene, play-check passed; [phase2-log](memory/logs/phases/phase2-log.md)). v0.07: Phase 1 `movement-sim` ([phase1-log](memory/logs/phases/phase1-log.md)). v0.06: scaffold. v0.05: plain Unity behavior. v0.04: component model. v0.03: Unity platform. v0.02: first decisions. v0.01: project setup.
+- **Milestone:** 1 `movement-prototype` done. Next: **2 — `combat-and-enemies`** ([Roadmap.md](../Documents/Operations/Roadmap.md) §1).
+- **Next:** plan `combat-and-enemies` (no prompt yet). Next free phase number: **3**. ⚠️ 6000.0.85f1 is not installed; the last closing runs used 6000.2.6f2 (phase2-log § Closing runs).
 - ⚠️ **Phase numbers are assigned when a phase STARTS, never in advance.** Take the next free integer from the highest `phaseN-*.md` in `Documents/Phases/` and `Documents/Phases/archive/`, **never** from `Roadmap.md` §1, which lists unstarted work by name and order only.
 
 ## Recent work

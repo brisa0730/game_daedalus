@@ -38,6 +38,9 @@ namespace Orcapafea.Daedalus.Sim
         public int LastWallJumpSide;
         public int LastWallJumpFace;
 
+        /// <summary>True only on the tick where a fall-out reset replaced the state, so the renderer snaps instead of interpolating.</summary>
+        public bool Teleported;
+
         public Abilities Abilities;
         public float StartX;
         public float StartY;

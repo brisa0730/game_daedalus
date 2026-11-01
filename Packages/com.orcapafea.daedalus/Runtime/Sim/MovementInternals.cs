@@ -56,10 +56,22 @@ namespace Orcapafea.Daedalus.Sim
         public const float RopeTopTolerance = 0.0625f;
         /// <summary>Tiles; how far the feet move below a one-way top on a drop-through.</summary>
         public const float DropThroughNudge = 0.0625f;
+        /// <summary>
+        /// Tiles; how far a rope's top is moved onto the nearest one-way surface at play start
+        /// (students place ropes without grid snap).
+        /// </summary>
+        public const float RopeTopSnap = 0.5f;
         /// <summary>Tiles; the touching / on-a-row tolerance.</summary>
         public const float ContactEpsilon = 0.0001f;
 
         /// <summary>Cells searched around a blocked start for the nearest free one.</summary>
         public const int StartSearchRadius = 8;
+
+        /// <summary>
+        /// Empty rows the runtime adds above the Collision Tilemap's bounds: the feet's highest reach with
+        /// every setting at max (jump height 6 × (1 + 3 air jumps)). The head meets the map top 1.5 tiles
+        /// before that apex, which matters only at extreme settings.
+        /// </summary>
+        public const int MapHeadroomRows = 24;
     }
 }

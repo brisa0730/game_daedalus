@@ -22,4 +22,14 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
-*(none yet)*
+### Play-start warnings appear only in the Console
+- **Severity:** MED · **Source:** Phase 2 (`movement-runtime`, v0.08)
+- **Description:** every Player / Rope problem (no Collision Tilemap, a Rigidbody 2D, a start in a wall, a rope top in a wall, grid settings…) is a one-shot `Debug.LogWarning` from [PlayerWarnings.cs](../../Packages/com.orcapafea.daedalus/Runtime/PlayerWarnings.cs). A student who never opens the Console misses it.
+- **Why deferred:** Inspector help boxes need custom inspectors, which arrive with `editor-tools`.
+- **Trigger to act:** the `editor-tools` custom inspectors. Fix shape: the same `PlayerWarnings` texts as help boxes on the Player / Rope Inspector (and in the daedalus window's validation list).
+
+### A Rope with no sprite is invisible in Play
+- **Severity:** LOW · **Source:** Phase 2 (`movement-runtime`, v0.08)
+- **Description:** [Rope.cs](../../Packages/com.orcapafea.daedalus/Runtime/Rope.cs) draws only a Scene-view gizmo line; in Play a rope is visible only if the student added a sprite to it (the dev scene adds a Tiled SpriteRenderer child).
+- **Why deferred:** art and missing-piece hints are later milestones; a default rope look belongs with the default art pack.
+- **Trigger to act:** the `editor-tools` missing-piece hints ("This rope has no sprite") or the default art pack in `assets-and-sharing`, whichever comes first.

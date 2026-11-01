@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.07
+**Last updated:** v0.08
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -19,7 +19,7 @@ One player character with every ability built in. Per project, each ability is e
 
 ### Movement rules (sim, v0.07)
 
-Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](entities.md) § Player tunables. Settled with the operator on 2026-10-23 unless marked **(proposal)**; proposals are confirmed or changed at Phase 2's play-check.
+Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](entities.md) § Player tunables. Settled with the operator on 2026-10-23; the remaining proposals were confirmed by the operator's Phase 2 play-check (2026-11-02).
 
 - **Contact states:** air, ground (≥ 1 solid or climbable cell underfoot), one-way top (one-way cells only), wall slide, wall cling, rope.
 - **Tick order:** tick-start contacts → jump press → input transitions (rope grab, leaving a slide or cling) → velocity by contact → move (X swept first at the old height, then Y; trapezoid integration, impulses before gravity) → post-move classification (land, walk off, slide/cling entry, climb and rope limits, head bump, fall-out) → facing → counters.
@@ -36,16 +36,18 @@ Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](en
 - **Collision:** X then Y sweeps (correct at any speed); falling diagonally onto an outside corner lands on top; a head bump zeroes upward speed; ceiling-corner correction slides a rising head at most 0.25 tile past a corner (never while on a rope).
 - **Map bounds:** the sides and top are solid; falling out of the bottom resets to the start (temporary, until pits damage in combat-and-enemies).
 - **Nearest free start:** a start inside solid moves to the nearest free cell-centred spot within 8 cells (ties: up, then left).
-- **(proposal)** With jump off there are no ground or coyote jumps, but air jumps work after walking off a ledge.
-- **(proposal)** Wall jump: full jump height at 1.5 × run speed push-off. Two walls in reach: the pressed side, then the nearer, then the left.
-- **(proposal)** Cling entry: toward a climbable wall in the air while falling or holding Up, or Up + toward on the ground. Neutral holds; pressing away lets go (with wall coyote). A rising jump past a climbable face doesn't cling by itself. Climbing off the bottom of a climbable run lets go without wall coyote.
-- **(proposal)** Timer convention: a window of N ticks is active on the N ticks after it is set (coyote, buffer, wall coyote 6; lock, lockout 12).
-- **(proposal)** A rope can be grabbed from above with Down while standing on a one-way at its top. Standing, Up grabs a rope in reach; Down grabs only in that case. Ropes are grabbed only from the air or standing.
-- **(proposal, from phase 1 code review)** Down + jump while on a rope lets go without a jump (the re-grab lockout applies), so "hold Down, then jump" on a rope's platform drops instead of rope-jumping. Climbing down onto a one-way just under a rope's bottom stands on it.
-- **(proposal)** Rope jump horizontal speed = input × run speed. Climb speed is shared by walls and ropes.
-- **(proposal)** Landing ends the wall-jump input lock.
-- **(proposal)** Every numeric internal value ([entities.md](entities.md) § Player tunables).
-- **Observed for the play-check (not a rule change):** against a wall with wall jump unlocked, a press at the apex is a wall jump (priority), not an air jump. A ledge that needs double jump is reached by air-jumping away from the wall, not while hugging it.
+- With jump off there are no ground or coyote jumps, but air jumps work after walking off a ledge.
+- Wall jump: full jump height at 1.5 × run speed push-off. Two walls in reach: the pressed side, then the nearer, then the left.
+- Cling entry: toward a climbable wall in the air while falling or holding Up, or Up + toward on the ground. Neutral holds; pressing away lets go (with wall coyote). A rising jump past a climbable face doesn't cling by itself. Climbing off the bottom of a climbable run lets go without wall coyote.
+- Timer convention: a window of N ticks is active on the N ticks after it is set (coyote, buffer, wall coyote 6; lock, lockout 12).
+- A rope can be grabbed from above with Down while standing on a one-way at its top. Standing, Up grabs a rope in reach; Down grabs only in that case. Ropes are grabbed only from the air or standing.
+- Down + jump while on a rope lets go without a jump (the re-grab lockout applies), so "hold Down, then jump" on a rope's platform drops instead of rope-jumping. Climbing down onto a one-way just under a rope's bottom stands on it.
+- Rope jump horizontal speed = input × run speed. Climb speed is shared by walls and ropes.
+- Landing ends the wall-jump input lock.
+- Every numeric internal value ([entities.md](entities.md) § Player tunables).
+- **A press next to an ordinary wall is a wall jump, not an air jump** (the priority above; operator, 2026-11-02). Within reach of a wall with wall jump unlocked, the air jump stays unused; a ledge that needs double jump is reached by air-jumping away from the wall.
+- **Abilities can change during play** (`PlayerStepper.ChangeAbilities`; operator, 2026-10-26): a gained ability works from the next tick; a hold the new set can't keep lets go (a rope without rope climb, a cling without wall climb, a slide without wall jump). The Player's toggles use it live in Play mode; ability pickups (`world-systems`) will too.
+- **Rope tops snap** onto the nearest one-way surface in their column within 0.5 tile at play start (ties go up; never onto solid; never inverting the rope), so freely placed ropes still let the player step off.
 
 ## Combat & Damage
 
@@ -78,6 +80,8 @@ One large continuous map: no rooms, no screen transitions. Progression comes fro
 - **Layers:** three Tilemaps: Background, Collision, Foreground. **Only the Collision Tilemap affects gameplay**: a tile's kind counts only there; Background and Foreground are always decoration.
 - **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System). In the sim (`TileKind`): None 0, Solid 1, OneWay 2, Climbable 3 (collides as solid); 4 is reserved for hazard (combat-and-enemies). The runtime fills a 0-based `TileGrid` from the Collision Tilemap at play start.
 - **Ropes** reach the sim as a list of vertical segments (`RopeSegment`: centre x, bottom, top).
+- **Plain tiles are solid:** any tile on the Collision Tilemap that isn't a `DaedalusTile` counts as Solid; a `DaedalusTile` brings its own kind.
+- **Map bounds:** the painted cells of the Collision Tilemap, grown to include the start and the ropes, plus 24 empty rows on top ([architecture.md](architecture.md) § Data Flow). Past the painted extent the sides are solid, so a pit must sit between painted tiles.
 - **Placeable elements:** [entities.md](entities.md) § Placeable elements.
 
 ## Camera
@@ -96,7 +100,7 @@ Students work in the Unity Editor, and its usability with our tools decides whet
 - **Play from start:** Unity's Play button, with only the starting abilities.
 - **Daedalus components:** every kind of game object is one component in the Add Component menu under **Daedalus** (§ Placeable elements in [entities.md](entities.md)). Adding it makes the object work; it needs nothing else from Unity. A few add-ons extend one component (e.g. Shoots Projectiles on an Enemy). The starter's ready-made prefabs are examples to inspect and copy, not the main way to build.
 - **Inspectors:** at most ~8 settings per component (the Player: per collapsible section), each a slider, toggle or dropdown with a tooltip; mode-specific settings show only in their mode; internals hidden.
-- **Play mode:** no special treatment. Edits made during Play mode are thrown away when it ends, as everywhere in Unity; this is one of the things students learn. Unity's Play-mode tint (set in the starter's guidance) shows when edits won't stick.
+- **Play mode:** no special treatment. Edits made during Play mode work at once (every Player setting applies live) and are thrown away when Play ends, as everywhere in Unity; this is one of the things students learn. Unity's Play-mode tint (set in the starter's guidance) shows when edits won't stick.
 - **Missing-piece hints:** a component that needs something (e.g. an Enemy with no sprite) says so in a help box in plain words.
 - **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.
@@ -111,7 +115,7 @@ Built on Unity's Tilemap and Tile Palette: students paint *terrain*, and auto-ti
 - **Terrain brushes (auto-tiling):** each terrain (e.g. "Grass ground", "Stone") is a preconfigured tile asset (a Rule Tile from 2D Tilemap Extras for the layouts it covers). Painting or erasing updates the painted cell and its neighbors.
 - **Random tiles:** a terrain slot can hold several variants, picked per cell by position, so the result is stable across reloads.
 - **Animated tiles:** a tile with a frame list and speed (water, lava, torches).
-- **Per-tile kind:** every tile or terrain asset carries a collision kind (solid, one-way, climbable wall, hazard, none). The kind takes effect **only on the Collision Tilemap**, so gameplay comes from what students paint there. **Spikes are hazard tiles** painted on the Collision Tilemap, not placed elements.
+- **Per-tile kind:** every tile or terrain asset carries a collision kind (solid, one-way, climbable wall, hazard, none); built so far as `DaedalusTile` (v0.08), with plain tiles counting as solid. The kind takes effect **only on the Collision Tilemap**, so gameplay comes from what students paint there. **Spikes are hazard tiles** painted on the Collision Tilemap, not placed elements.
 - **Layers:** Background, Collision and Foreground Tilemaps (§ World & Level Elements). Auto-tiling works on every layer.
 
 ### Auto-tile layouts

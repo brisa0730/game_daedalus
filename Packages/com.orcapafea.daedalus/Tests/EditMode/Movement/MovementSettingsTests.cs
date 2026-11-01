@@ -66,6 +66,8 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(0.0625f, MovementInternals.DropThroughNudge);
             Assert.AreEqual(0.0001f, MovementInternals.ContactEpsilon);
             Assert.AreEqual(8, MovementInternals.StartSearchRadius);
+            Assert.AreEqual(0.5f, MovementInternals.RopeTopSnap);
+            Assert.AreEqual(24, MovementInternals.MapHeadroomRows, "the feet's highest reach at max settings: 6 × (1 + 3)");
         }
 
         [Test]

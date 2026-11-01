@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.07
+**Last updated:** v0.08
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -51,7 +51,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Drop-through | Draft | Down + jump on a one-way platform: falling through it. |
 | One-way platform | Draft | A tile you jump through from below and stand on from above. |
 | Climbable wall | Draft | A tile (kind climbable) that wall climb can cling to; otherwise a solid wall. |
-| Rope | Draft | A vertical, ladder-style rope or vine; in the sim a rope segment (centre x, bottom, top). |
+| Rope | Draft | A vertical, ladder-style rope or vine; in the sim a rope segment (centre x, bottom, top). In the scene, the **Rope** component: it hangs down from its object by its Length (tiles), read at play start; its top snaps onto a one-way surface within 0.5 tile. |
 | Re-grab lockout | Draft | A short time (0.2 s) after jumping off or letting go of a rope in which it can't be grabbed again. |
 | Hitbox | Draft | The player's collision box: 0.75 × 1.5 tiles; its position is the feet centre. |
 | Grip point | Draft | The hitbox centre, 0.75 tile above the feet: where ropes and climbable walls are gripped. |
@@ -60,6 +60,14 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Time to full speed | Draft | The setting for how fast the player reaches run speed from rest on the ground, in seconds. |
 | Ceiling-corner correction | Draft | Sliding a rising head at most 0.25 tile sideways past a ceiling corner it barely clips. |
 | Nearest free start | Draft | Moving a start that is inside solid to the nearest free spot within 8 cells. |
-| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out resets to the start for now). |
+| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out resets to the start for now). The map covers the Collision Tilemap's painted cells, grown to include the start and the ropes, plus the **map headroom**: 24 empty rows on top. |
 | Tile grid | Draft | The sim's 0-based grid of tile kinds, filled from the Collision Tilemap at play start. |
+| Player (component) | Draft | The one Daedalus component that makes an object the player; its placed position is the start. Sections: Movement and Abilities. |
+| Daedalus tile | Draft | A tile asset with a collision kind (`DaedalusTile`). Plain tiles on the Collision Tilemap count as solid. |
+| Collision kind | Draft | What a tile does on the Collision Tilemap: None, Solid, One-way, Climbable (Hazard reserved). |
+| Play start | Draft | Where and with which abilities the player starts (`PlayStart`): the placed position and the toggles, or what play-from-here passes. |
+| Player session | Draft | The runtime's driver for one Player's sim: clock, ticks, interpolation and restarts (`PlayerSession`). |
+| Feet offset | Draft | How far the sprite's bottom edge sits from the object's position; it puts the sprite's bottom on the sim's feet. |
+| Reset snap | Draft | Drawing a fall-out reset at the start at once, without sliding there (`Teleported`). |
+| Play-start scan | Draft | The one allowed scene search (rule 5 exception): one `FindObjectsByType` scan plus a deterministic sort at play start, never per frame. |
 | Scenario test | Draft | An EditMode test that steps the sim through a scripted input sequence on a small ASCII map and checks it tick by tick. |

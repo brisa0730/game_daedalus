@@ -25,7 +25,12 @@ namespace Orcapafea.Daedalus.Sim
             {
                 throw new ArgumentNullException(nameof(ropes));
             }
-            this.ropes = (RopeSegment[])ropes.Clone();
+            // Play start, once: rope tops snap onto a nearby one-way surface.
+            this.ropes = new RopeSegment[ropes.Length];
+            for (int i = 0; i < ropes.Length; i++)
+            {
+                this.ropes[i] = ropes[i].SnapTopTo(grid);
+            }
             ApplySettings(settings);
         }
 
@@ -37,6 +42,27 @@ namespace Orcapafea.Daedalus.Sim
         {
             Settings = settings.Clamped();
             derived = new DerivedMovement(Settings);
+        }
+
+        /// <summary>
+        /// The state with a new ability set, between ticks (abilities switched on or off during play). A hold the new
+        /// set can't keep lets go into the air: a rope without rope climb, a cling without wall climb, a wall slide
+        /// without wall jump. Everything else carries on.
+        /// </summary>
+        public PlayerState ChangeAbilities(in PlayerState state, Abilities abilities)
+        {
+            PlayerState s = state;
+            s.Abilities = abilities;
+            bool letGo = (s.Contact == PlayerContact.Rope && !Has(s, Abilities.RopeClimb))
+                || (s.Contact == PlayerContact.WallCling && !Has(s, Abilities.WallClimb))
+                || (s.Contact == PlayerContact.WallSlide && !Has(s, Abilities.WallJump));
+            if (letGo)
+            {
+                s.Contact = PlayerContact.Air;
+                s.RopeIndex = -1;
+                s.WallSide = 0;
+            }
+            return s;
         }
 
         /// <summary>A player at rest at the given feet (apply <see cref="StartPlacement.Find"/> first). Falling out returns here.</summary>
@@ -64,6 +90,7 @@ namespace Orcapafea.Daedalus.Sim
         public PlayerState Step(in PlayerState state, in PlayerInput input)
         {
             PlayerState s = state;
+            s.Teleported = false;
             var set = new SetThisTick();
 
             // 2. Tick-start contacts. Only standing is re-probed; wall, cling and rope contacts carry over.
@@ -172,7 +199,9 @@ namespace Orcapafea.Daedalus.Sim
             // Falling out of the bottom resets to the start (temporary until pits damage in combat-and-enemies).
             if (s.Y + Height < 0)
             {
-                return CreateState(s.StartX, s.StartY, s.Abilities);
+                PlayerState reset = CreateState(s.StartX, s.StartY, s.Abilities);
+                reset.Teleported = true;
+                return reset;
             }
 
             // 8. Facing.

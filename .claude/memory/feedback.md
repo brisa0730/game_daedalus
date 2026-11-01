@@ -88,3 +88,9 @@ Don't commit a draft phase prompt (or its review folds) before its handshake clo
 
 **Why:** One reviewable entry per approved prompt.
 **How to apply:** Keep the prompt uncommitted through the handshake; commit once, after approval.
+
+## No full play-check replays after each change
+Once a play-check has passed, don't ask the operator to replay the whole checklist after later changes. They report issues as they come up, and Claude fixes them.
+
+**Why:** the operator said so after the Phase 2 play-check passed (2026-11-02): "I will ask you to fix something when such issue comes up. I don't think we need to do a whole run every time we do something."
+**How to apply:** after a fix, name the one behaviour to look at, at most; never re-issue the full Step-N checklist. Automated test runs are unaffected and still run after every change.

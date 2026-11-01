@@ -8,6 +8,7 @@ namespace Orcapafea.Daedalus.Tests
         const string Sim = "Orcapafea.Daedalus.Sim";
         const string Runtime = "Orcapafea.Daedalus";
         const string Editor = "Orcapafea.Daedalus.Editor";
+        const string InputSystem = "Unity.InputSystem";
 
         [Test]
         public void SimReferencesNothing()
@@ -16,11 +17,16 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void RuntimeReferencesOnlyTheSim()
+        public void RuntimeReferencesOnlyTheSimAndTheInputSystem()
         {
             AsmdefData runtime = PackageFiles.ReadAsmdef(PackageFiles.RuntimeAsmdef);
             Assert.AreEqual(Runtime, runtime.name);
-            Assert.That(runtime.references, Is.SubsetOf(new[] { Sim }));
+            Assert.That(runtime.references, Is.SubsetOf(new[] { Sim, InputSystem }));
+            foreach (string reference in runtime.references)
+            {
+                Assert.AreNotEqual(Editor, reference, "The runtime must never reference the editor tools.");
+                Assert.IsFalse(reference.EndsWith(".Editor"), $"The runtime references an editor assembly: {reference}");
+            }
             Assert.IsEmpty(runtime.includePlatforms, "The runtime must build for every platform.");
         }
 

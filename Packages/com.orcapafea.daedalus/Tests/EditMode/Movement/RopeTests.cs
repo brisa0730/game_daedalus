@@ -252,5 +252,65 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(-1, p.State.RopeIndex);
             Assert.That(p.State.Y, Is.LessThan(9f));
         }
+
+        // A floor and one-way cells in columns 4–6 of the given rows; 12 wide, 30 tall.
+        static TileGrid OneWayAt(params int[] rows)
+        {
+            return AsciiLevel.ParseGrid(AsciiLevel.Rows(12, 30, (x, y) =>
+                y == 0 ? '#' : x >= 4 && x <= 6 && System.Array.IndexOf(rows, y) >= 0 ? '-' : '.'));
+        }
+
+        [Test]
+        public void ARopeTopJustBelowAOneWaySnapsUpAndThePlayerStepsOnto()
+        {
+            TileGrid grid = OneWayAt(10);
+            var rope = new RopeSegment(5.5f, 1f, 10.7f);
+            Assert.AreEqual(11f, rope.SnapTopTo(grid).Top, "0.3 below the surface at 11");
+
+            var stepper = new PlayerStepper(grid, new[] { rope }, MovementSettings.Default);
+            PlayerState s = stepper.CreateState(5.5f, 1f, Climber);
+            bool stood = false;
+            for (int tick = 0; tick < 300 && !stood; tick++)
+            {
+                s = stepper.Step(s, Hold(0, 1));
+                stood = s.Contact == PlayerContact.OneWayTop;
+            }
+            Assert.IsTrue(stood, "climbed the snapped rope onto the one-way at its top");
+            Assert.AreEqual(11f, s.Y, Tolerance);
+        }
+
+        [Test]
+        public void ARopeTopJustAboveAOneWaySnapsDown()
+        {
+            Assert.AreEqual(11f, new RopeSegment(5.5f, 1f, 11.4f).SnapTopTo(OneWayAt(10)).Top);
+        }
+
+        [Test]
+        public void ARopeTopMoreThanHalfATileAwayDoesNotSnap()
+        {
+            Assert.AreEqual(10.4f, new RopeSegment(5.5f, 1f, 10.4f).SnapTopTo(OneWayAt(10)).Top, "0.6 below");
+            Assert.AreEqual(11.6f, new RopeSegment(5.5f, 1f, 11.6f).SnapTopTo(OneWayAt(10)).Top, "0.6 above");
+        }
+
+        [Test]
+        public void EqualDistanceSnapsToTheHigherSurface()
+        {
+            Assert.AreEqual(12f, new RopeSegment(5.5f, 1f, 11.5f).SnapTopTo(OneWayAt(10, 11)).Top);
+        }
+
+        [Test]
+        public void ASolidCellIsNeverASnapTarget()
+        {
+            TileGrid grid = AsciiLevel.ParseGrid(AsciiLevel.Rows(12, 30, (x, y) => y == 0 || (y == 10 && x == 5) ? '#' : '.'));
+            Assert.AreEqual(10.7f, new RopeSegment(5.5f, 1f, 10.7f).SnapTopTo(grid).Top);
+        }
+
+        [Test]
+        public void ASnapThatWouldInvertTheRopeIsSkipped()
+        {
+            RopeSegment snapped = new RopeSegment(5.5f, 11.2f, 11.4f).SnapTopTo(OneWayAt(10));
+            Assert.AreEqual(11.4f, snapped.Top);
+            Assert.AreEqual(11.2f, snapped.Bottom);
+        }
     }
 }

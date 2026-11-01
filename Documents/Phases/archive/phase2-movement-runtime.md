@@ -178,7 +178,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
     - `maxFallSpeed`: "The fastest the player can fall, in tiles per second."
     - `internal` get/set properties for tests.
 - **NEW `PlayerAbilitiesSection.cs`**: `[Serializable] public sealed class PlayerAbilitiesSection`.
-    - Toggles, default off **(proposal)**. Each tooltip ends "Changes take effect the next time you press Play."
+    - Toggles, default off **(proposal)**. They say what the hero has from the start, and they apply live in Play mode like every other setting (operator, 2026-10-26).
       - `doubleJump`: "On from the start: jump again in mid-air."
       - `wallJump`: "On from the start: slide down walls and jump off them."
       - `wallClimb`: "On from the start: cling to and climb Climbable tiles."
@@ -353,7 +353,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
       2. `controls.ReadFrame()`
       3. `int n = session.AdvanceClock(dt)`; `n ×` `session.Tick(controls.TakeTickInput())`
       4. render (Step 10)
-    - **`OnValidate()`:** `settingsDirty = true`. That is all; no struct compares, no boxing. Number settings apply live; ability toggles are read only at play start (`Start` / `DefaultStart`).
+    - **`OnValidate()`:** `settingsDirty = true`. That is all; no struct compares, no boxing. Every setting applies live (operator, 2026-10-26): on the dirty frame `RunFrame` also applies **only the toggles that changed** since last applied (`PlayerStepper.ChangeAbilities`), so a slider edit leaves a play-from-here (or later pickup) ability set alone. A hold the new set can't keep (rope, cling, wall slide) lets go, in the sim.
     - `internal PlayerSession Session` for tests.
 - **Tests (`PlayerPlayTests.cs`, PlayMode, `InputTestFixture`, `Time.captureFramerate = 60`, so one tick per frame; restored in teardown; levels built with `TestLevel`, Step 12 helper, created here):**
     - spawned 3 tiles above a plain-tile floor → after 60 frames `Contact` is Ground and the feet are on the floor top
@@ -362,7 +362,7 @@ Every new file and folder is committed with its `.meta`. Doc edits are listed in
     - `Restart` with a `PlayStart` containing `RopeClimb` while the toggle is off → the rope can be grabbed; toggle on but `PlayStart` without it → passive
     - **live settings:**
       - under `#if UNITY_EDITOR`, set `movement.runSpeed` to 10 through `SerializedObject` + `ApplyModifiedProperties`, which triggers `OnValidate`, the real path. The player then reaches 10 within the expected ticks.
-      - `abilities.doubleJump` toggled on mid-play → no air jump until restart (prompt rule: toggles apply at play start only)
+      - `abilities.doubleJump` toggled on mid-play → the next air press is an air jump; a slider edit keeps a `PlayStart`'s rope climb; unticking Rope Climb on a rope lets go
 - **Verify:** `[automated]` PlayMode green.
 
 ### Step 10: Rendering, feet alignment and facing
@@ -591,7 +591,7 @@ In the dev scene `Assets/Dev/MovementTest/MovementTest.unity`, every ability on.
 - [ ] `DaedalusTile`, `Player` and `Rope` have the serialized names, sections, `dataVersion` 1, sim-sourced defaults and ranges, tooltips and `Daedalus/…` menu entries in this prompt, pinned by tests. The tile enum declares exactly None/Solid/OneWay/Climbable (4 reserved for hazard). Rope tops snap onto a one-way surface within 0.5 tile.
 - [ ] The Collision Tilemap read covers plain tiles as Solid, our kinds, origin offsets and bounds growth with headroom, and writes nothing. Grid problems warn.
 - [ ] Ropes come from one sorted play-start scan; disabled ones are skipped.
-- [ ] Session tests green: hitch cap, interpolation, reset snap through `Teleported`, `Restart` (before and after `Start`) replacing abilities, live number settings, ability toggles at play start only.
+- [ ] Session tests green: hitch cap, interpolation, reset snap through `Teleported`, `Restart` (before and after `Start`) replacing abilities, live number settings and ability toggles (only the changed toggle applies; a lost hold lets go).
 - [ ] Controls: keyboard (arrows/WASD/Space), gamepad (stick with a 0.5 dead zone, down only when it outweighs sideways, d-pad, South). Up never jumps. Press + release in a frame is a tap. The latch survives zero-tick frames.
 - [ ] Feet align to the floor top within 1e-4 for the tested pivots and scales; the pixel check passes; facing flips.
 - [ ] Every warning appears once, in plain words. Nothing is auto-removed. A clean scene warns about nothing.
@@ -627,7 +627,7 @@ Synced at completion (GDD v0.07 → v0.08). **(proposal)** marks Claude's fill-i
 - § Data Flow 2–3:
   - the map is the Collision Tilemap's bounds grown to include the start and ropes plus 24 rows of headroom (operator, 2026-10-23)
   - the Player's placed position is the start
-  - play-from-here calls `Player.Restart(PlayStart)`; its ability set replaces the toggles; `Jump` is always on
+  - play-from-here calls `Player.Restart(PlayStart)`; its ability set replaces the current one; a toggle changed during play then switches just that ability; `Jump` is always on
 - § Time Model: the reset snap (`Teleported`); scaled `Time.deltaTime`.
 
 **entities.md**
