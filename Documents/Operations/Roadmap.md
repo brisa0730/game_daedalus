@@ -1,6 +1,6 @@
 # Roadmap
 
-Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launch gates, deferred features and open decisions. Live state: GDD version / stack in the [GDD.md](../GDD/GDD.md) header; open issues in [Issues.md](Issues.md). Per-version narrative lives in [Changelog.md](Changelog.md). Estimated 4–6 weeks to a class-ready v1.
+Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launch gates, deferred features and open decisions. Live state: GDD version / stack in the [GDD.md](../GDD/GDD.md) header; open issues in [Issues.md](Issues.md). Per-version narrative lives in [Changelog.md](Changelog.md). Estimated 5–7 weeks to a class-ready v1.
 
 ⚠️ **Phase numbers are assigned when a phase STARTS, never in advance.** §1 lists unstarted work by name and order only.
 
@@ -20,20 +20,25 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 Each milestone ends with something playable.
 
-### Milestone 2 — `combat-and-enemies` (days 5–8)
-The attack, HP, damage, i-frames, knockback, hit-stop, hazards and safe-ground return; the Enemy component with all movement types and the Shoots Projectiles add-on.
+### Milestone 2 — `traps` (days 5–10)
+Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Two phases, in order:
+- **`death-and-respawn` + static traps:** hazard tile kind 4 and pits; the death beat, instant respawn and the death counter; the Player's On hazard setting (Return to safe ground / Respawn at checkpoint); safe ground recorded only on painted tiles; the Checkpoint as respawn point (the progress save stays in `world-systems`); the Exit with a win screen; the `Trap` component with the Vanish and Appear actions, both triggers, Delay, re-arming and the reset on every death; Trap gizmos (zone, ghost) and help boxes.
+- **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
 
-### Milestone 3 — `world-systems` (days 9–11)
-Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`), active radius, camera, checkpoints (with in-game progress save), ability pickups, moving and crumbling platforms, exit and win screen.
+### Milestone 3 — `combat-and-enemies` (days 11–14)
+The attack, HP, damage, i-frames, knockback, hit-stop (HP 0 respawns at the checkpoint); the Enemy component with all movement types and the Shoots Projectiles add-on. Hazards, death and respawn land in `traps`.
 
-### Milestone 4 — `editor-tools` (days 12–20)
-Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
+### Milestone 4 — `world-systems` (days 15–17)
+Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`; checkpoints, the exit and traps in `traps`), active radius, camera, the in-game progress save at checkpoints, ability pickups, moving and crumbling platforms (on the `traps` moving-box core).
 
-### Milestone 5 — `assets-and-sharing` (days 21–26)
-Default art pack (CC0, pre-mapped) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, the WebGL build-and-share path, and the first OpenUPM release. Needs the hosting decision (§4).
+### Milestone 5 — `editor-tools` (days 18–26)
+Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs, opening with troll sections and five example traps: Drop Floor, Pop Spike, Falling Ceiling, Runaway Exit, Fake Floor). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make a floor that drops when the player gets close, make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
 
-### Milestone 6 — `classroom-test` (days 27+)
-Run a class session with students, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter); fix what blocks them.
+### Milestone 6 — `assets-and-sharing` (days 27–32)
+Default art pack (CC0, pre-mapped, with a seamless single-tile ground style so traps look like normal ground) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, the WebGL build-and-share path, and the first OpenUPM release. Needs the hosting decision (§4).
+
+### Milestone 7 — `classroom-test` (days 33+)
+Run a class session with students, starting with troll levels, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter); fix what blocks them.
 
 ## 2. Pre-launch gates
 
@@ -52,6 +57,7 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 - **Multiple attacks, combos, magic, ranged player attacks.**
 - **Pathfinding enemy AI.** Getting stuck on terrain is accepted in v1.
 - **Boss scripting, multi-phase patterns.**
+- **Trap chaining** (one trap triggering another), **repeating traps**, **gravity flip, reversed controls** and other rule-changing traps. v1 traps hold their own trigger and fire once per life; several traps fire together by sharing a zone.
 - **Event / scripting system for students, including C# scripting.** Against the design pillar "students use the tool, they don't read its code"; treat as the strongest scope-creep signal.
 - **Separate rooms with screen transitions.** v1 is one continuous map.
 - **Dialogue, NPCs, shops, inventory.**
@@ -74,5 +80,5 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 | Decision | Options | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | Auto-tile layouts on Unity's Tilemap (reopens v0.02's "all three, dual-grid first") | Rule Tiles for blob + single only · plus a custom dual-grid tool (a display Tilemap offset half a tile, driven from the logical Collision Tilemap) | Blob + single on Rule Tiles first: they come with 2D Tilemap Extras and cover a CC0 pack. Build dual-grid only if the mid-`editor-tools` student check shows students drawing their own terrain need it | `editor-tools` |
-| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before milestone 5: OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |
-| Hosting for shared WebGL builds | A teacher-run static site (e.g. GitHub Pages) · itch.io under a teacher account · handing the build folder around (no hosting) | Decide before milestone 5 | `assets-and-sharing` |
+| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before `assets-and-sharing` (milestone 6): OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |
+| Hosting for shared WebGL builds | A teacher-run static site (e.g. GitHub Pages) · itch.io under a teacher account · handing the build folder around (no hosting) | Decide before `assets-and-sharing` (milestone 6) | `assets-and-sharing` |

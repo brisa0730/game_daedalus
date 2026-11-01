@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.08
+**Last updated:** v0.09
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -25,7 +25,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Ability gating | Draft | Progression by making areas reachable only with a given ability. |
 | Enemy type | Draft | A prefab of an object with an Enemy component (e.g. "Bat"). |
 | Override | Draft | Unity's prefab override: a placed enemy's change to its prefab's values. |
-| Safe ground | Draft | The last position the player stood on safely; hazards return the player there. |
+| Safe ground | Draft | The last position the player stood on safely, on painted tiles only (never on a trap); with On hazard = Return to safe ground, hazards return the player there. |
 | Checkpoint | Draft | A placed element that sets the respawn point and saves in-game progress. |
 | Active radius | Draft | The area (~1.5 screens) around the camera inside which objects update. |
 | Collision Tilemap | Draft | The one of the three Tilemaps (Background, Collision, Foreground) whose tiles affect gameplay. |
@@ -71,3 +71,12 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Reset snap | Draft | Drawing a fall-out reset at the start at once, without sliding there (`Teleported`). |
 | Play-start scan | Draft | The one allowed scene search (rule 5 exception): one `FindObjectsByType` scan plus a deterministic sort at play start, never per frame. |
 | Scenario test | Draft | An EditMode test that steps the sim through a scripted input sequence on a small ASCII map and checks it tick by tick. |
+| Troll level | Draft | A short section that looks normal, then betrays the player with traps (the genre of games like Level Devil); how students begin the course. |
+| Section | Draft | One short stretch of the continuous map, starting at a checkpoint; troll levels are built as sections side by side. |
+| Trap | Draft | The Daedalus component (`Trap`) that makes a box of tiles move, fall, vanish or appear when the player touches it or enters its zone; fires once per life; never triggers another trap. |
+| Trap zone | Draft | A trap's trigger box in world space, drawn in the Scene view; traps sharing a zone fire together. |
+| Moving solid | Draft | A Solid trap in motion: it carries, pushes and can crush the player. |
+| Crush | Draft | Death when a moving solid pushes the player into the grid. |
+| On hazard | Draft | The Player setting for what a hazard does: Return to safe ground (default) or Respawn at checkpoint. |
+| Death beat | Draft | The short (~0.4 s) flash after any death before the player reappears; the same for spikes, pits and crush. |
+| Death counter | Draft | The on-screen count of deaths. |

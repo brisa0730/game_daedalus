@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.08
+**Last updated:** v0.09
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -34,7 +34,7 @@ Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](en
 - **Wall climb** only on climbable tiles; climbable with wall climb off is an ordinary wall; ledge pop at an open top; wall climb without wall jump is allowed, and jumping off a cling always pushes away.
 - **Ropes:** ladder-style; grab with Up or Down only and snap to the rope's centre; climb up/down; re-grab lockout 0.2 s; at the top, step onto a one-way platform there, else stop; off the bottom, let go; full-height rope jump that spends no air jump; overlapping ropes: the first in list order wins.
 - **Collision:** X then Y sweeps (correct at any speed); falling diagonally onto an outside corner lands on top; a head bump zeroes upward speed; ceiling-corner correction slides a rising head at most 0.25 tile past a corner (never while on a rope).
-- **Map bounds:** the sides and top are solid; falling out of the bottom resets to the start (temporary, until pits damage in combat-and-enemies).
+- **Map bounds:** the sides and top are solid; falling out of the bottom resets to the start (temporary, until pits become hazards in `traps`).
 - **Nearest free start:** a start inside solid moves to the nearest free cell-centred spot within 8 cells (ties: up, then left).
 - With jump off there are no ground or coyote jumps, but air jumps work after walking off a ledge.
 - Wall jump: full jump height at 1.5 × run speed push-off. Two walls in reach: the pressed side, then the nearer, then the left.
@@ -54,8 +54,15 @@ Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](en
 - **Attack (auto-targeting):** picks the nearest enemy or destructible projectile within range and line of sight (raycast against solid tiles) and fires a fast homing bolt. No target in range: a short burst in the facing direction. No aiming. Damage, range and cooldown are settings.
 - **On hit:** brief hit-stop (~50 ms), hit flash, enemy knockback.
 - **Taking damage:** lose HP, knockback, i-frames (~1 s) with sprite flicker.
-- **Hazards** (spike tiles, pits): damage, then return the player to the **last safe ground position** (not the checkpoint), unless HP hits 0.
+- **Hazards** (spike tiles, pits, Hazard traps, being crushed): the Player's **On hazard** setting decides: **Return to safe ground** (default) or **Respawn at checkpoint** (troll levels). Built in `traps`, before HP exists; from `combat-and-enemies` a hazard also costs HP, and HP 0 always respawns at the checkpoint.
+- **Safe ground** is recorded only while standing on painted tiles, never on a trap, so a dropped floor can't become the return point.
 - **HP 0:** respawn at the last checkpoint with full HP. Unlocked abilities are kept.
+
+### Death and respawn (`traps`)
+
+- **One death, one rule:** every hazard hit, return to safe ground included, plays a short **death beat** (~0.4 s **(proposal)**: flash and burst; the same for spikes, pits and crush), then the player reappears at once. **Every death resets all traps.**
+- **Death counter:** a small on-screen count of deaths, in Play mode and the shared build; no student setting.
+- **Checkpoint:** touching it sets the respawn point (the in-game progress save arrives in `world-systems`). **Exit:** touching it ends the game with a win screen.
 
 ## Enemies
 
@@ -78,11 +85,24 @@ One large continuous map: no rooms, no screen transitions. Progression comes fro
 
 - **Map:** a Unity Grid of 1-unit cells, with 16 px tile art. Up to ~500 × 200 tiles.
 - **Layers:** three Tilemaps: Background, Collision, Foreground. **Only the Collision Tilemap affects gameplay**: a tile's kind counts only there; Background and Foreground are always decoration.
-- **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System). In the sim (`TileKind`): None 0, Solid 1, OneWay 2, Climbable 3 (collides as solid); 4 is reserved for hazard (combat-and-enemies). The runtime fills a 0-based `TileGrid` from the Collision Tilemap at play start.
+- **Tile kinds:** solid; one-way platform (jump through from below, drop down with down + jump); climbable wall (if wall climb is restricted to marked tiles); hazard; none/decorative. Painted through terrains and tiles (§ Tile System). In the sim (`TileKind`): None 0, Solid 1, OneWay 2, Climbable 3 (collides as solid); 4 is reserved for hazard (`traps`). The runtime fills a 0-based `TileGrid` from the Collision Tilemap at play start.
 - **Ropes** reach the sim as a list of vertical segments (`RopeSegment`: centre x, bottom, top).
 - **Plain tiles are solid:** any tile on the Collision Tilemap that isn't a `DaedalusTile` counts as Solid; a `DaedalusTile` brings its own kind.
 - **Map bounds:** the painted cells of the Collision Tilemap, grown to include the start and the ropes, plus 24 empty rows on top ([architecture.md](architecture.md) § Data Flow). Past the painted extent the sides are solid, so a pit must sit between painted tiles.
 - **Placeable elements:** [entities.md](entities.md) § Placeable elements.
+- **Sections:** troll levels are short sections side by side on the one map, each starting at a checkpoint. No rooms, no level select.
+
+### Traps
+
+The **Trap** component turns an object into a piece of the level that betrays the player: a floor that drops, a spike strip that pops out, a ceiling that falls, an exit that runs away. **A trap holds its own trigger and one action; traps never trigger each other** (no chaining: that is where scripting starts). Settings in [entities.md](entities.md) § Trap.
+
+- **Triggers:** the player touches the trap, or the player enters its **zone** (a box in world space, drawn in the Scene view; default: the trap's box grown by 2 tiles **(proposal)**). Several traps fire together by sharing the same zone (multi-object editing or Copy / Paste Component Values), with Delay for timing.
+- **Actions:** **Move** by an offset at a speed; **Fall** under the player's gravity until it lands on solid or climbable tiles; **Vanish**; **Appear** (hidden until it fires).
+- **Fires once per life.** A trap re-arms only after a death resets it and the player has been outside its trigger, so a checkpoint inside a zone doesn't fire the trap on every respawn.
+- **Shape and look:** a box of whole tiles drawn with one Tile repeated across it, so a trap looks exactly like the ground around it. The Tile's collision kind is the trap's kind: **Solid** (a ground tile) or **Hazard** (a spike tile). On an Exit, the trap moves the exit instead and has no shape or tile.
+- **Moving solids:** traps move before the player each tick. A Solid trap **carries** a player standing on it, **pushes** a player in its way and **crushes** (kills) a player whose push is blocked by the grid. A falling trap carries the player down no faster than the player falls, so the floor drops away. A push lets go of a rope. Traps ignore one-way tiles and each other. **Hazard traps** kill on touch and never carry or push.
+- **Readable in the Scene view:** the zone as a box, an Appear trap as a faded ghost, a Move trap's end as an arrow and outline; a help box tells each trap's story in words ("Hidden until the player enters the zone, then appears").
+- **Fake walls and floors** need no feature: paint them on the Foreground Tilemap.
 
 ## Camera
 
@@ -102,7 +122,7 @@ Students work in the Unity Editor, and its usability with our tools decides whet
 - **Inspectors:** at most ~8 settings per component (the Player: per collapsible section), each a slider, toggle or dropdown with a tooltip; mode-specific settings show only in their mode; internals hidden.
 - **Play mode:** no special treatment. Edits made during Play mode work at once (every Player setting applies live) and are thrown away when Play ends, as everywhere in Unity; this is one of the things students learn. Unity's Play-mode tint (set in the starter's guidance) shows when edits won't stick.
 - **Missing-piece hints:** a component that needs something (e.g. an Enemy with no sprite) says so in a help box in plain words.
-- **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route).
+- **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route, trap zones, ghosts and end positions).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.
 - **Scene autosave:** Unity does not autosave scenes; the tools save the open scene on entering Play mode and on a timer.
 - No minimap: Scene-view zoom covers it.

@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.08 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold and the movement prototype landed; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students; activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.09 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold and the movement prototype landed; troll-level traps next; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
 
 ---
 
@@ -8,7 +8,7 @@
 
 ## The Pitch
 
-A Unity package where students build their own Ori / Hollow Knight-style platformer **inside the Unity Editor**, without code. They paint a big map with the Tile Palette, place objects and turn them into a player, enemies, ropes, checkpoints, ability pickups and an exit by adding our components, tune them with Inspector sliders, press play from anywhere to test, and share the finished game as a WebGL build.
+A Unity package where students build their own platformer **inside the Unity Editor**, without code. **The course starts with troll levels** (the genre of games like Level Devil: a level that looks normal, then betrays the player with floors that drop, spikes that pop out and ceilings that fall): short sections, each starting at a checkpoint, built from painted tiles and one **Trap** component. A student who can design those levels is halfway done. Then they grow the same parts into an Ori / Hollow Knight-style map. They paint a big map with the Tile Palette, place objects and turn them into a player, enemies, ropes, checkpoints, ability pickups and an exit by adding our components, tune them with Inspector sliders, press play from anywhere to test, and share the finished game as a WebGL build.
 
 **Audience:** adults in their early 20s who have barely used Unity. **Learning goals:** placing objects, adding components through the Inspector, and tweaking settings; along the way the Scene view, the Tile Palette, prefabs, Play mode and builds. Code is not a goal: students never open a script.
 
@@ -20,12 +20,13 @@ A Unity package where students build their own Ori / Hollow Knight-style platfor
 2. **Movement feel first.** The player must feel good with the default settings. Everything else is judged against that bar.
 3. **One class session.** On a machine with the package installed, in one session a student can paint, place, tune, test from anywhere, save and share.
 4. **Play-from-here.** Testing any spot, with any set of abilities, is one keypress away. It is the most important editor tool.
-5. **One genre, done well.** One player, one attack, one configurable enemy, one big continuous map. Scope creep pushes students toward scripting.
+5. **One genre, done well.** One player, one attack, one configurable enemy, one trap, one big continuous map. Troll sections and an explorable map are the same platformer built from the same parts. Scope creep pushes students toward scripting: a trap holds its own trigger and reaction, and traps never trigger each other.
 6. **Unity's tools first.** Students use Unity's own Scene view, Tile Palette, Inspector, prefabs, undo and builds wherever they exist. We add only what Unity lacks: the game rules as components, play-from-here, validation. Enemy types are ordinary Unity prefabs.
 7. **Few settings, good defaults.** One component makes a thing work; each shows at most ~8 settings. If a component needs more, it is doing too much.
 
 ## Core Loop
 
+**First lessons (troll levels):** paint a short section → add a Trap to a piece of floor, a spike strip or the exit → play it → watch a classmate fall for it → repeat with the next section, each starting at a checkpoint.
 **Student (maker):** paint (Tile Palette) → place objects and add components (Inspector) → tune (Inspector) → play-from-here → fix → repeat → save → WebGL build → share.
 **Classmate (player):** open the shared build in a browser → explore one continuous map → collect ability pickups that open new areas → survive enemies and hazards → reach the exit.
 
@@ -36,6 +37,7 @@ A Unity package where students build their own Ori / Hollow Knight-style platfor
 - **Hosting for shared builds**: decide before `assets-and-sharing` ([Roadmap.md](../Operations/Roadmap.md) §4).
 - **Auto-tile layouts on Unity's Tilemap**: Unity has no dual-grid tilemap ([Roadmap.md](../Operations/Roadmap.md) §4).
 
+**Decided (v0.09):** troll levels are how students begin the course, built as Milestone 2 `traps` before combat: one `Trap` component (trigger + one action, no chaining); hazards can respawn at the checkpoint instead of returning to safe ground; every death resets all traps; one continuous map of short sections, no rooms.
 **Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs (students learn prefabs and overrides).
 **Decided (v0.05):** no special Play-mode treatment: edits made in Play mode are thrown away as everywhere in Unity; students learn it (and Copy / Paste Component Values to keep a tuned result).
 **Decided (v0.03):** a Unity 6 package, `com.orcapafea.daedalus`, installed from OpenUPM; any Unity 6 (minimum 6000.0), developed on 6000.6.7f1 and tested on 6000.0.85f1 too; code-free for students; a custom kinematic sim (no Unity 2D physics for gameplay) on Unity's Tilemap and sprites; Unity's editor replaces the planned React editor.
