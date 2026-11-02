@@ -28,7 +28,9 @@ REPO = Path(__file__).resolve().parents[1]
 RESULTS = REPO / "TestResults"
 BUILD = RESULTS / "perf-build"
 EDITOR_VERSION = "6000.6.7f1"
-CHROME = Path(os.environ.get("CHROME", r"C:\Program Files\Google\Chrome\Application\chrome.exe"))
+CHROME = Path(os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                             if sys.platform == "darwin"
+                             else r"C:\Program Files\Google\Chrome\Application\chrome.exe"))
 BUILD_TIMEOUT_SECONDS = 60 * 60
 PAGE_TIMEOUT_SECONDS = 120
 GATE_P95_MS = 20.0
@@ -37,8 +39,12 @@ GATE_SWEEP_TILES = 500.0
 
 
 def unity_exe():
-    root = Path(os.environ.get("UNITY_EDITORS", r"C:\Program Files\Unity\Hub\Editor"))
-    exe = root / EDITOR_VERSION / "Editor" / "Unity.exe"
+    if sys.platform == "darwin":
+        root = Path(os.environ.get("UNITY_EDITORS", "/Applications/Unity/Hub/Editor"))
+        exe = root / EDITOR_VERSION / "Unity.app" / "Contents" / "MacOS" / "Unity"
+    else:
+        root = Path(os.environ.get("UNITY_EDITORS", r"C:\Program Files\Unity\Hub\Editor"))
+        exe = root / EDITOR_VERSION / "Editor" / "Unity.exe"
     if not exe.exists():
         sys.exit(f"Unity {EDITOR_VERSION} not found at {exe}")
     return exe
@@ -126,7 +132,10 @@ def measure():
     try:
         arrived = received.done.wait(PAGE_TIMEOUT_SECONDS)
     finally:
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(chrome.pid)], capture_output=True)
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(chrome.pid)], capture_output=True)
+        else:
+            chrome.kill()
         server.shutdown()
         shutil.rmtree(profile, ignore_errors=True)
     if not arrived:

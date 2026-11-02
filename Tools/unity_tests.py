@@ -50,8 +50,12 @@ LAST_LINE_WHEN_LOCKED = "Successfully changed project path to:"
 
 
 def editor_exe(version):
-    root = Path(os.environ.get("UNITY_EDITORS", r"C:\Program Files\Unity\Hub\Editor"))
-    exe = root / version / "Editor" / "Unity.exe"
+    if sys.platform == "darwin":
+        root = Path(os.environ.get("UNITY_EDITORS", "/Applications/Unity/Hub/Editor"))
+        exe = root / version / "Unity.app" / "Contents" / "MacOS" / "Unity"
+    else:
+        root = Path(os.environ.get("UNITY_EDITORS", r"C:\Program Files\Unity\Hub\Editor"))
+        exe = root / version / "Editor" / "Unity.exe"
     if not exe.exists():
         sys.exit(f"Unity {version} not found at {exe} (set UNITY_EDITORS to the Hub editor folder)")
     return exe
@@ -68,7 +72,8 @@ def ensure_compat_project(editor_key):
     project = REPO / "Tools" / "compat" / editor_key
     if not (project / "ProjectSettings" / "ProjectVersion.txt").exists():
         exe = editor_exe(version)
-        templates = exe.parent / "Data" / "Resources" / "PackageManager" / "ProjectTemplates"
+        resources = exe.parents[1] / "Resources" if sys.platform == "darwin" else exe.parent / "Data" / "Resources"
+        templates = resources / "PackageManager" / "ProjectTemplates"
         candidates = sorted(templates.glob("com.unity.template.2d-cross-platform-*.tgz"))
         if not candidates:
             sys.exit(f"No 2D template found in {templates}")

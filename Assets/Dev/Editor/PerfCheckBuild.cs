@@ -37,8 +37,9 @@ namespace Orcapafea.Daedalus.Dev
             {
                 PlayerSettings.WebGL.compressionFormat = compression;
                 PlayerSettings.runInBackground = runInBackground;
-                // -buildTarget WebGL left the dev project on WebGL; put it back on Windows for the Editor and tests.
-                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64);
+                // -buildTarget WebGL left the dev project on WebGL; put it back on this machine's standalone target for the Editor and tests.
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone,
+                    Application.platform == RuntimePlatform.OSXEditor ? BuildTarget.StandaloneOSX : BuildTarget.StandaloneWindows64);
             }
 
             bool succeeded = report.summary.result == BuildResult.Succeeded;
