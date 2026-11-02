@@ -83,7 +83,8 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Re-arm | Draft | A trap that a death reset fires again only after the player has been outside its trigger, from every start source. |
 | Push-out | Draft | A Solid trap appearing on the player moves it out the shortest free way (ties: up, left, right, down); with no way free, it crushes. |
 | Trap cells | Draft | The sim's second cell layer in `TileGrid` for present traps; painted tiles stay in charge, Solid beats Hazard. |
-| Moving solid | Draft | A Solid trap in motion: it carries, pushes and can crush the player. |
+| Moving solid | Draft | A Solid trap in motion (Move or Fall): it carries a player standing on it, pushes with its leading face and can crush the player; carrying is soft. |
+| Moving-box core | Draft | The sim layer for traps in motion: boxes between cells, beside the grid; a trap at rest is trap cells again. Reused by `world-systems`' moving and crumbling platforms. |
 | Crush | Draft | Death when a moving solid pushes the player into the grid, or a Solid trap appears on the player with no way out. |
 | On hazard | Draft | The Player setting for what a hazard does: Return to safe ground (default) or Respawn at checkpoint. |
 | Death beat | Draft | The 0.4 s (24-tick) flash and burst after any death before the player reappears; input is ignored; the same for spikes, pits and crush. |

@@ -23,7 +23,7 @@ Each milestone ends with something playable.
 
 ### Milestone 2 — `traps` (days 5–10)
 Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Part 1, `death-and-respawn` with static traps, shipped in v0.10 (§0). Remaining:
-- **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
+- **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Designed in v0.11 (systems.md § Traps, Move and Fall). Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
 
 ### Milestone 3 — `combat-and-enemies` (days 11–14)
 The attack, HP, damage, i-frames, knockback, hit-stop (HP 0 respawns at the checkpoint); the Enemy component with all movement types and the Shoots Projectiles add-on. Hazards, death and respawn land in `traps`.

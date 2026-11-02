@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.09
+**Last updated:** v0.11
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -102,13 +102,24 @@ One large continuous map: no rooms, no screen transitions. Progression comes fro
 The **Trap** component turns an object into a piece of the level that betrays the player: a floor that drops, a spike strip that pops out, a ceiling that falls, an exit that runs away. **A trap holds its own trigger and one action; traps never trigger each other** (no chaining: that is where scripting starts). Settings in [entities.md](entities.md) § Trap.
 
 - **Triggers:** the player touches the trap (the contact margin), or the player enters its **zone** (a box drawn in the Scene view, stored relative to the trap's object so copies keep their own; default: the trap's box grown **upward by 1 tile**, so a Drop Floor fires as the player steps onto it). Several traps fire together by sharing the same zone (multi-object editing, or copies at the same position), with Delay for timing. The inspector's **Fit zone around trap** button resets it; its Scene-view handles snap to whole tiles.
-- **Actions:** **Vanish** and **Appear** (hidden until it fires) since v0.10; **Move** by an offset at a speed and **Fall** under the player's gravity until it lands on solid or climbable tiles arrive with the moving traps.
+- **Actions:** **Vanish** and **Appear** (hidden until it fires) since v0.10; **Move** by an offset at a speed and **Fall** under the player's gravity until it lands on solid or climbable tiles arrive with the moving traps. Every action works on an Exit (no special cases); new traps still default to Vanish. One default zone for every action: a Falling Ceiling's zone is dragged under it (the starter's example carries its own).
 - **Fires once per life.** A trap re-arms only after a death resets it and the player has been outside its trigger, from every start source (play start, checkpoint respawn, return to safe ground), so a start or checkpoint inside a zone doesn't fire the trap on every respawn.
 - **Shape and look:** a box of whole tiles drawn with one Tile repeated across it (the object's SpriteRenderer in Tiled mode with the Tile's sprite), so a trap looks exactly like the ground around it. The box is centred on the object and snaps to whole cells (a **Snap to grid** button and a warning for an off-grid trap). The Tile's collision kind is the trap's kind: **Hazard** (a spike tile) or else **Solid**. Rule Tiles and animated tiles can't be drawn on a trap; sprites should use Mesh Type Full Rect. On an Exit, the trap moves the exit instead and has no shape or tile.
 - **Traps over painted tiles:** the painted Collision tiles stay in charge, with a warning. Where traps overlap, Solid beats Hazard.
 - **Appearing on the player:** a Solid trap that appears on the player pushes it out the shortest free way (ties: up, left, right, down), else crushes it. A start inside a present Solid trap is moved out by the start search.
 - **Moving solids:** traps move before the player each tick. A Solid trap **carries** a player standing on it, **pushes** a player in its way and **crushes** (kills) a player whose push is blocked by the grid. A falling trap carries the player down no faster than the player falls, so the floor drops away. A push lets go of a rope. Traps ignore one-way tiles and each other. **Hazard traps** kill on touch and never carry or push.
-- **Readable in the Scene view:** an outline always (selected or not), the zone as a box, an Appear trap as a faded ghost (Edit mode only), a Move trap's end as an arrow and outline; a help box tells each trap's story in words ("Hidden until the player enters the zone, then appears").
+- **Move and Fall** (moving traps, operator 2026-11-02, all as recommended in the design pass):
+  - **Move** travels in a straight line to its end (the offset, whole tiles) at constant speed, with no easing, **through painted tiles**, and stays there. A help box warns when the end overlaps painted Solid ground.
+  - **Fall** starts at rest and falls under the player's base gravity, capped at the player's max fall speed, until it lands on **painted Solid or Climbable** tiles. It falls through one-way tiles and other traps; out of the map bottom it is gone until the next reset.
+  - **Riding:** a player standing on a Solid trap is standing (ground jumps work). Fall's gravity is weaker than the player's fall gravity, so a rider stays on a falling floor and can jump off it. A trap moving down faster than that pulls away; the player gets the usual coyote window and lands back on it.
+  - **Push vs carry:** only a trap's **leading face** pushes, and only a **blocked push** crushes; a rising trap that lifts the player into a ceiling crushes. Carrying is soft: a rider carried sideways into a wall stops there and the trap slides out from under. A trap's sides push but never carry; only standing on top carries.
+  - **Crush forgiveness:** before crushing, the player is nudged up to **0.25 tile** sideways (the ceiling-corner correction distance), so a falling ceiling that clips the player's edge pushes them aside.
+  - **No momentum:** leaving a moving trap keeps only the player's own speed.
+  - **Walls:** a trap is never Climbable, so the player can wall-slide on a trap's side but never cling to it.
+  - **The zone stays where it was drawn;** a trap moves only after firing, and fires once per life.
+  - **The death beat freezes every trap**, moving ones included; respawn resets them.
+  - Resting traps count as ordinary trap cells; only moving ones are boxes between cells (the **moving-box core**, reused by `world-systems`' platforms).
+- **Readable in the Scene view:** an outline always (selected or not), the zone as a box, an Appear trap as a faded ghost (Edit mode only), a Move trap's end as an arrow and outline with a **handle that drags the end**, snapping to whole tiles like the zone handles; a Fall trap's **landing outline** (no ground below: the help box says "Falls out of the map"); a help box tells each trap's story in words ("Hidden until the player enters the zone, then appears"), and for Move and Fall names the distance and travel time ("Slides 5 tiles right in 0.6 s after the player enters the zone").
 - **Fake walls and floors** need no feature: paint them on the Foreground Tilemap.
 
 ## Camera

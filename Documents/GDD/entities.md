@@ -1,5 +1,5 @@
 # Entities & Data
-**Last updated:** v0.09
+**Last updated:** v0.11
 
 Values here mirror the single source of truth in the sim assembly (CLAUDE.md § Coding Conventions → Tunable defaults): movement defaults and ranges in `MovementSettings`, movement internals in `MovementInternals` (both pinned by `MovementSettingsTests`; change the code, the test and this file together). Movement values are **starting values**: Phase 2's operator play-check tunes them. Combat values are still a sketch.
 
@@ -112,14 +112,14 @@ Spikes are not a placed element: they are **hazard tiles** painted on the Collis
 | --- | --- | --- |
 | Trigger (`trigger`) | always | Player enters zone 0 (default) · Player touches 1 |
 | Zone (`zone`) | Player enters zone | A box stored relative to the trap's object; default: the trap's box grown up by 1 tile |
-| Action (`action`) | always | Vanish 0 (default) · Appear 1 · Move and Fall (2, 3 reserved; moving traps decide whether new traps default to Move; saved traps never change) |
-| Offset | Move | Tiles, relative to where it starts; default 0 × −3 |
+| Action (`action`) | always | Vanish 0 (default) · Appear 1 · Move 2 · Fall 3 (moving traps); new traps keep defaulting to Vanish |
+| Offset | Move | Whole tiles, relative to where it starts; default 0 × −3, range −30 to 30 per axis |
 | Speed | Move | Tiles/s; default 8, range 1–30 |
 | Delay (`delay`) | always | Seconds after the trigger; default 0, range 0–3 |
 | Size (`size`) | not on an Exit | Width × height in whole tiles; default 3 × 1, range 1–30; centred on the object; the object's Scale is ignored |
 | Tile (`tile`) | not on an Exit | The Tile drawn across the box; a Hazard tile makes a Hazard trap, any other tile a Solid one |
 
-Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's base gravity and max fall speed; hidden `dataVersion` 1. Settings are read at play start, like the Rope's length; in Play the inspector says "Trap changes take effect the next time you press Play" and an edit leaves the running look alone (code review, Phase 3). The object needs a SpriteRenderer (added with the Trap); Add Component sets its Tiled look.
+Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's base gravity and max fall speed; Move has constant speed and no easing; crush nudge 0.25 tile (proposal); no momentum from a moving trap; hidden `dataVersion` 1. Settings are read at play start, like the Rope's length; in Play the inspector says "Trap changes take effect the next time you press Play" and an edit leaves the running look alone (code review, Phase 3). The object needs a SpriteRenderer (added with the Trap); Add Component sets its Tiled look.
 
 ## Terrains
 
