@@ -1,0 +1,12 @@
+# Class gallery — named tunnel config (Milestone 3 `class-gallery`).
+# suwon.orcarin.com (the gallery) and suwon-play.orcarin.com (the games) → the gallery server on :8470
+# (loopback-bound origin). TLS terminates at the Cloudflare edge. Credentials stay in ~/.cloudflared/.
+# Run: cloudflared tunnel --config Deploy/cloudflared/suwon.yml run suwon
+tunnel: suwon
+
+ingress:
+  - hostname: suwon.orcarin.com
+    service: http://127.0.0.1:8470
+  - hostname: suwon-play.orcarin.com
+    service: http://127.0.0.1:8470
+  - service: http_status:404

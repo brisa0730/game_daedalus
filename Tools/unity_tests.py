@@ -22,6 +22,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -182,11 +183,14 @@ def force_our_compile(project):
 
 def run_unity(command, env):
     """Run Unity; on timeout kill it and its child processes (they would hold the project lock)."""
-    process = subprocess.Popen(command, env=env)
+    process = subprocess.Popen(command, env=env, start_new_session=sys.platform != "win32")
     try:
         return process.wait(timeout=TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
         raise
 
 

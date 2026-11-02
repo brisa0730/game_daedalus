@@ -22,6 +22,18 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### The gallery's file serving doesn't check symlinks
+- **Severity:** MED · **Source:** class gallery spike (v0.14; code review)
+- **Description:** [files.rs](../../Deploy/gallery/src/files.rs) `safe_join` keeps a request path lexically inside a game's folder but doesn't follow symlinks, so a symlink inside an uploaded game's folder could point outside it.
+- **Why deferred:** nothing extracts uploads yet; the spike served only our own builds.
+- **Trigger to act:** the gallery phase's upload. Fix shape: the unzip rejects symlinks and absolute or `..` entries, with a test for each.
+
+### The spike's WebGL build script and save probe stay in `Assets/Dev`
+- **Severity:** LOW · **Source:** class gallery spike (v0.14)
+- **Description:** [GallerySpikeBuild.cs](../../Assets/Dev/Editor/GallerySpikeBuild.cs) builds the trap bench to WebGL with a chosen compression, an optional development build, and URP's stripping report copied beside it. [SaveProbe.cs](../../Assets/Dev/GallerySpike/SaveProbe.cs) logs a `PlayerPrefs` launch count, compiled only under `DAEDALUS_GALLERY_SPIKE`.
+- **Why deferred:** ISS-001 is being investigated with exactly these builds, and the gallery phase's Share my game build replaces them.
+- **Trigger to act:** ISS-001 fixed and **Daedalus → Share my game** landed. Fix shape: delete both; keep any WebGL build setting they proved in the Share build.
+
 ### `RebuildTrapCells` clears the whole trap layer on each start, rest or landing tick
 - **Severity:** LOW · **Source:** Phase 4 (`moving-traps`, v0.13)
 - **Description:** [LevelStepper.cs](../../Packages/com.orcapafea.daedalus/Runtime/Sim/LevelStepper.cs) `RebuildTrapCells` clears every trap cell and restamps every resting trap whenever any trap starts, comes to rest or leaves the map. Ordinary moving ticks never rebuild.

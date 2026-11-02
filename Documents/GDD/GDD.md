@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.13 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and Milestone 2 `traps` landed: death and respawn, static and moving traps; the class gallery decided, next to build; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.14 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and Milestone 2 `traps` landed: death and respawn, static and moving traps; the class gallery decided and its spike done, next to build after ISS-001 (WebGL builds draw nothing); exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
 
 ---
 
@@ -36,6 +36,7 @@ A Unity package where students build their own platformer **inside the Unity Edi
 
 - **Auto-tile layouts on Unity's Tilemap**: Unity has no dual-grid tilemap ([Roadmap.md](../Operations/Roadmap.md) §4).
 
+**Decided (v0.14):** the class gallery's spike settled how games are kept apart from the login: games run on `suwon-play.orcarin.com` in a sandboxed frame; Brotli builds; a 50 MB upload limit; a game keeps one address for life so its saves survive re-uploads; games can reach each other's saves (accepted) (platforms.md § External Services).
 **Decided (v0.12):** shared games live on the **class gallery** at `suwon.orcarin.com`, a small web app of ours on the operator's Mac Mini behind a Cloudflare Tunnel: one ID + password account per student plus the teacher's, students upload their own game, only signed-in users can see or play anything; built in Milestone 3 `class-gallery`, right after `traps` (systems.md § Share); the server is Rust (Axum + SQLite).
 **Decided (v0.09):** troll levels are how students begin the course, built as Milestone 2 `traps` before combat: one `Trap` component (trigger + one action, no chaining); hazards can respawn at the checkpoint instead of returning to safe ground; every death resets all traps; one continuous map of short sections, no rooms.
 **Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs (students learn prefabs and overrides).

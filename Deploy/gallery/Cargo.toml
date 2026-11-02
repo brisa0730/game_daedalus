@@ -1,0 +1,13 @@
+[package]
+name = "gallery"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The daedalus class gallery server (suwon.orcarin.com)"
+
+[dependencies]
+axum = "0.8"
+hmac = "0.12"
+sha2 = "0.10"
+rand = "0.9"
+subtle = "2"

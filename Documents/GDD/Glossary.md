@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.12
+**Last updated:** v0.14
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -18,6 +18,8 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Daedalus window | Draft | The editor window holding the play-from-here ability checkboxes and the validation warnings. |
 | Shared build | Draft | A WebGL build of a student's game, uploaded to the class gallery and played in a browser. |
 | Class gallery | Draft | The website at `suwon.orcarin.com` where signed-in students upload their games and play each other's; our web app on the operator's Mac Mini. |
+| Games host | Draft | `suwon-play.orcarin.com`: the class gallery's second hostname, which serves the shared builds into a sandboxed frame so a game can't use the gallery's login. |
+| Play grant | Draft | The signed, short-lived token the class gallery puts in a game frame's address; the games host trades it for a per-game cookie. Carries the game, not the user. |
 | Share my game | Draft | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title, a nickname and a screenshot, ready to upload. |
 | Play-from-here | Draft | Entering Play mode at the Scene-view cursor with a chosen ability set; leaving Play mode returns to the same view. |
 | Play from start | Draft | Unity's Play button: starting at the Player start with only the starting abilities, the real experience. |

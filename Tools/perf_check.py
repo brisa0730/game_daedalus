@@ -17,6 +17,7 @@ import http.server
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -127,7 +128,7 @@ def measure():
         str(CHROME), f"--user-data-dir={profile}", "--new-window", "--window-size=1366,768",
         "--no-first-run", "--no-default-browser-check",
         "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
-        "--disable-backgrounding-occluded-windows", url])
+        "--disable-backgrounding-occluded-windows", url], start_new_session=sys.platform != "win32")
     print(f"Measuring in Chrome at {url} (about 30 s)...")
     try:
         arrived = received.done.wait(PAGE_TIMEOUT_SECONDS)
@@ -135,7 +136,8 @@ def measure():
         if sys.platform == "win32":
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(chrome.pid)], capture_output=True)
         else:
-            chrome.kill()
+            os.killpg(chrome.pid, signal.SIGKILL)
+            chrome.wait()
         server.shutdown()
         shutil.rmtree(profile, ignore_errors=True)
     if not arrived:

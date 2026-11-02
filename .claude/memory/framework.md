@@ -55,8 +55,26 @@ type: reference
 - **`EditorJsonUtility.ToJson` / `FromJsonOverwrite`** round-trip a component with fields stripped from the JSON: the missing fields keep the object's field initializers, which is how old saved data with fewer fields loads.
 - **An assembly that doesn't reference another can't call any overload set that mentions that assembly's types** (CS0012 on overload resolution, even when the chosen overload doesn't use them). The editor assembly doesn't reference the sim, so runtime methods it calls need names of their own when a sibling overload takes a sim type (`HelpTexts.TrapStoryInScene`, `TrapLook.FallLandingBox`).
 
+## macOS (Mac Mini, 6000.6.7f1 and 6000.0.85f1)
+- Editors live at `/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity`; project templates under `Unity.app/Contents/Resources/PackageManager/ProjectTemplates`. A module (WebGL) sits in `<version>/PlaybackEngines/`.
+- Opening the dev project rewrites `.vscode/settings.json`'s `dotnet.defaultSolution` to match the folder's case (`Daedalus.slnx` here, `daedalus.slnx` on Windows). Don't commit that change.
+- `UniversalRenderPipelineGlobalSettings.asset`'s `m_RuntimeSettings` list empties on the first editor save: URP clears it on every editor serialize and fills it only while building a player. The committed list is a stale build artifact; don't commit the emptied one either way without a reason.
+- A player's relative `-logFile` path resolves against the app bundle, not the shell; pass an absolute path.
+
+## Cloudflare Tunnel (cloudflared 2026.6.1)
+- `cloudflared tunnel route dns <name> <host>` with no `--config` takes the tunnel from `~/.cloudflared/config.yml` (octopus on the Mac Mini), **not** the name given: the record silently points at the wrong tunnel. Always pass `--config Deploy/cloudflared/suwon.yml` (and `--overwrite-dns` to repoint), and check the `tunnelID=` in the output.
+- The tunnel keeps the public `Host`; a request with `Host: 127.0.0.1` can only come from the machine itself.
+- Through the tunnel, `Content-Encoding: br` / `gzip` from the origin reach Chrome unchanged (HTTP/3), and an uncompressed `.wasm` is not compressed on the way, with `Cache-Control: no-transform`.
+
+## WebGL (6000.6.7f1, Chrome)
+- **ISS-001: every WebGL build draws nothing.** URP's resource shaders are null in the player (`Cannot create required material because shader is null` each frame). A native macOS player is fine. See Issues.md.
+- Chrome accepts Brotli from `http://127.0.0.1` (a secure context), so loopback tests can serve `.br` files.
+- A WebGL build's `Application.persistentDataPath` is `/idbfs/<md5 of the page URL up to its last '/'>` (query ignored), stored in IndexedDB `/idbfs`; `PlayerPrefs` live there too. In an opaque-origin (sandboxed without `allow-same-origin`) frame, IndexedDB throws `SecurityError`.
+- On the Mac Mini a WebGL build of the trap bench takes ~4 min cold and 13–18 s warm; the build report's "2 errors" are licensing and network noise ("Access token is unavailable", "Curl error 42") and the build succeeds.
+- URP writes which graphics settings reach the player to `Temp/graphics-settings-stripping.json`, deleted when Unity exits; `GallerySpikeBuild` copies it next to the build.
+
 ## WebGL (6000.6.7f1, Chrome, Windows 11)
 - A release WebGL build of the perf check takes ~6 min cold, ~2 min warm. An incremental build keeps unchanged output files **with their old timestamps**, so freshness is only provable by emptying the output folder first.
-- `-buildTarget WebGL` leaves the project's active target on WebGL; `PerfCheckBuild` switches it back to Windows.
+- `-buildTarget WebGL` leaves the project's active target on WebGL; `PerfCheckBuild` switches it back to the host's standalone target.
 - `Screen.currentResolution.refreshRateRatio` reports 60 Hz in the browser even on a ~240 Hz display (mean ~240 fps measured); judge by frame-time percentiles, not the reported rate.
 - Chrome's `--window-size=1366,768` gave a 1440 × 900 canvas on this machine (display scaling).

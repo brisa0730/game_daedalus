@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.13
+**Last updated:** v0.14
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -197,7 +197,7 @@ No rule editing for students: they paint with preconfigured terrains. Fixed layo
 Students share games on the **class gallery** at `suwon.orcarin.com`, a website only the teacher and the students can enter.
 - **Make the upload:** **Daedalus → Share my game** asks for a title and the student's nickname, makes a WebGL build with the settings the gallery needs, takes a screenshot for the card, and writes one zip. A build contains only the game. The editor never goes online.
 - **Sign in:** each student has their own ID and password; the teacher has one too. Only signed-in users see or play anything.
-- **Upload:** a signed-in student uploads their zip in the browser; uploading again replaces their earlier version of that game. The gallery checks the zip (only a WebGL build, size limit) and rejects anything else with a plain message.
+- **Upload:** a signed-in student uploads their zip in the browser; uploading again replaces their earlier version of that game **at the same address**, so the game keeps its players' saves (a WebGL build keys its saves by the page's address). The gallery checks the zip (only a WebGL build, at most 50 MB) and rejects anything else with a plain message.
 - **Play:** the gallery lists every game as a card (title, nickname, screenshot); a click plays it in Chrome.
 - **Teacher:** creates student accounts, resets passwords, removes any game or account.
-- **Safety:** an uploaded game runs where it can't use the gallery's login, so a game can never act as the signed-in user (how is settled by the `class-gallery` spike).
+- **Safety:** an uploaded game runs on its own hostname, `suwon-play.orcarin.com`, inside a sandboxed frame on the gallery page, so it can't use the gallery's login, change anything in the gallery, frame a gallery page, open popups or send the gallery tab elsewhere (a fake sign-in page). Games share one browser origin, so a game could read or wipe another game's saves; accepted for a class-only gallery (`decisions.md`, v0.14).
