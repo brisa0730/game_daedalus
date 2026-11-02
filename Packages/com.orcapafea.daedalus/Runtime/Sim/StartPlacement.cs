@@ -3,9 +3,12 @@ using System;
 namespace Orcapafea.Daedalus.Sim
 {
     /// <summary>
-    /// Where the player actually starts: the given feet position if the hitbox is free there and inside
-    /// the map, else the nearest free cell-centred position within <see cref="MovementInternals.StartSearchRadius"/> cells.
-    /// Play-start only.
+    /// Where the player actually starts or respawns: the given feet position if it is free there and inside
+    /// the map, else the nearest free cell-centred position within <see cref="MovementInternals.StartSearchRadius"/>
+    /// cells that stands on support. Free means the hitbox overlaps no blocking cell and its hazard core touches no
+    /// hazard, or a start on spikes would die and come back there forever. A moved position must also stand on
+    /// support (hazards never are), or a start on a floor-mounted spike strip would move into the air above it,
+    /// fall back in and die forever. An unmoved start may be in mid-air.
     /// </summary>
     public readonly struct StartPlacement
     {
@@ -24,7 +27,7 @@ namespace Orcapafea.Daedalus.Sim
         public float Y { get; }
         /// <summary>The start was blocked (whether or not a free position was found).</summary>
         public bool Moved { get; }
-        /// <summary>False when every position in the search radius is blocked; X and Y are then the original feet.</summary>
+        /// <summary>False when no free, supported position is in the search radius; X and Y are then the original feet.</summary>
         public bool Found { get; }
 
         public static StartPlacement Find(TileGrid grid, float feetX, float feetY)
@@ -33,8 +36,8 @@ namespace Orcapafea.Daedalus.Sim
             {
                 throw new ArgumentNullException(nameof(grid));
             }
-            // Feet below row 0 are not free: the player would fall out and reset there forever.
-            if (feetY >= 0 && TileCollision.BoxIsFree(grid, feetX, feetY, HalfWidth, Height))
+            // Feet below row 0 are not free: the player would be in a pit and die there forever.
+            if (feetY >= 0 && IsFree(grid, feetX, feetY))
             {
                 return new StartPlacement(feetX, feetY, false, true);
             }
@@ -56,7 +59,7 @@ namespace Orcapafea.Daedalus.Sim
                     }
                     float x = c + 0.5f;
                     float y = r;
-                    if (!TileCollision.BoxIsFree(grid, x, y, HalfWidth, Height))
+                    if (!IsFree(grid, x, y) || TileCollision.Support(grid, x, y, HalfWidth) == SupportKind.None)
                     {
                         continue;
                     }
@@ -71,6 +74,11 @@ namespace Orcapafea.Daedalus.Sim
                 }
             }
             return new StartPlacement(bestX, bestY, true, found);
+        }
+
+        static bool IsFree(TileGrid grid, float x, float y)
+        {
+            return TileCollision.BoxIsFree(grid, x, y, HalfWidth, Height) && !TileCollision.CoreTouchesHazard(grid, x, y);
         }
     }
 }

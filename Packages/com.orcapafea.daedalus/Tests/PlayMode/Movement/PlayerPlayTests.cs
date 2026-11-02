@@ -104,7 +104,7 @@ namespace Orcapafea.Daedalus.Tests
             Level.Player.Restart(new PlayStart(start, Abilities.Jump));
             Assert.IsNull(Level.Player.Session, "precondition: Start hasn't run");
             yield return null;
-            Vector2 first = Level.Player.Session.Map.SimToWorld(new Vector2(Level.Player.Session.Current.StartX, Level.Player.Session.Current.StartY));
+            Vector2 first = Level.Player.Session.StartFeetWorld;
             Assert.AreEqual(start, first);
         }
 
@@ -132,7 +132,7 @@ namespace Orcapafea.Daedalus.Tests
             }, new TestLevelOptions
             {
                 // A tile kind this package doesn't know (e.g. saved by a newer version): a broken invariant.
-                BeforeActivate = level => ((DaedalusTile)level.Collision.GetTile(new Vector3Int(10, 0, 0))).Kind = (TileCollisionKind)4,
+                BeforeActivate = level => ((DaedalusTile)level.Collision.GetTile(new Vector3Int(10, 0, 0))).Kind = (TileCollisionKind)5,
             });
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("ArgumentOutOfRangeException"));
             yield return Frames(10);

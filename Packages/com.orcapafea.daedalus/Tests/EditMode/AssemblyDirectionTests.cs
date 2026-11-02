@@ -9,6 +9,7 @@ namespace Orcapafea.Daedalus.Tests
         const string Runtime = "Orcapafea.Daedalus";
         const string Editor = "Orcapafea.Daedalus.Editor";
         const string InputSystem = "Unity.InputSystem";
+        const string UI = "UnityEngine.UI";
 
         [Test]
         public void SimReferencesNothing()
@@ -17,11 +18,11 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void RuntimeReferencesOnlyTheSimAndTheInputSystem()
+        public void RuntimeReferencesOnlyTheSimTheInputSystemAndUI()
         {
             AsmdefData runtime = PackageFiles.ReadAsmdef(PackageFiles.RuntimeAsmdef);
             Assert.AreEqual(Runtime, runtime.name);
-            Assert.That(runtime.references, Is.SubsetOf(new[] { Sim, InputSystem }));
+            Assert.That(runtime.references, Is.SubsetOf(new[] { Sim, InputSystem, UI }));
             foreach (string reference in runtime.references)
             {
                 Assert.AreNotEqual(Editor, reference, "The runtime must never reference the editor tools.");

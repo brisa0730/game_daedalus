@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.09
+**Last updated:** v0.10
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -25,8 +25,10 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Ability gating | Draft | Progression by making areas reachable only with a given ability. |
 | Enemy type | Draft | A prefab of an object with an Enemy component (e.g. "Bat"). |
 | Override | Draft | Unity's prefab override: a placed enemy's change to its prefab's values. |
-| Safe ground | Draft | The last position the player stood on safely, on painted tiles only (never on a trap); with On hazard = Return to safe ground, hazards return the player there. |
-| Checkpoint | Draft | A placed element that sets the respawn point and saves in-game progress. |
+| Safe ground | Draft | The last position the player stood fully on painted non-hazard tiles, outside every trap trigger and trap box; with On hazard = Return to safe ground, hazards return the player there. |
+| Checkpoint | Draft | A placed element (`Checkpoint` component) that sets the respawn point when touched and, from `world-systems`, saves in-game progress. |
+| Exit | Draft | A placed element (`Exit` component) that ends the game with the win screen when touched. |
+| Respawn point | Draft | Where Respawn at checkpoint brings the player back: where Play began, then the latest checkpoint touched. |
 | Active radius | Draft | The area (~1.5 screens) around the camera inside which objects update. |
 | Collision Tilemap | Draft | The one of the three Tilemaps (Background, Collision, Foreground) whose tiles affect gameplay. |
 | Tile kind | Draft | A tile's or terrain's collision type: solid, one-way, climbable, hazard, none. Counts only on the Collision Tilemap. |
@@ -60,11 +62,11 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Time to full speed | Draft | The setting for how fast the player reaches run speed from rest on the ground, in seconds. |
 | Ceiling-corner correction | Draft | Sliding a rising head at most 0.25 tile sideways past a ceiling corner it barely clips. |
 | Nearest free start | Draft | Moving a start that is inside solid to the nearest free spot within 8 cells. |
-| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out resets to the start for now). The map covers the Collision Tilemap's painted cells, grown to include the start and the ropes, plus the **map headroom**: 24 empty rows on top. |
+| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out is a death: a pit). The map covers the Collision Tilemap's painted cells, grown to include the start, the ropes, traps, checkpoints and exits, plus the **map headroom**: 24 empty rows on top. |
 | Tile grid | Draft | The sim's 0-based grid of tile kinds, filled from the Collision Tilemap at play start. |
 | Player (component) | Draft | The one Daedalus component that makes an object the player; its placed position is the start. Sections: Movement and Abilities. |
 | Daedalus tile | Draft | A tile asset with a collision kind (`DaedalusTile`). Plain tiles on the Collision Tilemap count as solid. |
-| Collision kind | Draft | What a tile does on the Collision Tilemap: None, Solid, One-way, Climbable (Hazard reserved). |
+| Collision kind | Draft | What a tile does on the Collision Tilemap: None, Solid, One-way, Climbable, Hazard (4: doesn't block, kills). |
 | Play start | Draft | Where and with which abilities the player starts (`PlayStart`): the placed position and the toggles, or what play-from-here passes. |
 | Player session | Draft | The runtime's driver for one Player's sim: clock, ticks, interpolation and restarts (`PlayerSession`). |
 | Feet offset | Draft | How far the sprite's bottom edge sits from the object's position; it puts the sprite's bottom on the sim's feet. |
@@ -74,9 +76,20 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Troll level | Draft | A short section that looks normal, then betrays the player with traps (the genre of games like Level Devil); how students begin the course. |
 | Section | Draft | One short stretch of the continuous map, starting at a checkpoint; troll levels are built as sections side by side. |
 | Trap | Draft | The Daedalus component (`Trap`) that makes a box of tiles move, fall, vanish or appear when the player touches it or enters its zone; fires once per life; never triggers another trap. |
-| Trap zone | Draft | A trap's trigger box in world space, drawn in the Scene view; traps sharing a zone fire together. |
+| Trap zone | Draft | A trap's trigger box, drawn in the Scene view and stored relative to the trap's object (default: the trap's box grown up by 1 tile); traps sharing a zone fire together. |
+| Trigger | Draft | What sets a trap off: Player enters zone, or Player touches (the contact margin). |
+| Touch | Draft | Contact on the player's hitbox grown by the contact margin (0.0625 tile); used by Touch triggers, the Checkpoint and the Exit. |
+| Hazard core | Draft | The player's hitbox inset by 0.2 tile per side; a hazard kills only when it overlaps the core. |
+| Re-arm | Draft | A trap that a death reset fires again only after the player has been outside its trigger, from every start source. |
+| Push-out | Draft | A Solid trap appearing on the player moves it out the shortest free way (ties: up, left, right, down); with no way free, it crushes. |
+| Trap cells | Draft | The sim's second cell layer in `TileGrid` for present traps; painted tiles stay in charge, Solid beats Hazard. |
 | Moving solid | Draft | A Solid trap in motion: it carries, pushes and can crush the player. |
-| Crush | Draft | Death when a moving solid pushes the player into the grid. |
+| Crush | Draft | Death when a moving solid pushes the player into the grid, or a Solid trap appears on the player with no way out. |
 | On hazard | Draft | The Player setting for what a hazard does: Return to safe ground (default) or Respawn at checkpoint. |
-| Death beat | Draft | The short (~0.4 s) flash after any death before the player reappears; the same for spikes, pits and crush. |
-| Death counter | Draft | The on-screen count of deaths. |
+| Death beat | Draft | The 0.4 s (24-tick) flash and burst after any death before the player reappears; input is ignored; the same for spikes, pits and crush. |
+| Death counter | Draft | The skull and number in the top-left corner counting every death since Play began. |
+| Win screen | Draft | The dimmed freeze after touching the Exit: "You made it!", the deaths, and after 1 s any key plays again. |
+| HUD | Draft | The on-screen layer built in code at play start (uGUI): the death counter and the win screen. |
+| Follow camera | Draft | The main camera following the player, clamped to the map, cut on respawn (a snap follow in v0.10; smoothing in `world-systems`). |
+| Level stepper | Draft | `LevelStepper`: the sim's world step around `PlayerStepper` (death, respawn, checkpoints, exit, traps). |
+| Level rules | Draft | `LevelRules`: the one source of death, respawn and trap numbers. |

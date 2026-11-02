@@ -5,27 +5,43 @@ using UnityEngine;
 namespace Orcapafea.Daedalus
 {
     /// <summary>
-    /// Runs the player's sim for the Player component: the stepper, the 60 Hz clock, the two states the
+    /// Runs the level's sim for the Player component: the world step, the 60 Hz clock, the two player states the
     /// renderer interpolates between, and restarts. Input-agnostic: the caller pulls one input per tick.
     /// </summary>
     internal sealed class PlayerSession
     {
         readonly CollisionMap map;
-        readonly PlayerStepper stepper;
-        FixedStepAccumulator accumulator;
+        readonly LevelStepper level;
+        readonly FixedStepAccumulator accumulator = new FixedStepAccumulator();
 
-        public PlayerSession(CollisionMap map, RopeSegment[] ropes, MovementSettings settings, PlayStart start)
+        public PlayerSession(CollisionMap map, RopeSegment[] ropes, TrapSpec[] traps, Box[] checkpoints, Box[] exits,
+            MovementSettings settings, RespawnRule rule, PlayStart start)
         {
             this.map = map ?? throw new ArgumentNullException(nameof(map));
-            stepper = new PlayerStepper(map.Grid, ropes, settings);
+            level = new LevelStepper(map.Grid, ropes, traps, checkpoints, exits, settings, rule);
             Restart(start);
         }
 
         public CollisionMap Map => map;
         public PlayerState Current { get; private set; }
         public PlayerState Previous { get; private set; }
-        public StartPlacement LastPlacement { get; private set; }
+        public StartPlacement LastPlacement => level.LastPlacement;
         public double InterpolationFraction => accumulator.InterpolationFraction;
+
+        public LevelPhase Phase => level.Phase;
+        public int PhaseTicks => level.PhaseTicks;
+        public int Deaths => level.Deaths;
+        public bool CanPlayAgain => level.CanPlayAgain;
+        public int TrapChanges => level.TrapChanges;
+        public int TrapCount => level.TrapCount;
+        public int ActiveCheckpoint => level.ActiveCheckpoint;
+        public bool IsTrapPresent(int index) => level.IsTrapPresent(index);
+
+        /// <summary>The feet at the last death, in world space.</summary>
+        public Vector2 DeathFeetWorld => map.SimToWorld(new Vector2(level.DeathX, level.DeathY));
+
+        /// <summary>The placed start of the last restart, in world space.</summary>
+        public Vector2 StartFeetWorld => map.SimToWorld(new Vector2(level.StartX, level.StartY));
 
         /// <summary>The feet centre in world space, between the last two ticks at the clock's fraction.</summary>
         public Vector2 InterpolatedFeetWorld
@@ -40,14 +56,17 @@ namespace Orcapafea.Daedalus
             }
         }
 
-        /// <summary>Puts the player at <paramref name="start"/> (moved out of walls if needed), at rest, with its abilities plus Jump.</summary>
+        /// <summary>
+        /// Puts the player at <paramref name="start"/> (moved out of walls if needed), at rest, with its abilities plus Jump;
+        /// every trap reset and the death counter at 0.
+        /// </summary>
         public void Restart(PlayStart start)
         {
             Vector2 feet = map.WorldToSim(start.Feet);
-            LastPlacement = StartPlacement.Find(map.Grid, feet.x, feet.y);
-            Current = stepper.CreateState(LastPlacement.X, LastPlacement.Y, start.Abilities | Abilities.Jump);
+            level.Begin(feet.x, feet.y, start.Abilities | Abilities.Jump);
+            Current = level.Player;
             Previous = Current;
-            accumulator = new FixedStepAccumulator();
+            accumulator.Reset();
         }
 
         /// <summary>Adds elapsed time; returns how many ticks to run now.</summary>
@@ -56,19 +75,24 @@ namespace Orcapafea.Daedalus
         public void Tick(in PlayerInput input)
         {
             Previous = Current;
-            Current = stepper.Step(Current, input);
+            level.Step(input);
+            Current = level.Player;
             if (Current.Teleported)
             {
                 Previous = Current;
             }
         }
 
-        public void ApplySettings(MovementSettings settings) => stepper.ApplySettings(settings);
+        public void ApplySettings(MovementSettings settings) => level.ApplySettings(settings);
 
         /// <summary>Replaces the ability set during play (Jump stays on); takes effect on the next tick.</summary>
         public void ChangeAbilities(Abilities abilities)
         {
-            Current = stepper.ChangeAbilities(Current, abilities | Abilities.Jump);
+            level.ChangeAbilities(abilities | Abilities.Jump);
+            Current = level.Player;
         }
+
+        /// <summary>Replaces the respawn rule (the Player's On hazard); the next respawn uses it.</summary>
+        public void SetRule(RespawnRule rule) => level.SetRule(rule);
     }
 }

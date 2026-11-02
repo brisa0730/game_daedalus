@@ -25,9 +25,19 @@ Student-facing settings, by Player section (field = `MovementSettings` identifie
 - **Gravity** is a multiplier over base gravity 57.142857 tiles/s², which comes from a 0.35 s time to apex at jump height 3.5. Jump velocity is derived from jump height and rising gravity, so changing gravity changes timing only, never the jump height.
 - Out-of-range or non-finite values are clamped (non-finite → default) when applied.
 - The defaults above passed the operator's play-check unchanged (Phase 2, 2026-11-02).
-- **Player component** (`Player`, Add Component → Daedalus → Player): field `collisionTilemap` (filled in automatically with the Tilemap named Collision, else the only Tilemap); section `movement`: `runSpeed`, `timeToFullSpeed`, `jumpHeight`, `gravity`, `maxFallSpeed`; section `abilities`: `doubleJump`, `wallJump`, `wallClimb`, `ropeClimb`, `airJumps`, `wallSlideSpeed`, `climbSpeed`; hidden `dataVersion`. Initial values and ranges come from `MovementSettings`. Every setting applies live in Play mode; an ability toggle switches only its own ability (operator, 2026-10-26).
+- **Player component** (`Player`, Add Component → Daedalus → Player): field `collisionTilemap` (filled in automatically with the Tilemap named Collision, else the only Tilemap); section `movement`: `runSpeed`, `timeToFullSpeed`, `jumpHeight`, `gravity`, `maxFallSpeed`; section `abilities`: `doubleJump`, `wallJump`, `wallClimb`, `ropeClimb`, `airJumps`, `wallSlideSpeed`, `climbSpeed`; section `health`: `onHazard`; hidden `dataVersion`. Initial values and ranges come from `MovementSettings`. Every setting applies live in Play mode; an ability toggle switches only its own ability (operator, 2026-10-26).
 
-**On hazard** (`traps`; Player, Health section): Return to safe ground (default) / Respawn at checkpoint.
+**On hazard** (`traps`; Player, Health section, `health.onHazard`, v0.10): Return to safe ground 0 (default) / Respawn at checkpoint 1; applies live in Play mode.
+
+**Level rules** (hidden; `LevelRules`, the one source for death, respawn and trap numbers; passed the operator's play-check unchanged, Phase 3, 2026-11-02):
+
+| Rule | Value |
+|---|---|
+| Death beat | 0.4 s (24 ticks) |
+| Hazard core inset | 0.2 tile per side |
+| Contact margin (Touch, Checkpoint, Exit) | 0.0625 tile |
+| Default zone | the trap's box grown up by 1 tile |
+| Win screen input lock | 1 s (60 ticks) |
 
 Combat (sketch, combat-and-enemies): max HP 5, attack damage 1, attack range 6, attack cooldown 0.25; internal hit-stop ~0.05 s, i-frames ~1 s. The Player component sits on the player object, and its placed position is the start (Phase 2).
 
@@ -85,10 +95,10 @@ Settings marked for walkers, flyers or jumpers show only for that movement type,
 | Rope / vine | `Rope` component: hangs down from its object; Length in tiles (default 4, range 1–50 **(proposal)**), read once at play start (operator, 2026-11-02); a Scene-view line shows it. Its top snaps onto a one-way surface within 0.5 tile at play start, so a freely placed rope still lets the player step off |
 | Moving platform | Moves between two points; carries the player |
 | Crumbling platform | Falls shortly after the player stands on it, respawns |
-| Checkpoint | Sets the respawn point when touched; saves in-game progress (from `world-systems`) |
+| Checkpoint | `Checkpoint` component (Add Component → Daedalus → Checkpoint; no settings): sets the respawn point when touched (the latest touched wins; recorded under either On hazard rule; the player respawns at its box's bottom centre); tinted gold while active; saves in-game progress (from `world-systems`). Its box is the sprite's bounds, else 1 × 1 |
 | Trap | A box of tiles that moves, falls, vanishes or appears when the player touches it or enters its zone (§ Trap) |
 | Enemy | Movement type and the settings above; enemy types are saved as prefabs |
-| Exit / goal | Ends the game with a win screen; a Trap on the same object makes it run away |
+| Exit / goal | `Exit` component (Add Component → Daedalus → Exit; no settings): ends the game with a win screen when touched; box as the Checkpoint's; a Trap on the same object makes it run away (moving traps) |
 
 Each element is one Daedalus component that students add to an object (a GameObject with a sprite) from the Add Component menu; the component's Inspector shows its settings. The starter also ships each one as a ready-made prefab. The player itself is one **Player** component holding every ability as a toggle; its settings are grouped into collapsible sections (Movement, Abilities, Attack, Health) of at most ~8 each.
 
@@ -96,27 +106,27 @@ Spikes are not a placed element: they are **hazard tiles** painted on the Collis
 
 ## Trap
 
-`Trap` component (`traps`; systems.md § Traps). At most 8 settings; a setting shows only for the trigger or action that uses it. Defaults and ranges are **(proposal)** until the phase play-check.
+`Trap` component (`traps`; systems.md § Traps; Add Component → Daedalus → Trap; built v0.10 with Vanish and Appear). At most 8 settings; a setting shows only for the trigger or action that uses it. Built values passed the Phase 3 play-check unchanged; Move and Fall values stay **(proposal)** until the moving traps' play-check.
 
 | Setting | Shows for | Values |
 | --- | --- | --- |
-| Trigger | always | Player touches · Player enters zone (default) |
-| Zone | Player enters zone | A world-space box; default: the trap's box grown by 2 tiles |
-| Action | always | Move (default) · Fall · Vanish · Appear |
+| Trigger (`trigger`) | always | Player enters zone 0 (default) · Player touches 1 |
+| Zone (`zone`) | Player enters zone | A box stored relative to the trap's object; default: the trap's box grown up by 1 tile |
+| Action (`action`) | always | Vanish 0 (default) · Appear 1 · Move and Fall (2, 3 reserved; moving traps decide whether new traps default to Move; saved traps never change) |
 | Offset | Move | Tiles, relative to where it starts; default 0 × −3 |
 | Speed | Move | Tiles/s; default 8, range 1–30 |
-| Delay | always | Seconds after the trigger; default 0, range 0–3 |
-| Size | not on an Exit | Width × height in whole tiles; default 3 × 1; the object's Scale is ignored |
-| Tile | not on an Exit | The Tile drawn across the box; its collision kind is the trap's kind (plain tiles: Solid) |
+| Delay (`delay`) | always | Seconds after the trigger; default 0, range 0–3 |
+| Size (`size`) | not on an Exit | Width × height in whole tiles; default 3 × 1, range 1–30; centred on the object; the object's Scale is ignored |
+| Tile (`tile`) | not on an Exit | The Tile drawn across the box; a Hazard tile makes a Hazard trap, any other tile a Solid one |
 
-Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's base gravity and max fall speed.
+Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's base gravity and max fall speed; hidden `dataVersion` 1. Settings are read at play start, like the Rope's length; in Play the inspector says "Trap changes take effect the next time you press Play" and an edit leaves the running look alone (code review, Phase 3). The object needs a SpriteRenderer (added with the Trap); Add Component sets its Tiled look.
 
 ## Terrains
 
 A terrain is an auto-tiling brush (systems.md § Tile System): a tile asset students paint with the Tile Palette.
 
 - **Layout:** blob (47 slots), dual-grid (16 slots) or single (1 slot); which layouts v1 builds is open (Roadmap §4).
-- **Kind:** the collision kind: solid, one-way, climbable, hazard, none. It takes effect only on the Collision Tilemap. Built so far (v0.08): `DaedalusTile` (Create → Daedalus → Tile) with `kind` None 0 / Solid 1 / One-way 2 / Climbable 3; 4 is reserved for hazard, declared in `traps`. Plain Unity tiles on the Collision Tilemap count as Solid.
+- **Kind:** the collision kind: solid, one-way, climbable, hazard, none. It takes effect only on the Collision Tilemap. Built so far (v0.08): `DaedalusTile` (Create → Daedalus → Tile) with `kind` None 0 / Solid 1 / One-way 2 / Climbable 3 / Hazard 4 (v0.10). Plain Unity tiles on the Collision Tilemap count as Solid.
 - **Slots:** neighbor pattern → sprites; more than one sprite means random variants, picked per cell by position.
 - **Animated tiles:** a frame list + speed per tile (shape set when the tile system is built).
 - Tilemaps store the terrain asset per cell; the displayed sprite is resolved from the neighbors.
@@ -138,4 +148,4 @@ A starting shape, not a contract. What a student saves is a Unity scene plus our
 | Map | Scene: a Grid with Background, Collision and Foreground Tilemaps | Terrains and plain tiles per cell |
 | Placed elements | Scene: GameObjects with Daedalus components | Player (placed position = start); ability pickup (ability); enemy; rope (length); moving platform (end point, speed); crumbling platform; checkpoint; health pickup; exit; trap (§ Trap) |
 
-Built (v0.08): `Player`, `Rope` and `DaedalusTile` each carry a hidden `dataVersion` = 1. Gravity is a multiplier; the Player component sits on the player object.
+Built (v0.08): `Player`, `Rope` and `DaedalusTile` each carry a hidden `dataVersion` = 1; `Trap`, `Checkpoint` and `Exit` too (v0.10). Gravity is a multiplier; the Player component sits on the player object.

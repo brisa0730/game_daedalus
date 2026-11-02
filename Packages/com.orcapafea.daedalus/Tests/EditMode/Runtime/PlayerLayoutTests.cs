@@ -23,6 +23,7 @@ namespace Orcapafea.Daedalus.Tests
             "movement", "movement.runSpeed", "movement.timeToFullSpeed", "movement.jumpHeight", "movement.gravity", "movement.maxFallSpeed",
             "abilities", "abilities.doubleJump", "abilities.wallJump", "abilities.wallClimb", "abilities.ropeClimb",
             "abilities.airJumps", "abilities.wallSlideSpeed", "abilities.climbSpeed",
+            "health", "health.onHazard",
         };
 
         // Field → (default, min, max) from the sim.
@@ -79,10 +80,28 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void SectionsHoldFiveAndSevenSettings()
+        public void SectionsHoldFiveSevenAndOneSettings()
         {
             Assert.AreEqual(5, SerializedFields(typeof(PlayerMovementSection)).Count);
             Assert.AreEqual(7, SerializedFields(typeof(PlayerAbilitiesSection)).Count);
+            Assert.AreEqual(1, SerializedFields(typeof(PlayerHealthSection)).Count);
+        }
+
+        [Test]
+        public void OnHazardDefaultsToReturnToSafeGroundWithPinnedValuesAndLabels()
+        {
+            Assert.AreEqual(OnHazard.ReturnToSafeGround, new PlayerHealthSection().OnHazard);
+            Assert.AreEqual(0, (int)OnHazard.ReturnToSafeGround);
+            Assert.AreEqual(1, (int)OnHazard.RespawnAtCheckpoint);
+            Assert.AreEqual(2, Enum.GetValues(typeof(OnHazard)).Length);
+            Assert.AreEqual((int)RespawnRule.SafeGround, (int)OnHazard.ReturnToSafeGround);
+            Assert.AreEqual((int)RespawnRule.Checkpoint, (int)OnHazard.RespawnAtCheckpoint);
+            Assert.AreEqual("Return to safe ground", typeof(OnHazard).GetField(nameof(OnHazard.ReturnToSafeGround)).GetCustomAttribute<InspectorNameAttribute>().displayName);
+            Assert.AreEqual("Respawn at checkpoint", typeof(OnHazard).GetField(nameof(OnHazard.RespawnAtCheckpoint)).GetCustomAttribute<InspectorNameAttribute>().displayName);
+            var section = new PlayerHealthSection();
+            Assert.AreEqual(RespawnRule.SafeGround, section.ToRule());
+            section.OnHazard = OnHazard.RespawnAtCheckpoint;
+            Assert.AreEqual(RespawnRule.Checkpoint, section.ToRule());
         }
 
         [Test]
@@ -116,7 +135,8 @@ namespace Orcapafea.Daedalus.Tests
             var fields = new List<FieldInfo> { typeof(Player).GetField("collisionTilemap", Fields) };
             fields.AddRange(SerializedFields(typeof(PlayerMovementSection)));
             fields.AddRange(SerializedFields(typeof(PlayerAbilitiesSection)));
-            Assert.AreEqual(13, fields.Count);
+            fields.AddRange(SerializedFields(typeof(PlayerHealthSection)));
+            Assert.AreEqual(14, fields.Count);
             foreach (FieldInfo field in fields)
             {
                 var tooltip = field.GetCustomAttribute<TooltipAttribute>();

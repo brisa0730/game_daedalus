@@ -26,10 +26,28 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Severity:** MED · **Source:** Phase 2 (`movement-runtime`, v0.08)
 - **Description:** every Player / Rope problem (no Collision Tilemap, a Rigidbody 2D, a start in a wall, a rope top in a wall, grid settings…) is a one-shot `Debug.LogWarning` from [PlayerWarnings.cs](../../Packages/com.orcapafea.daedalus/Runtime/PlayerWarnings.cs). A student who never opens the Console misses it.
 - **Why deferred:** Inspector help boxes need custom inspectors, which arrive with `editor-tools`.
-- **Trigger to act:** the `editor-tools` custom inspectors. Fix shape: the same `PlayerWarnings` texts as help boxes on the Player / Rope Inspector (and in the daedalus window's validation list).
+- **Trigger to act:** the `editor-tools` custom inspectors. Fix shape: the same `PlayerWarnings` texts as help boxes on the Player / Rope Inspector (and in the daedalus window's validation list), reusing the Trap inspector's pattern (v0.10: [TrapEditor.cs](../../Packages/com.orcapafea.daedalus/Editor/TrapEditor.cs) shows the trap warnings as help boxes from the same conditions and texts as play start).
 
 ### A Rope with no sprite is invisible in Play
 - **Severity:** LOW · **Source:** Phase 2 (`movement-runtime`, v0.08)
 - **Description:** [Rope.cs](../../Packages/com.orcapafea.daedalus/Runtime/Rope.cs) draws only a Scene-view gizmo line; in Play a rope is visible only if the student added a sprite to it (the dev scene adds a Tiled SpriteRenderer child).
 - **Why deferred:** art and missing-piece hints are later milestones; a default rope look belongs with the default art pack.
 - **Trigger to act:** the `editor-tools` missing-piece hints ("This rope has no sprite") or the default art pack in `assets-and-sharing`, whichever comes first.
+
+### The Edit-mode trap look syncs only through the Trap inspector and Add Component
+- **Severity:** LOW · **Source:** Phase 3 (`death-and-respawn`, v0.10)
+- **Description:** a Trap's SpriteRenderer (Tiled draw mode, size, sprite from the Tile) is set by [TrapAuthoring.cs](../../Packages/com.orcapafea.daedalus/Editor/TrapAuthoring.cs) when the component is added and when Size or Tile change in the [Trap inspector](../../Packages/com.orcapafea.daedalus/Editor/TrapEditor.cs). A change made another way (a prefab override reverted, Paste Component Values, a script) leaves the Scene view showing the old look until the trap is next edited. Play is unaffected: play start applies the look from the settings ([TrapLook.ApplyPlayLook](../../Packages/com.orcapafea.daedalus/Runtime/TrapLook.cs)).
+- **Why deferred:** the common paths (Add Component, the inspector, Undo) are covered; a global change hook is more machinery than the gap is worth today.
+- **Trigger to act:** a student or operator report of a stale trap look in the Scene view. Fix shape: an `ObjectChangeEvents` hook that re-syncs changed Traps.
+
+### A scene with no Exit isn't warned about
+- **Severity:** LOW · **Source:** Phase 3 (`death-and-respawn`, v0.10)
+- **Description:** a level without an `Exit` simply can't be won; nothing tells the student. systems.md § Editor Tools lists "no exit" among the validation warnings.
+- **Why deferred:** the validation list lives in the daedalus window, which arrives with `editor-tools`; a play-start Console warning alone would fire on every movement test level.
+- **Trigger to act:** the `editor-tools` validation list. Fix shape: one "no Exit in the scene" entry there.
+
+### A Grid or Collision Tilemap moved by a fraction of a tile isn't warned about
+- **Severity:** LOW · **Source:** Phase 3 (`death-and-respawn`, v0.10; code review)
+- **Description:** the sim's cells assume the Collision Tilemap's grid lines sit at whole world units. If a student moves the Grid or the Tilemap by a fraction, [TrapLook.ToSpec](../../Packages/com.orcapafea.daedalus/Runtime/TrapLook.cs) and [LevelCollector](../../Packages/com.orcapafea.daedalus/Runtime/LevelCollector.cs) round trap, checkpoint and exit boxes onto cells up to half a tile from where they are drawn, with no warning. The same assumption has held for the player and ropes since Phase 2; traps make it visible.
+- **Why deferred:** no student path moves a Grid by a fraction today (the starter's Grid sits at the origin), and the check belongs with the other validation warnings.
+- **Trigger to act:** the `editor-tools` validation list, or any report of a trap firing or killing away from its drawn box. Fix shape: a play-start warning (and validation entry) when the Collision Tilemap's cell (0, 0) isn't at a whole world position.

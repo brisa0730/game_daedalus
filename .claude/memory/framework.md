@@ -43,6 +43,14 @@ type: reference
 ## Rendering checks (6000.0.85f1, 6000.6.7f1)
 - `Camera.targetTexture` + `Camera.Render()` + `ReadPixels` works in batch-mode PlayMode tests (with graphics) under URP 2D; with `Sprite-Unlit-Default` and point-filtered generated textures the colours come back exactly.
 
+## uGUI and trap editor tools (6000.0.85f1, 6000.6.7f1)
+- **uGUI is a built-in package:** `com.unity.ugui` resolves to **2.0.0** on 6000.0.85f1 (the compat lock file) and **2.6.0** on 6000.6.7f1 (the dev manifest), both `source: builtin`. Our `package.json` declares 2.0.0; the assembly to reference is `UnityEngine.UI`.
+- `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` works on both editors for a code-built legacy `Text` (no font asset to ship).
+- A HUD on a `ScreenSpaceCamera` canvas shows in `Camera.Render()` screenshots; a `ScreenSpaceOverlay` canvas would not.
+- `ObjectFactory.componentWasAdded` fires for the Inspector's Add Component on both editors; hook it from an `[InitializeOnLoad]` static constructor to set up a new component (Undo-recorded).
+- The Appear ghost is drawn with GL immediate mode (`GL.QUADS` with a `Sprites/Default` material, one quad per cell from the sprite's `textureRect`) inside a `[DrawGizmo]` method; it never draws in Play or the Game view.
+- **Not checked:** whether a SpriteRenderer in Tiled mode draws a **Tight**-mesh sprite correctly (the phase 3 prompt asked for it). Our dev sprites are Full Rect, and the Trap inspector warns on a non-Full-Rect sprite instead (an import setting, so play start can't see it). Check it when a third-party art pack lands.
+
 ## WebGL (6000.6.7f1, Chrome, Windows 11)
 - A release WebGL build of the perf check takes ~6 min cold, ~2 min warm. An incremental build keeps unchanged output files **with their old timestamps**, so freshness is only provable by emptying the output folder first.
 - `-buildTarget WebGL` leaves the project's active target on WebGL; `PerfCheckBuild` switches it back to Windows.

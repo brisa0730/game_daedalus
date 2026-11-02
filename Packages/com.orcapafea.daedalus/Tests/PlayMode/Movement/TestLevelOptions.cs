@@ -16,6 +16,10 @@ namespace Orcapafea.Daedalus.Tests
         public bool WithSprite = true;
         public Vector2 SpritePivot = new Vector2(0.5f, 0.5f);
         public float PlayerScale = 1f;
+        /// <summary>Tag the level camera MainCamera, so the follow camera and the HUD use it.</summary>
+        public bool MainCamera;
+        /// <summary>The camera's view width in tiles; 0 = the whole level.</summary>
+        public int ViewWidth;
         /// <summary>Runs after everything is built and before the Player's object is activated (so before Awake).</summary>
         public Action<TestLevel> BeforeActivate;
     }

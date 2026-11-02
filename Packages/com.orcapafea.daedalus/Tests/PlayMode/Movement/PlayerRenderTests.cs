@@ -101,9 +101,10 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheResetCutsStraightFromBelowTheMapToTheStart()
+        public IEnumerator TheRespawnCutsStraightFromBelowTheMapToTheStart()
         {
-            Build(Pit);
+            // Respawn at checkpoint with none touched: back at the start, after the death beat.
+            Build(Pit, new TestLevelOptions { BeforeActivate = level => level.Player.Health.OnHazard = OnHazard.RespawnAtCheckpoint });
             Press(Keyboard.rightArrowKey);
             float lastY = float.NaN;
             bool reset = false;
@@ -120,7 +121,7 @@ namespace Orcapafea.Daedalus.Tests
                 }
                 lastY = y;
             }
-            Assert.IsTrue(reset, "walked into the pit and fell out");
+            Assert.IsTrue(reset, "walked into the pit, died and came back");
         }
 
         [UnityTest]

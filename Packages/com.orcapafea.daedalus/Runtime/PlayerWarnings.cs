@@ -7,8 +7,16 @@ namespace Orcapafea.Daedalus
     {
         public const string NoCollisionTilemap = "The Player has no Collision Tilemap, so there is nothing to stand on. Drag your Collision Tilemap into the Player's Collision Tilemap field.";
         public const string HasPhysics = "The Player doesn't need a Rigidbody 2D or a Collider 2D; Daedalus moves it by itself. Remove them from the Player, or they may push it around.";
-        public const string MovedStart = "The Player started inside a wall, so it was moved to the nearest free spot. Move the Player in the Scene view to fix this.";
-        public const string NoFreeStart = "The Player is buried in walls and no free spot is nearby. Move the Player out of the walls.";
+        public const string MovedStart = "The Player started inside a wall or on spikes, so it was moved to the nearest free spot. Move the Player in the Scene view to fix this.";
+        public const string TrapOverPaintedTiles = "This trap sits on tiles painted on the Collision Tilemap. The painted tiles stay in charge, so the trap won't change those cells. Erase the painted tiles under it, or move the trap.";
+        public const string HazardOnDecorationTilemap = "This Tilemap has Hazard (spike) tiles, but only the Collision Tilemap can hurt the player. Paint spikes on the Collision Tilemap.";
+        public const string TrapOffGrid = "This trap isn't lined up with the grid, so it works as if it were snapped to the nearest cells. Click Snap to grid on the trap.";
+        public const string TrapNoTile = "This trap has no Tile, so you won't see it. Pick a Tile on the trap.";
+        public const string TrapTileNotDrawable = "This trap's Tile can't be drawn on a trap (Rule Tiles and animated tiles aren't supported). Pick a plain tile.";
+        public const string TrapSpriteNotFullRect = "This trap's tile picture may look wrong when repeated. In the sprite's import settings, set Mesh Type to Full Rect.";
+        public const string TrapScaled = "This trap is scaled or rotated, but traps ignore Scale and Rotation. Set them back to 1 and 0 and use Size.";
+        public const string TrapOnExitOrCheckpoint = "A Trap on an Exit or a Checkpoint comes in a later update, so this one does nothing yet. Put the Trap on its own object.";
+        public const string NoFreeStart = "The Player is buried in walls or spikes and no free spot with ground under it is nearby. Move the Player out of the walls.";
         public const string RotatedOrScaled = "The Collision Tilemap (or its Grid) is rotated or scaled. Reset its Rotation to 0 and its Scale to 1, or collisions won't match the picture.";
         public const string CellLayout = "The Collision Tilemap's Grid must use the Rectangle cell layout.";
         public const string EmptyTilemap = "The Collision Tilemap is empty. Paint some tiles on it.";

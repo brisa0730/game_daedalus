@@ -1,13 +1,11 @@
 using System;
 using Orcapafea.Daedalus.Sim;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace Orcapafea.Daedalus
 {
     /// <summary>
-    /// Gathers the scene's ropes at play start. <see cref="FindSorted"/> is the documented play-start-only
-    /// exception to Architecture rule 5 (no <c>Find</c>-style lookups): one scan, then a deterministic sort,
+    /// Gathers the scene's ropes at play start: one <see cref="PlayStartScan"/>, then a deterministic sort,
     /// so a student never wires ropes to the Player. Never called per frame.
     /// </summary>
     internal static class RopeCollector
@@ -15,29 +13,7 @@ namespace Orcapafea.Daedalus
         /// <summary>Every active and enabled Rope, sorted by (x, bottom, top) so the sim's "lowest index wins" is stable.</summary>
         public static Rope[] FindSorted()
         {
-#if UNITY_6000_6_OR_NEWER
-            // 6000.6 deprecates the FindObjectsSortMode overloads (framework.md).
-            Rope[] found = Object.FindObjectsByType<Rope>(FindObjectsInactive.Exclude);
-#else
-            Rope[] found = Object.FindObjectsByType<Rope>(FindObjectsSortMode.None);
-#endif
-            int count = 0;
-            for (int i = 0; i < found.Length; i++)
-            {
-                if (found[i].isActiveAndEnabled)
-                {
-                    count++;
-                }
-            }
-            var ropes = new Rope[count];
-            count = 0;
-            for (int i = 0; i < found.Length; i++)
-            {
-                if (found[i].isActiveAndEnabled)
-                {
-                    ropes[count++] = found[i];
-                }
-            }
+            Rope[] ropes = PlayStartScan.FindActive<Rope>();
             Array.Sort(ropes, Compare);
             return ropes;
         }

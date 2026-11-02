@@ -40,6 +40,30 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void HazardCellsNeitherBlockNorSupportNorWall()
+        {
+            TileGrid grid = AsciiLevel.ParseGrid(
+                "........",
+                "...^....",
+                "...^....",
+                "^^^^^^^^",
+                "........");
+
+            float x = TileCollision.SweepX(grid, 1.5f, 2f, Hw, H, 4f, out int side);
+            Assert.AreEqual(5.5f, x, Tolerance, "sweeps through the spike column");
+            Assert.AreEqual(0, side);
+
+            float fx = 1.5f, fy = 3.5f;
+            TileCollision.SweepY(grid, ref fx, ref fy, Hw, H, -3f, false, out SupportKind landed, out _);
+            Assert.AreEqual(SupportKind.None, landed, "falls through the spike row");
+            Assert.AreEqual(0.5f, fy, Tolerance);
+
+            Assert.AreEqual(SupportKind.None, TileCollision.Support(grid, 1.5f, 2f, Hw), "spikes are not support");
+            Assert.AreEqual(float.PositiveInfinity, TileCollision.WallGap(grid, 2.5f, 3f, Hw, H, 1, 0.5f, true), "spikes are not a wall");
+            Assert.IsTrue(TileCollision.BoxIsFree(grid, 3.5f, 2f, Hw, H), "a box inside spikes is free");
+        }
+
+        [Test]
         public void LongMoveIntoAThinWallStillStops()
         {
             TileGrid grid = AsciiLevel.ParseGrid(

@@ -56,6 +56,17 @@ namespace Orcapafea.Daedalus.Tests
             }
         }
 
+        [Test]
+        public void ResetDropsTheFraction()
+        {
+            var clock = new FixedStepAccumulator();
+            clock.Advance(1.5 / 60.0);
+            Assert.That(clock.InterpolationFraction, Is.GreaterThan(0.4));
+            clock.Reset();
+            Assert.AreEqual(0.0, clock.InterpolationFraction);
+            Assert.AreEqual(1, clock.Advance(1 / 60.0));
+        }
+
         [TestCase(-0.001)]
         [TestCase(double.NaN)]
         [TestCase(double.PositiveInfinity)]

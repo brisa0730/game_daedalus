@@ -6,10 +6,13 @@ namespace Orcapafea.Daedalus.Sim
     /// The map's cells, 0-based, y up. The runtime fills it at play start and keeps the
     /// Tilemap's origin as a render offset. Outside the grid, the sides and the top read
     /// Solid and the bottom reads None (falling out is open).
+    /// A second layer holds the cells of the traps that are present (<see cref="LevelStepper"/> stamps it);
+    /// <see cref="Get"/> reads it only where nothing is painted, so painted tiles stay in charge.
     /// </summary>
     public sealed class TileGrid
     {
         readonly TileKind[] cells;
+        readonly TileKind[] trapCells;
 
         public TileGrid(int width, int height)
         {
@@ -20,6 +23,7 @@ namespace Orcapafea.Daedalus.Sim
             Width = width;
             Height = height;
             cells = new TileKind[width * height];
+            trapCells = new TileKind[width * height];
         }
 
         public int Width { get; }
@@ -34,6 +38,7 @@ namespace Orcapafea.Daedalus.Sim
             cells[y * Width + x] = kind;
         }
 
+        /// <summary>The painted kind, else the trap layer's.</summary>
         public TileKind Get(int x, int y)
         {
             if (x < 0 || x >= Width || y >= Height)
@@ -44,7 +49,37 @@ namespace Orcapafea.Daedalus.Sim
             {
                 return TileKind.None;
             }
+            TileKind painted = cells[y * Width + x];
+            return painted != TileKind.None ? painted : trapCells[y * Width + x];
+        }
+
+        /// <summary>The painted kind only (no traps); outside the grid as <see cref="Get"/>.</summary>
+        public TileKind GetPainted(int x, int y)
+        {
+            if (x < 0 || x >= Width || y >= Height)
+            {
+                return TileKind.Solid;
+            }
+            if (y < 0)
+            {
+                return TileKind.None;
+            }
             return cells[y * Width + x];
+        }
+
+        /// <summary>Sets a trap-layer cell; cells outside the grid are ignored (traps are clipped to the map).</summary>
+        public void SetTrapCell(int x, int y, TileKind kind)
+        {
+            if (x < 0 || x >= Width || y < 0 || y >= Height)
+            {
+                return;
+            }
+            trapCells[y * Width + x] = kind;
+        }
+
+        public void ClearTrapCells()
+        {
+            Array.Clear(trapCells, 0, trapCells.Length);
         }
     }
 }

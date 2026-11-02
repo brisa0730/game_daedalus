@@ -25,6 +25,9 @@ namespace Orcapafea.Daedalus
         [SerializeField]
         PlayerAbilitiesSection abilities = new PlayerAbilitiesSection();
 
+        [SerializeField]
+        PlayerHealthSection health = new PlayerHealthSection();
+
         [SerializeField, HideInInspector]
         int dataVersion = CurrentDataVersion;
 
@@ -39,6 +42,16 @@ namespace Orcapafea.Daedalus
 
         PlayerControls controls;
         PlayerSession session;
+        Checkpoint[] checkpoints;
+        int shownCheckpoint = -1;
+        SpriteRenderer[] trapRenderers;
+        int shownTrapChanges;
+        // The start used at play start; play again comes back to it.
+        PlayStart firstStart;
+        CameraFollow cameraFollow;
+        PlayHud hud;
+        DeathBurst burst;
+        float frameDelta;
         PlayStart? pendingStart;
         bool settingsDirty;
         // The toggles as last applied, so an Inspector edit changes only the abilities whose toggle changed
@@ -48,8 +61,11 @@ namespace Orcapafea.Daedalus
         internal Tilemap CollisionTilemap { get => collisionTilemap; set => collisionTilemap = value; }
         internal PlayerMovementSection Movement => movement;
         internal PlayerAbilitiesSection Abilities => abilities;
+        internal PlayerHealthSection Health => health;
         internal int DataVersion => dataVersion;
         internal PlayerSession Session => session;
+        internal PlayHud Hud => hud;
+        internal CameraFollow CameraFollow => cameraFollow;
 
         /// <summary>Where the player was placed, with the Abilities toggles. Used when nothing calls <see cref="Restart"/> first.</summary>
         public PlayStart DefaultStart => new PlayStart(placedFeet, abilities.ToAbilities());
@@ -92,12 +108,21 @@ namespace Orcapafea.Daedalus
         /// </summary>
         internal static Tilemap PickCollisionTilemap()
         {
+            return Pick(ScanTilemaps());
+        }
+
+        static Tilemap[] ScanTilemaps()
+        {
 #if UNITY_6000_6_OR_NEWER
             // 6000.6 deprecates the FindObjectsSortMode overloads (framework.md).
-            Tilemap[] tilemaps = FindObjectsByType<Tilemap>(FindObjectsInactive.Exclude);
+            return FindObjectsByType<Tilemap>(FindObjectsInactive.Exclude);
 #else
-            Tilemap[] tilemaps = FindObjectsByType<Tilemap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            return FindObjectsByType<Tilemap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 #endif
+        }
+
+        static Tilemap Pick(Tilemap[] tilemaps)
+        {
             for (int i = 0; i < tilemaps.Length; i++)
             {
                 if (tilemaps[i].name == CollisionTilemapName)
@@ -106,6 +131,12 @@ namespace Orcapafea.Daedalus
                 }
             }
             return tilemaps.Length == 1 ? tilemaps[0] : null;
+        }
+
+        /// <summary>The Collision Tilemap play start reads: the field, else <see cref="PickCollisionTilemap"/>. The editor tools use it too.</summary>
+        internal Tilemap ResolveCollisionTilemap()
+        {
+            return collisionTilemap != null ? collisionTilemap : PickCollisionTilemap();
         }
 
         void Reset()
@@ -153,8 +184,15 @@ namespace Orcapafea.Daedalus
 
         void StartPlay()
         {
-            Tilemap tilemap = collisionTilemap != null ? collisionTilemap : PickCollisionTilemap();
+            // One Tilemap scan for the pick and the decoration check (the same rule as ResolveCollisionTilemap).
+            Tilemap[] tilemaps = ScanTilemaps();
+            Tilemap tilemap = collisionTilemap != null ? collisionTilemap : Pick(tilemaps);
             Rope[] ropes = RopeCollector.FindSorted();
+            checkpoints = LevelCollector.FindCheckpoints();
+            Exit[] exits = LevelCollector.FindExits();
+            Rect[] checkpointBoxes = LevelCollector.Boxes(checkpoints);
+            Rect[] exitBoxes = LevelCollector.Boxes(exits);
+            Trap[] traps = LevelCollector.FindTraps(out Trap[] ignoredTraps);
             PlayStart start = pendingStart ?? DefaultStart;
             pendingStart = null;
 
@@ -165,6 +203,8 @@ namespace Orcapafea.Daedalus
                     Mathf.Min(include.xMin, ropeBounds.xMin), Mathf.Min(include.yMin, ropeBounds.yMin),
                     Mathf.Max(include.xMax, ropeBounds.xMax), Mathf.Max(include.yMax, ropeBounds.yMax));
             }
+            include = LevelCollector.Grow(LevelCollector.Grow(include, checkpointBoxes), exitBoxes);
+            include = LevelCollector.Grow(include, LevelCollector.Boxes(traps));
 
             var problems = new List<string>();
             CollisionMap map;
@@ -178,7 +218,30 @@ namespace Orcapafea.Daedalus
                 problems.Add(PlayerWarnings.NoCollisionTilemap);
             }
             RopeSegment[] segments = RopeCollector.ToSegments(ropes, map.Origin);
-            session = new PlayerSession(map, segments, BuildSettings(), start);
+            var specs = new TrapSpec[traps.Length];
+            for (int i = 0; i < traps.Length; i++)
+            {
+                specs[i] = TrapLook.ToSpec(traps[i], map.Origin);
+            }
+            // Before the session stamps trap cells, so the check reads the grid the stepper snapped the ropes on.
+            WarnRopeTops(ropes, segments, map.Grid);
+            session = new PlayerSession(map, segments, specs,
+                LevelCollector.ToBoxes(checkpointBoxes, map.Origin), LevelCollector.ToBoxes(exitBoxes, map.Origin),
+                BuildSettings(), health.ToRule(), start);
+            // Before the Play-mode look, which snaps each trap onto the grid.
+            WarnLevel(tilemap, tilemaps, traps, ignoredTraps);
+            trapRenderers = new SpriteRenderer[traps.Length];
+            for (int i = 0; i < traps.Length; i++)
+            {
+                trapRenderers[i] = traps[i].GetComponent<SpriteRenderer>();
+                TrapLook.ApplyPlayLook(traps[i], trapRenderers[i], session.IsTrapPresent(i));
+            }
+            shownTrapChanges = session.TrapChanges;
+            firstStart = start;
+            // The main camera, found once at play start (the rule-5 play-start exception).
+            cameraFollow = new CameraFollow(Camera.main, new Rect(map.Origin, new Vector2(map.Grid.Width, map.Grid.Height)));
+            hud = new PlayHud(cameraFollow.Camera);
+            burst = new DeathBurst(spriteRenderer);
             appliedToggles = abilities.ToAbilities();
 
             for (int i = 0; i < problems.Count; i++)
@@ -196,7 +259,6 @@ namespace Orcapafea.Daedalus
 #if !ENABLE_INPUT_SYSTEM
             Debug.LogWarning(PlayerWarnings.OldInputSetting, this);
 #endif
-            WarnRopeTops(ropes, segments, map.Grid);
             WarnPlacement();
             Render();
         }
@@ -206,13 +268,15 @@ namespace Orcapafea.Daedalus
             RunFrame(Time.deltaTime);
         }
 
-        /// <summary>One frame: live settings, the controls, the due ticks, then the sprite. Allocates nothing.</summary>
+        /// <summary>One frame: live settings, the controls, the due ticks, play again, then the drawing. Allocates nothing.</summary>
         internal void RunFrame(float deltaTime)
         {
+            frameDelta = deltaTime;
             if (settingsDirty)
             {
                 settingsDirty = false;
                 session.ApplySettings(BuildSettings());
+                session.SetRule(health.ToRule());
                 ApplyChangedToggles();
             }
             controls.ReadFrame();
@@ -221,7 +285,18 @@ namespace Orcapafea.Daedalus
             {
                 session.Tick(controls.TakeTickInput());
             }
+            if (session.Phase == LevelPhase.Won && session.CanPlayAgain && controls.PlayAgainPressed)
+            {
+                session.Restart(firstStart);
+                controls.ClearLatch();
+            }
             Render();
+        }
+
+        void OnDestroy()
+        {
+            hud?.Destroy();
+            burst?.Destroy();
         }
 
         void OnValidate()
@@ -252,6 +327,30 @@ namespace Orcapafea.Daedalus
                 spriteRenderer.flipX = flip;
                 flipped = flip;
             }
+            if (session.TrapChanges != shownTrapChanges)
+            {
+                shownTrapChanges = session.TrapChanges;
+                for (int i = 0; i < trapRenderers.Length; i++)
+                {
+                    trapRenderers[i].enabled = session.IsTrapPresent(i);
+                }
+            }
+            int active = session.ActiveCheckpoint;
+            if (active != shownCheckpoint)
+            {
+                if (shownCheckpoint >= 0)
+                {
+                    checkpoints[shownCheckpoint].SetReached(false);
+                }
+                if (active >= 0)
+                {
+                    checkpoints[active].SetReached(true);
+                }
+                shownCheckpoint = active;
+            }
+            burst.Show(session.Phase, session.PhaseTicks, session.InterpolationFraction, session.DeathFeetWorld);
+            cameraFollow.Follow(new Vector2(feet.x, feet.y + MovementInternals.GripHeight));
+            hud.Show(session.Deaths, session.Phase == LevelPhase.Won, session.CanPlayAgain, frameDelta);
         }
 
         void WarnPlacement()
@@ -265,6 +364,59 @@ namespace Orcapafea.Daedalus
             {
                 Debug.LogWarning(PlayerWarnings.MovedStart, this);
             }
+        }
+
+        static void WarnLevel(Tilemap collision, Tilemap[] tilemaps, Trap[] traps, Trap[] ignoredTraps)
+        {
+            for (int i = 0; i < traps.Length; i++)
+            {
+                Trap trap = traps[i];
+                if (TrapLook.CoversPaintedTiles(trap, collision))
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapOverPaintedTiles, trap);
+                }
+                if (TrapLook.IsOffGrid(trap))
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapOffGrid, trap);
+                }
+                if (trap.Tile == null)
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapNoTile, trap);
+                }
+                else if (TrapLook.SpriteOf(trap.Tile) == null)
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapTileNotDrawable, trap);
+                }
+                Transform t = trap.transform;
+                if (t.lossyScale != Vector3.one || t.rotation != Quaternion.identity)
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapScaled, trap);
+                }
+            }
+            for (int i = 0; i < ignoredTraps.Length; i++)
+            {
+                Debug.LogWarning(PlayerWarnings.TrapOnExitOrCheckpoint, ignoredTraps[i]);
+            }
+            for (int i = 0; i < tilemaps.Length; i++)
+            {
+                if (tilemaps[i] != collision && HasHazardTiles(tilemaps[i]))
+                {
+                    Debug.LogWarning(PlayerWarnings.HazardOnDecorationTilemap, tilemaps[i]);
+                }
+            }
+        }
+
+        static bool HasHazardTiles(Tilemap tilemap)
+        {
+            TileBase[] tiles = tilemap.GetTilesBlock(tilemap.cellBounds);
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                if (tiles[i] is DaedalusTile daedalus && daedalus.Kind == TileCollisionKind.Hazard)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         static void WarnRopeTops(Rope[] ropes, RopeSegment[] segments, TileGrid grid)

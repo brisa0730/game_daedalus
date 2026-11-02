@@ -7,7 +7,7 @@ namespace Orcapafea.Daedalus.Tests
     /// <summary>
     /// Builds a test map from rows of characters, top row first:
     /// <c>.</c> none, <c>#</c> solid, <c>-</c> one-way, <c>C</c> climbable, <c>R</c> empty + rope,
-    /// <c>+</c> one-way + rope, <c>P</c> empty + the player start (feet at the cell's bottom centre).
+    /// <c>+</c> one-way + rope, <c>^</c> hazard (spikes), <c>P</c> empty + the player start (feet at the cell's bottom centre).
     /// Each vertical run of <c>R</c>/<c>+</c> is one rope; ropes are ordered by (column, bottom).
     /// </summary>
     sealed class AsciiLevel
@@ -104,6 +104,9 @@ namespace Orcapafea.Daedalus.Tests
                             break;
                         case 'C':
                             grid.Set(x, y, TileKind.Climbable);
+                            break;
+                        case '^':
+                            grid.Set(x, y, TileKind.Hazard);
                             break;
                         case 'P':
                             starts++;

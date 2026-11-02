@@ -180,6 +180,54 @@ namespace Orcapafea.Daedalus.Sim
             return true;
         }
 
+        /// <summary>
+        /// True when the player's hazard core (the hitbox with feet at (<paramref name="x"/>, <paramref name="y"/>)
+        /// shrunk by <see cref="LevelRules.HazardInset"/> on every side) overlaps a Hazard cell, half-open.
+        /// </summary>
+        public static bool CoreTouchesHazard(TileGrid grid, float x, float y)
+        {
+            const float Inset = LevelRules.HazardInset;
+            const float CoreHalfWidth = MovementInternals.HitboxHalfWidth - Inset;
+            int rowFirst = FirstCovered(y + Inset);
+            int rowLast = LastCovered(y + MovementInternals.HitboxHeight - Inset);
+            int colLast = LastCovered(x + CoreHalfWidth);
+            for (int c = FirstCovered(x - CoreHalfWidth); c <= colLast; c++)
+            {
+                for (int r = rowFirst; r <= rowLast; r++)
+                {
+                    if (grid.Get(c, r) == TileKind.Hazard)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// True when a box whose bottom is on an integer row (within the contact epsilon) has a painted Solid,
+        /// Climbable or OneWay cell (traps never count) directly under every column it covers: where safe ground may be recorded.
+        /// </summary>
+        public static bool StandsFullyOnPainted(TileGrid grid, float x, float y, float halfWidth)
+        {
+            float row = MathF.Round(y);
+            if (MathF.Abs(y - row) > Epsilon)
+            {
+                return false;
+            }
+            int below = (int)row - 1;
+            int colLast = LastCovered(x + halfWidth);
+            for (int c = FirstCovered(x - halfWidth); c <= colLast; c++)
+            {
+                TileKind kind = grid.GetPainted(c, below);
+                if (!Blocks(kind) && kind != TileKind.OneWay)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         static bool TryCornerCorrection(TileGrid grid, ref float x, float y, float halfWidth, float height, float dy,
             int row, int colFirst, int colLast)
         {

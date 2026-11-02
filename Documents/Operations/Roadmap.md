@@ -15,14 +15,14 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 | — | Scaffold (plan, Milestone 0) | v0.06 | [Changelog v0.06](Changelog.md), [plan](../Plans/archive/scaffold.md) |
 | 1 | `movement-sim` (Milestone 1, part 1) | v0.07 | [Changelog v0.07](Changelog.md), [prompt](../Phases/archive/phase1-movement-sim.md), [log](../../.claude/memory/logs/phases/phase1-log.md) |
 | 2 | `movement-runtime` (Milestone 1 `movement-prototype`, part 2; play-check passed) | v0.08 | [Changelog v0.08](Changelog.md), [prompt](../Phases/archive/phase2-movement-runtime.md), [log](../../.claude/memory/logs/phases/phase2-log.md) |
+| 3 | `death-and-respawn` (Milestone 2 `traps`, part 1: hazards, pits, checkpoint, exit, static traps, HUD, follow camera; editor check and play-check passed) | v0.10 | [Changelog v0.10](Changelog.md), [prompt](../Phases/archive/phase3-death-and-respawn.md), [log](../../.claude/memory/logs/phases/phase3-log.md) |
 
 ## 1. Milestones & Phases
 
 Each milestone ends with something playable.
 
 ### Milestone 2 — `traps` (days 5–10)
-Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Two phases, in order:
-- **`death-and-respawn` + static traps:** hazard tile kind 4 and pits; the death beat, instant respawn and the death counter; the Player's On hazard setting (Return to safe ground / Respawn at checkpoint); safe ground recorded only on painted tiles; the Checkpoint as respawn point (the progress save stays in `world-systems`); the Exit with a win screen; the `Trap` component with the Vanish and Appear actions, both triggers, Delay, re-arming and the reset on every death; Trap gizmos (zone, ghost) and help boxes. Also pulled forward (operator, 2026-11-02): a minimal snap follow camera (clamped to the map, cut on respawn) and the death counter + win screen in uGUI (new package dependency `com.unity.ugui` at the 6000.0 template's version). Prompt written and handshake-approved.
+Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Part 1, `death-and-respawn` with static traps, shipped in v0.10 (§0). Remaining:
 - **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
 
 ### Milestone 3 — `combat-and-enemies` (days 11–14)

@@ -3,7 +3,8 @@
     "rootNamespace": "Orcapafea.Daedalus",
     "references": [
         "Orcapafea.Daedalus.Sim",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

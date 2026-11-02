@@ -21,6 +21,12 @@ namespace Orcapafea.Daedalus.Sim
         /// <summary>How far the current time sits between the last tick and the next, in [0, 1).</summary>
         public double InterpolationFraction => fractionalTicks;
 
+        /// <summary>Drops the carried fraction of a tick (a restart), so the next frame starts on a tick.</summary>
+        public void Reset()
+        {
+            fractionalTicks = 0;
+        }
+
         /// <summary>Adds elapsed real time and returns how many ticks to run now.</summary>
         public int Advance(double elapsedSeconds)
         {

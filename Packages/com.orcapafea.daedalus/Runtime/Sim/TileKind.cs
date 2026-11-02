@@ -2,7 +2,7 @@ namespace Orcapafea.Daedalus.Sim
 {
     /// <summary>
     /// What a Collision Tilemap cell is to the sim. The values are saved in student projects:
-    /// never renumber them. 4 is reserved for hazard (combat-and-enemies).
+    /// never renumber them.
     /// </summary>
     public enum TileKind : byte
     {
@@ -11,5 +11,7 @@ namespace Orcapafea.Daedalus.Sim
         OneWay = 2,
         /// <summary>Collides exactly like Solid; differs only when the player has wall climb.</summary>
         Climbable = 3,
+        /// <summary>Non-blocking; touching it with the player's inset hazard core kills (spikes).</summary>
+        Hazard = 4,
     }
 }

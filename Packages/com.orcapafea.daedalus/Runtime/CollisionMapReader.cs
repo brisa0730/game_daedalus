@@ -71,7 +71,7 @@ namespace Orcapafea.Daedalus
 
         /// <summary>
         /// The map when there is no Collision Tilemap at all: empty cells around <paramref name="includeWorld"/>
-        /// (on a 1 × 1 grid at the world origin) plus headroom, so the player falls out and resets.
+        /// (on a 1 × 1 grid at the world origin) plus headroom, so the player falls into the pit below and dies.
         /// </summary>
         public static CollisionMap Empty(Rect includeWorld)
         {

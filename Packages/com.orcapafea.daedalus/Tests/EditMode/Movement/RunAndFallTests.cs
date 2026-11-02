@@ -197,36 +197,9 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void FallingOutOfTheBottomResetsToTheStart()
+        public void TheStepperAloneKeepsFallingBelowTheMap()
         {
-            var p = new PlayerScenario(Abilities.Jump | Abilities.DoubleJump,
-                "............",
-                "............",
-                ".P..........",
-                "####........",
-                "............",
-                "............",
-                "............",
-                "............",
-                "............",
-                "............");
-            int fell = p.RunUntil(Hold(1), s => s.State.Contact == PlayerContact.Air && s.State.CoyoteTicks == 0);
-            Assert.That(fell, Is.GreaterThan(0), "walked off and the coyote window ran out");
-            p.Tick(Press(1));
-            Assert.AreEqual(0, p.State.AirJumpsLeft, "the air jump was spent before falling out");
-            int reset = p.RunUntil(Hold(1), s => s.Previous.Y < 0 && s.State.Y >= 0, 600);
-            Assert.That(reset, Is.GreaterThan(0), "reset happened");
-            Assert.AreEqual(p.Level.StartX, p.State.X);
-            Assert.AreEqual(p.Level.StartY, p.State.Y);
-            Assert.AreEqual(0f, p.State.VelocityX);
-            Assert.AreEqual(0f, p.State.VelocityY);
-            Assert.AreEqual(1, p.State.AirJumpsLeft);
-            Assert.AreEqual(Abilities.Jump | Abilities.DoubleJump, p.State.Abilities);
-        }
-
-        [Test]
-        public void TeleportedIsSetOnlyOnTheResetTick()
-        {
+            // Pits are deaths in the world step (DeathTests); the player's stepper itself never resets.
             var p = new PlayerScenario(Abilities.Jump,
                 "............",
                 ".P..........",
@@ -234,24 +207,12 @@ namespace Orcapafea.Daedalus.Tests
                 "............",
                 "............",
                 "............");
-            int teleportedTicks = 0;
-            int resetTick = -1;
-            for (int tick = 0; tick < 600 && resetTick < 0; tick++)
-            {
-                p.Tick(Hold(1));
-                if (p.State.Teleported)
-                {
-                    teleportedTicks++;
-                    resetTick = tick;
-                }
-            }
-            Assert.That(resetTick, Is.GreaterThan(0), "walked into the pit and fell out");
-            Assert.AreEqual(1, teleportedTicks);
-            Assert.AreEqual(p.Level.StartX, p.State.X, "the reset tick is at the start");
-            Assert.AreEqual(p.Level.StartY, p.State.Y);
-            Assert.That(p.Previous.Y, Is.LessThan(0f), "the tick before was below the map");
-            p.Tick(Idle);
-            Assert.IsFalse(p.State.Teleported, "the tick after a reset");
+            int below = p.RunUntil(Hold(1), s => s.State.Y + MovementInternals.HitboxHeight < 0);
+            Assert.That(below, Is.GreaterThan(0), "walked into the pit and fell below the map");
+            p.Tick(Idle, 120);
+            Assert.That(p.State.Y, Is.LessThan(-20f), "still falling");
+            Assert.AreEqual(-MovementSettings.DefaultMaxFallSpeed, p.State.VelocityY, Tolerance, "at max fall speed");
+            Assert.IsFalse(p.State.Teleported);
         }
 
         [Test]

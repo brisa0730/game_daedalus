@@ -38,12 +38,10 @@ namespace Orcapafea.Daedalus.Sim
         public int LastWallJumpSide;
         public int LastWallJumpFace;
 
-        /// <summary>True only on the tick where a fall-out reset replaced the state, so the renderer snaps instead of interpolating.</summary>
+        /// <summary>True only on the tick the world step replaced the state (a respawn), so the renderer snaps instead of interpolating.</summary>
         public bool Teleported;
 
         public Abilities Abilities;
-        public float StartX;
-        public float StartY;
 
         public readonly bool IsStanding => Contact == PlayerContact.Ground || Contact == PlayerContact.OneWayTop;
     }

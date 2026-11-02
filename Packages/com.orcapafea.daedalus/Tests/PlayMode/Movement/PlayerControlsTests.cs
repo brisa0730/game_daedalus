@@ -177,6 +177,37 @@ namespace Orcapafea.Daedalus.Tests
             Assert.IsFalse(controls.TakeTickInput().JumpPressed, "taken once");
         }
 
+        [UnityTest]
+        public IEnumerator PlayAgainIsAnyKeyOrAGamepadButtonForOneFrame()
+        {
+            yield return Frame();
+            Assert.IsFalse(controls.PlayAgainPressed, "nothing pressed");
+            Press(Keyboard.kKey);
+            yield return Frame();
+            Assert.IsTrue(controls.PlayAgainPressed, "a letter key");
+            yield return Frame();
+            Assert.IsFalse(controls.PlayAgainPressed, "held: only the frame it went down");
+            Release(Keyboard.kKey);
+            Press(Gamepad.startButton);
+            yield return Frame();
+            Assert.IsTrue(controls.PlayAgainPressed, "gamepad Start");
+            Release(Gamepad.startButton);
+            Press(Gamepad.buttonEast);
+            yield return Frame();
+            Assert.IsTrue(controls.PlayAgainPressed, "gamepad East");
+        }
+
+        [UnityTest]
+        public IEnumerator ClearLatchDropsALatchedJump()
+        {
+            Press(Keyboard.spaceKey);
+            yield return Frame();
+            controls.ClearLatch();
+            PlayerInput input = controls.TakeTickInput();
+            Assert.IsFalse(input.JumpPressed, "the press is gone");
+            Assert.IsTrue(input.JumpHeld, "the key is still held");
+        }
+
         [Test]
         public void DisposeDisablesTheActions()
         {

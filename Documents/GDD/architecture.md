@@ -1,5 +1,5 @@
 # Architecture
-**Last updated:** v0.08
+**Last updated:** v0.10
 
 Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assemblies and their reference direction landed with the scaffold (v0.06) and are guarded by EditMode tests.
 
@@ -7,14 +7,14 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assembli
 
 | Part | Owns | Must not |
 |---|---|---|
-| **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults. Since v0.07: the tile grid and tile collision (filled by the runtime at play start), player movement (`PlayerStepper`), `MovementSettings` / `MovementInternals` | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
-| **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The Daedalus components students add and tune, and our assets; reading the scene (Collision Tilemap, objects with Daedalus components) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves. Since v0.08: `Player`, `Rope`, `DaedalusTile`; `CollisionMapReader` (Collision Tilemap → `TileGrid` at play start), `RopeCollector` (the play-start rope scan), `PlayerSession` (plain C# driver: stepper, accumulator, interpolation, restart), `PlayerControls` (Input System actions built in code), one-shot plain-words warnings (`PlayerWarnings`) | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
-| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers | Contain gameplay logic (Architecture rule 3) |
+| **Sim** (`Runtime/Sim/`, assembly `Orcapafea.Daedalus.Sim`) | `Step(state, input) → state`: player, collision, combat, enemies, level elements, in-game progress state; the tunable defaults. Since v0.07: the tile grid and tile collision (filled by the runtime at play start), player movement (`PlayerStepper`), `MovementSettings` / `MovementInternals`. Since v0.10: the world step `LevelStepper` around `PlayerStepper` (death, beat, respawn, checkpoints, exit, static traps; it owns its trap and checkpoint state in place and stays allocation-free), `LevelRules` (death, respawn and trap numbers), `TrapSpec`, `Box`, and a trap-cell layer in `TileGrid` (painted tiles stay in charge) | Reference `UnityEngine` or `UnityEditor`; read the clock or a random source directly |
+| **Runtime** (`Runtime/`, assembly `Orcapafea.Daedalus`) | The Daedalus components students add and tune, and our assets; reading the scene (Collision Tilemap, objects with Daedalus components) into sim data at play start; the 60 Hz tick loop; sprites, animation, camera and interpolation; Input System → one `Input` per tick; checkpoint saves. Since v0.08: `Player`, `Rope`, `DaedalusTile`; `CollisionMapReader` (Collision Tilemap → `TileGrid` at play start), `RopeCollector` (the play-start rope scan), `PlayerSession` (plain C# driver: stepper, accumulator, interpolation, restart), `PlayerControls` (Input System actions built in code), one-shot plain-words warnings (`PlayerWarnings`). Since v0.10: `Checkpoint`, `Exit`, `Trap` (with `TrapLook`: box, zone and Play-mode look), `LevelCollector` and `PlayStartScan` (play-start scans), `HelpTexts` (the trap story and notes, shared with the inspectors), `CameraFollow`, `PlayHud` (counter and win screen, uGUI built in code), `DeathBurst`; `PlayerSession` now drives `LevelStepper` | Make gameplay decisions outside the sim; write to authored assets; reference the editor assembly |
+| **Editor tools** (`Editor/`, assembly `Orcapafea.Daedalus.Editor`) | Custom inspectors and gizmos, the Add Component menu entries, the daedalus window (play-from-here abilities, validation warnings), Scene-view play-from-here, scene autosave, terrain setup helpers. Since v0.10: the Trap, Checkpoint and Exit inspectors (help boxes, Fit zone, Snap to grid, zone handles; Undo-recorded), `TrapAuthoring` (Add Component setup), the Appear ghost gizmo (Edit mode only) | Contain gameplay logic (Architecture rule 3) |
 | **Unity** (not ours) | Scene view, Tile Palette, Tilemap, Inspector, prefabs, undo/redo, scene saving, Sprite Editor, Package Manager, WebGL build | — |
 
-**Dependency direction:** editor tools → runtime → sim, enforced by assembly references. The sim references nothing; the runtime also references the Input System.
+**Dependency direction:** editor tools → runtime → sim, enforced by assembly references. The sim references nothing; the runtime also references the Input System and uGUI (`UnityEngine.UI`, v0.10).
 
-**Play-start scans (the one exception to Architecture rule 5):** at play start, or when a component is added in the editor, the runtime may gather placed Daedalus components or Tilemaps with one `FindObjectsByType` scan and a deterministic sort (ropes by x, bottom, top; the Collision Tilemap pick: the one named Collision, else the only one). Never per frame, never as a lookup service.
+**Play-start scans (the one exception to Architecture rule 5):** at play start, or when a component is added in the editor, the runtime may gather placed Daedalus components or Tilemaps with one `FindObjectsByType` scan and a deterministic sort (ropes by x, bottom, top; the Collision Tilemap pick: the one named Collision, else the only one; checkpoints, exits and traps by world box, through `PlayStartScan`). The main camera (`Camera.main`) is likewise found once at play start (v0.10). Never per frame, never as a lookup service.
 
 ## Time Model
 
@@ -23,12 +23,13 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Architecture. The three assembli
 - Hit-stop (~50 ms) pauses the sim's gameplay advance, not rendering. Exact mechanism: decided in `combat-and-enemies`.
 - Authored times are seconds; the runtime converts them to ticks.
 - The clock advances by scaled `Time.deltaTime`, so `timeScale` 0 pauses.
-- **Reset snap:** on the tick where the sim replaces the state (a fall-out reset), `PlayerState.Teleported` is true and the renderer draws the new position at once instead of interpolating across the jump.
+- The death beat (0.4 s) and the win screen's input lock (1 s) are counted in ticks (24 and 60).
+- **Reset snap:** on the tick where the sim replaces the state (a respawn), `PlayerState.Teleported` is true and the renderer draws the new position at once instead of interpolating across the jump.
 
 ## Data Flow
 
 1. Students edit the scene and our assets with Unity's tools; Unity owns undo/redo and saving.
-2. **Play from start** (Unity's Play button): the runtime reads the Collision Tilemap and the Daedalus components into the sim; the player starts where it was placed with the starting abilities (the Player's toggles; Jump is always on). The map is the cells of the Collision Tilemap that hold a tile, grown to include the start and every rope, plus 24 empty rows on top (operator, 2026-10-23). Plain tiles count as solid. Every Player setting then applies live during Play, an ability toggle switching only its own ability.
+2. **Play from start** (Unity's Play button): the runtime reads the Collision Tilemap and the Daedalus components into the sim; the player starts where it was placed with the starting abilities (the Player's toggles; Jump is always on). The map is the cells of the Collision Tilemap that hold a tile, grown to include the start, every rope, trap, checkpoint and exit, plus 24 empty rows on top (operator, 2026-10-23). Every start source (play start, play again, `Restart`) resets the level: traps, deaths, the respawn point. Plain tiles count as solid. Every Player setting then applies live during Play, an ability toggle switching only its own ability.
 3. **Play-from-here:** an editor tool records a start position and an ability set (the student's checkboxes) and enters Play mode; it calls `Player.Restart(PlayStart)` before the Player's `Start`, and that ability set replaces the toggles (Jump always on). The map is fixed at play start, so a later `Restart` is reliable only for a point inside it (checkpoints are). Leaving Play mode returns to the same Scene view.
 4. A WebGL build runs step 2.
 5. **1 Unity unit = 1 tile.** Sprites import at 16 pixels per unit; nothing else sees pixels.

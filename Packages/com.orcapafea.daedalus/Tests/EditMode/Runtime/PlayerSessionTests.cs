@@ -5,7 +5,7 @@ using static Orcapafea.Daedalus.Tests.PlayerScenario;
 
 namespace Orcapafea.Daedalus.Tests
 {
-    /// <summary>The plain C# driver: clock, interpolation, the reset snap, restarts and live settings.</summary>
+    /// <summary>The plain C# driver: clock, interpolation, the respawn snap, restarts and live settings.</summary>
     public class PlayerSessionTests
     {
         const float Tolerance = 1e-4f;
@@ -38,11 +38,32 @@ namespace Orcapafea.Daedalus.Tests
             "############",
         };
 
-        static PlayerSession Session(string[] rows, Abilities abilities = Abilities.Jump)
+        static PlayerSession Session(string[] rows, Abilities abilities = Abilities.Jump, RespawnRule rule = RespawnRule.SafeGround)
         {
             AsciiLevel level = AsciiLevel.Parse(rows);
             var map = new CollisionMap(level.Grid, Origin, Vector2Int.zero);
-            return new PlayerSession(map, level.Ropes, MovementSettings.Default, StartAt(level.StartX, level.StartY, abilities));
+            return new PlayerSession(map, level.Ropes, new TrapSpec[0], new Box[0], new Box[0], MovementSettings.Default, rule,
+                StartAt(level.StartX, level.StartY, abilities));
+        }
+
+        // Walks right into the pit; returns the ticks until the respawn tick (−1 if none within 600).
+        static int WalkIntoThePitUntilRespawn(PlayerSession session, out int deathTick)
+        {
+            deathTick = -1;
+            for (int tick = 1; tick <= 600; tick++)
+            {
+                Assert.AreEqual(1, session.AdvanceClock(1 / 60.0));
+                session.Tick(Hold(1));
+                if (deathTick < 0 && session.Phase == LevelPhase.Dying)
+                {
+                    deathTick = tick;
+                }
+                if (session.Current.Teleported)
+                {
+                    return tick;
+                }
+            }
+            return -1;
         }
 
         static PlayStart StartAt(float simX, float simY, Abilities abilities)
@@ -86,21 +107,31 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void TheResetTickRendersExactlyAtTheStart()
+        public void TheRespawnTickAfterTheBeatRendersExactlyAtTheStart()
         {
-            PlayerSession session = Session(Pit);
+            PlayerSession session = Session(Pit, Abilities.Jump, RespawnRule.Checkpoint);
             Vector2 start = session.Map.SimToWorld(new Vector2(session.Current.X, session.Current.Y));
-            bool reset = false;
-            for (int frame = 0; frame < 600 && !reset; frame++)
-            {
-                Assert.AreEqual(1, session.AdvanceClock(1 / 60.0));
-                session.Tick(Hold(1));
-                reset = session.Current.Teleported;
-            }
-            Assert.IsTrue(reset, "walked into the pit and fell out");
+            Assert.AreEqual(start, session.StartFeetWorld);
+            int respawn = WalkIntoThePitUntilRespawn(session, out int death);
+            Assert.That(death, Is.GreaterThan(0), "walked into the pit and died");
+            Assert.AreEqual(death + LevelRules.DeathBeatTicks, respawn, "the respawn comes after the beat");
+            Assert.AreEqual(1, session.Deaths);
             Assert.AreEqual(session.Current.X, session.Previous.X, "no point between the pit and the start");
             Assert.AreEqual(session.Current.Y, session.Previous.Y);
             Assert.AreEqual(start, session.InterpolatedFeetWorld);
+        }
+
+        [Test]
+        public void ALiveRuleChangeMovesTheNextRespawn()
+        {
+            PlayerSession session = Session(Pit, Abilities.Jump, RespawnRule.Checkpoint);
+            session.SetRule(RespawnRule.SafeGround);
+            Assert.That(WalkIntoThePitUntilRespawn(session, out _), Is.GreaterThan(0));
+            Assert.That(session.Current.X, Is.GreaterThan(session.StartFeetWorld.x - Origin.x + 1f), "back at the ledge, not the start");
+            session.SetRule(RespawnRule.Checkpoint);
+            Assert.That(WalkIntoThePitUntilRespawn(session, out _), Is.GreaterThan(0));
+            Assert.AreEqual(session.StartFeetWorld, session.Map.SimToWorld(new Vector2(session.Current.X, session.Current.Y)), "back at the start");
+            Assert.AreEqual(2, session.Deaths);
         }
 
         [Test]
@@ -120,6 +151,18 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(session.Current.Y, session.Previous.Y);
             Assert.AreEqual(0.0, session.InterpolationFraction);
             Assert.AreEqual(Abilities.RopeClimb | Abilities.Jump, session.Current.Abilities, "the given set plus Jump");
+        }
+
+        [Test]
+        public void RestartAfterADeathPutsTheCounterBackToZero()
+        {
+            PlayerSession session = Session(Pit);
+            Assert.That(WalkIntoThePitUntilRespawn(session, out _), Is.GreaterThan(0));
+            Assert.AreEqual(1, session.Deaths, "precondition: one death");
+            session.Restart(StartAt(1.5f, 3f, Abilities.Jump));
+            Assert.AreEqual(0, session.Deaths);
+            Assert.AreEqual(LevelPhase.Playing, session.Phase);
+            Assert.AreEqual(-1, session.ActiveCheckpoint);
         }
 
         [Test]

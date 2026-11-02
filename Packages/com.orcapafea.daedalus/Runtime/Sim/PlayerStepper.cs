@@ -65,7 +65,7 @@ namespace Orcapafea.Daedalus.Sim
             return s;
         }
 
-        /// <summary>A player at rest at the given feet (apply <see cref="StartPlacement.Find"/> first). Falling out returns here.</summary>
+        /// <summary>A player at rest at the given feet (apply <see cref="StartPlacement.Find"/> first).</summary>
         public PlayerState CreateState(float feetX, float feetY, Abilities abilities)
         {
             return new PlayerState
@@ -77,8 +77,6 @@ namespace Orcapafea.Daedalus.Sim
                 AirJumpsLeft = derived.AirJumps,
                 RopeIndex = -1,
                 Abilities = abilities,
-                StartX = feetX,
-                StartY = feetY,
             };
         }
 
@@ -194,14 +192,6 @@ namespace Orcapafea.Daedalus.Sim
             if (!popped)
             {
                 ClassifyAfterMove(ref s, input, landedOn, ropeSurfaceReached, jumped, ref set);
-            }
-
-            // Falling out of the bottom resets to the start (temporary until pits damage in combat-and-enemies).
-            if (s.Y + Height < 0)
-            {
-                PlayerState reset = CreateState(s.StartX, s.StartY, s.Abilities);
-                reset.Teleported = true;
-                return reset;
             }
 
             // 8. Facing.

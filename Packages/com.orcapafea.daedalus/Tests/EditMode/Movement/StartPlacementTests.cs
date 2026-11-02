@@ -130,5 +130,74 @@ namespace Orcapafea.Daedalus.Tests
             Assert.IsFalse(p.Moved);
             Assert.AreEqual(1f, p.Y);
         }
+
+        [Test]
+        public void AStartOnSpikesMovesToSupportedGroundNotAbove()
+        {
+            TileGrid grid = AsciiLevel.ParseGrid(
+                "........",
+                "........",
+                "........",
+                "...^....",
+                "########");
+            StartPlacement p = StartPlacement.Find(grid, 3.5f, 1f);
+            Assert.IsTrue(p.Found);
+            Assert.IsTrue(p.Moved);
+            // (3.5, 2) is free and scanned first, but it stands on the spike, which is no support.
+            Assert.AreEqual(2.5f, p.X, "beside the spike; ties go left");
+            Assert.AreEqual(1f, p.Y);
+
+            p = StartPlacement.Find(grid, 2.5f, 1f);
+            Assert.IsFalse(p.Moved, "beside (not touching) the spike stays");
+        }
+
+        [Test]
+        public void AStartOnAFloorSpikeStripMovesBesideTheStrip()
+        {
+            TileGrid grid = AsciiLevel.ParseGrid(
+                "..........",
+                "..........",
+                "..........",
+                "...^^^^...",
+                "##########");
+            StartPlacement p = StartPlacement.Find(grid, 4.5f, 1f);
+            Assert.IsTrue(p.Found);
+            Assert.AreEqual(2.5f, p.X);
+            Assert.AreEqual(1f, p.Y);
+            Assert.IsFalse(TileCollision.CoreTouchesHazard(grid, p.X, p.Y));
+        }
+
+        [Test]
+        public void AMovedStartWithNoSupportedSpotIsNotFound()
+        {
+            TileGrid grid = AsciiLevel.ParseGrid(
+                ".....",
+                ".....",
+                "..^..",
+                ".....",
+                ".....");
+            StartPlacement p = StartPlacement.Find(grid, 2.5f, 2f);
+            Assert.IsTrue(p.Moved);
+            Assert.IsFalse(p.Found);
+            Assert.AreEqual(2.5f, p.X);
+            Assert.AreEqual(2f, p.Y);
+        }
+
+        [Test]
+        public void TiesGoUpWhenBothCandidatesStandOnSupport()
+        {
+            // The slab case with a floor: the down candidate (feet on the floor, head under the slab) is supported too.
+            TileGrid grid = AsciiLevel.ParseGrid(
+                "......",
+                "......",
+                "######",
+                "......",
+                "......",
+                "######");
+            Assert.AreNotEqual(SupportKind.None, TileCollision.Support(grid, 2.5f, 1f, MovementInternals.HitboxHalfWidth), "down is supported");
+            StartPlacement p = StartPlacement.Find(grid, 2.5f, 2.5f);
+            Assert.IsTrue(p.Found);
+            Assert.AreEqual(4f, p.Y, "up and down equidistant and both supported: up");
+        }
     }
 }

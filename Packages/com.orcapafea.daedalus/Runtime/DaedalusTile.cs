@@ -11,7 +11,7 @@ namespace Orcapafea.Daedalus
     {
         internal const int CurrentDataVersion = 1;
 
-        [SerializeField, Tooltip("What this tile does on the Collision Tilemap: Solid, One-way (jump up through, drop down with Down + Jump), Climbable (climb with Wall Climb) or None (decoration). Ordinary tiles count as Solid.")]
+        [SerializeField, Tooltip("What this tile does on the Collision Tilemap: Solid, One-way (jump up through, drop down with Down + Jump), Climbable (climb with Wall Climb), None (decoration) or Hazard (spikes: touching it kills the player). Ordinary tiles count as Solid.")]
         TileCollisionKind kind = TileCollisionKind.Solid;
 
         [SerializeField, HideInInspector]
@@ -37,6 +37,8 @@ namespace Orcapafea.Daedalus
                     return TileKind.OneWay;
                 case TileCollisionKind.Climbable:
                     return TileKind.Climbable;
+                case TileCollisionKind.Hazard:
+                    return TileKind.Hazard;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a tile collision kind.");
             }

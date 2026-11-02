@@ -11,13 +11,14 @@ namespace Orcapafea.Daedalus.Tests
     public class TileAssetTests
     {
         [Test]
-        public void KindValuesArePinnedAndThereAreExactlyFour()
+        public void KindValuesArePinnedAndThereAreExactlyFive()
         {
             Assert.AreEqual(0, (int)TileCollisionKind.None);
             Assert.AreEqual(1, (int)TileCollisionKind.Solid);
             Assert.AreEqual(2, (int)TileCollisionKind.OneWay);
             Assert.AreEqual(3, (int)TileCollisionKind.Climbable);
-            Assert.AreEqual(4, Enum.GetValues(typeof(TileCollisionKind)).Length, "hazard (4) is reserved, not declared");
+            Assert.AreEqual(4, (int)TileCollisionKind.Hazard);
+            Assert.AreEqual(5, Enum.GetValues(typeof(TileCollisionKind)).Length);
         }
 
         [Test]
@@ -36,7 +37,8 @@ namespace Orcapafea.Daedalus.Tests
                 Assert.AreEqual((int)kind, (int)DaedalusTile.ToSimKind(kind), kind.ToString());
             }
             Assert.AreEqual(TileKind.OneWay, DaedalusTile.ToSimKind(TileCollisionKind.OneWay));
-            Assert.Throws<ArgumentOutOfRangeException>(() => DaedalusTile.ToSimKind((TileCollisionKind)4));
+            Assert.AreEqual(TileKind.Hazard, DaedalusTile.ToSimKind(TileCollisionKind.Hazard));
+            Assert.Throws<ArgumentOutOfRangeException>(() => DaedalusTile.ToSimKind((TileCollisionKind)5));
         }
 
         [Test]

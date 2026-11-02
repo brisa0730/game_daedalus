@@ -10,7 +10,8 @@ namespace Orcapafea.Daedalus.Tests
     /// <summary>
     /// A PlayMode level built in code from ASCII rows (top row first), with Phase 1's <c>AsciiLevel</c> symbols:
     /// <c>.</c> none, <c>#</c> plain tile, <c>-</c> one-way, <c>C</c> climbable, <c>R</c> rope, <c>+</c> one-way with
-    /// a rope, <c>P</c> the Player's feet (cell bottom centre), plus <c>b</c> Background-only decoration.
+    /// a rope, <c>^</c> hazard (spikes), <c>P</c> the Player's feet (cell bottom centre), plus <c>b</c> Background-only
+    /// decoration. Traps, checkpoints and exits are added after <see cref="Build"/> (before the Player's Start).
     /// Cell (x, 0) is the bottom row; the Grid sits at the world origin. A camera renders it at 16 px per tile.
     /// </summary>
     internal sealed class TestLevel : IDisposable
@@ -22,6 +23,9 @@ namespace Orcapafea.Daedalus.Tests
         public static readonly Color32 RopeColor = new Color32(200, 140, 70, 255);
         public static readonly Color32 DecorationColor = new Color32(60, 80, 120, 255);
         public static readonly Color32 PlayerColor = new Color32(240, 240, 240, 255);
+        public static readonly Color32 HazardColor = new Color32(220, 50, 50, 255);
+        public static readonly Color32 CheckpointColor = new Color32(80, 160, 230, 255);
+        public static readonly Color32 ExitColor = new Color32(250, 140, 30, 255);
 
         readonly List<Object> created = new List<Object>();
         Material material;
@@ -43,6 +47,8 @@ namespace Orcapafea.Daedalus.Tests
         /// <summary>The 'P' cell's feet position in world space.</summary>
         public Vector2 Start { get; private set; }
         public Texture2D LastImage { get; private set; }
+        public Tile SolidTile { get; private set; }
+        public DaedalusTile HazardTile { get; private set; }
 
         public static TestLevel Build(string[] rows, TestLevelOptions options = null)
         {
@@ -55,9 +61,59 @@ namespace Orcapafea.Daedalus.Tests
         /// <summary>Renders the camera and saves <c>&lt;unity version&gt;-movement-&lt;name&gt;.png</c>; returns the path.</summary>
         public string Shot(string name)
         {
+            return ShotAs("movement-" + name);
+        }
+
+        /// <summary>Renders the camera and saves <c>&lt;unity version&gt;-traps-&lt;name&gt;.png</c>; returns the path.</summary>
+        public string TrapShot(string name)
+        {
+            return ShotAs("traps-" + name);
+        }
+
+        string ShotAs(string fullName)
+        {
             Camera.Render();
             LastImage = TestImages.ReadBack(Camera.targetTexture, created);
-            return TestImages.Save(LastImage, "movement-" + name);
+            return TestImages.Save(LastImage, fullName);
+        }
+
+        /// <summary>A Trap whose box is cells (x, y) to (x + w, y + h), drawn with the level's solid or hazard tile.</summary>
+        public Trap AddTrap(int x, int y, int w, int h, TrapAction action, bool hazard = false,
+            TrapTrigger trigger = TrapTrigger.Zone, Rect? zone = null, float delay = 0)
+        {
+            var trapObject = Track(new GameObject(hazard ? "Spike Trap" : "Trap"));
+            trapObject.transform.position = new Vector3(x + w / 2f, y + h / 2f, 0);
+            Trap trap = trapObject.AddComponent<Trap>();
+            trap.GetComponent<SpriteRenderer>().sharedMaterial = material;
+            trap.Size = new Vector2Int(w, h);
+            trap.Action = action;
+            trap.Trigger = trigger;
+            trap.Delay = delay;
+            trap.Tile = hazard ? (TileBase)HazardTile : SolidTile;
+            trap.Zone = zone ?? TrapLook.DefaultZoneLocal(trap.Size);
+            return trap;
+        }
+
+        /// <summary>A one-tile Checkpoint in cell (x, y).</summary>
+        public Checkpoint AddCheckpoint(int x, int y)
+        {
+            return Element<Checkpoint>("Checkpoint", x, y, CheckpointColor);
+        }
+
+        /// <summary>A one-tile Exit in cell (x, y).</summary>
+        public Exit AddExit(int x, int y)
+        {
+            return Element<Exit>("Exit", x, y, ExitColor);
+        }
+
+        T Element<T>(string name, int x, int y, Color32 color) where T : Component
+        {
+            var element = Track(new GameObject(name));
+            element.transform.position = new Vector3(x + 0.5f, y + 0.5f, 0);
+            var spriteRenderer = element.AddComponent<SpriteRenderer>();
+            spriteRenderer.sprite = TestImages.SolidSprite(color, 16, 16, new Vector2(0.5f, 0.5f), created);
+            spriteRenderer.sharedMaterial = material;
+            return element.AddComponent<T>();
         }
 
         /// <summary>The pixel at a world position in <see cref="LastImage"/>.</summary>
@@ -97,6 +153,8 @@ namespace Orcapafea.Daedalus.Tests
             }
 
             Tile solid = PlainTile(SolidColor);
+            SolidTile = solid;
+            HazardTile = KindTile(TileCollisionKind.Hazard, HazardColor);
             DaedalusTile oneWay = KindTile(TileCollisionKind.OneWay, OneWayColor);
             DaedalusTile climbable = KindTile(TileCollisionKind.Climbable, ClimbableColor);
             Tile decoration = PlainTile(DecorationColor);
@@ -119,6 +177,9 @@ namespace Orcapafea.Daedalus.Tests
                         case 'C':
                             Collision.SetTile(cell, climbable);
                             break;
+                        case '^':
+                            Collision.SetTile(cell, HazardTile);
+                            break;
                         case 'b':
                             Background.SetTile(cell, decoration);
                             break;
@@ -135,7 +196,7 @@ namespace Orcapafea.Daedalus.Tests
             }
             MakeRopes(rows);
             MakePlayer(options);
-            MakeCamera();
+            MakeCamera(options);
             options.BeforeActivate?.Invoke(this);
             Player.gameObject.SetActive(true);
         }
@@ -199,15 +260,21 @@ namespace Orcapafea.Daedalus.Tests
             Player.Abilities.RopeClimb = (options.Abilities & Abilities.RopeClimb) != 0;
         }
 
-        void MakeCamera()
+        void MakeCamera(TestLevelOptions options)
         {
-            var target = Track(new RenderTexture(Width * TestImages.PixelsPerTile, Height * TestImages.PixelsPerTile, 24));
-            Camera = Track(new GameObject("Level Camera")).AddComponent<Camera>();
+            int viewWidth = options.ViewWidth > 0 ? options.ViewWidth : Width;
+            var target = Track(new RenderTexture(viewWidth * TestImages.PixelsPerTile, Height * TestImages.PixelsPerTile, 24));
+            var cameraObject = Track(new GameObject("Level Camera"));
+            if (options.MainCamera)
+            {
+                cameraObject.tag = "MainCamera";
+            }
+            Camera = cameraObject.AddComponent<Camera>();
             Camera.orthographic = true;
             Camera.orthographicSize = Height / 2f;
             Camera.clearFlags = CameraClearFlags.SolidColor;
             Camera.backgroundColor = BackgroundColor;
-            Camera.transform.position = new Vector3(Width / 2f, Height / 2f, -10);
+            Camera.transform.position = new Vector3(viewWidth / 2f, Height / 2f, -10);
             Camera.targetTexture = target;
         }
 

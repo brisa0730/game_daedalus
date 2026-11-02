@@ -114,6 +114,25 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void TheTrapLayerIsReadOnlyWherePaintedIsNone()
+        {
+            var grid = new TileGrid(4, 2);
+            grid.Set(0, 0, TileKind.Solid);
+            grid.SetTrapCell(0, 0, TileKind.Hazard);
+            grid.SetTrapCell(1, 0, TileKind.Hazard);
+            grid.SetTrapCell(-1, 0, TileKind.Solid);
+            grid.SetTrapCell(9, 9, TileKind.Solid);
+            Assert.AreEqual(TileKind.Solid, grid.Get(0, 0), "painted wins");
+            Assert.AreEqual(TileKind.Hazard, grid.Get(1, 0), "the trap layer where nothing is painted");
+            Assert.AreEqual(TileKind.None, grid.GetPainted(1, 0), "GetPainted ignores the layer");
+            Assert.AreEqual(TileKind.Solid, grid.GetPainted(-1, 0), "outside: as Get");
+            Assert.AreEqual(TileKind.None, grid.GetPainted(0, -1));
+            grid.ClearTrapCells();
+            Assert.AreEqual(TileKind.None, grid.Get(1, 0), "cleared");
+            Assert.AreEqual(TileKind.Solid, grid.Get(0, 0), "the painted cell stays");
+        }
+
+        [Test]
         public void RopeNeedsTopAboveBottom()
         {
             Assert.Throws<ArgumentException>(() => new RopeSegment(0.5f, 2f, 2f));

@@ -47,6 +47,7 @@ namespace Orcapafea.Daedalus.Tests
             tilemap.SetTile(new Vector3Int(2, 0, 0), Kind(TileCollisionKind.Climbable));
             tilemap.SetTile(new Vector3Int(3, 0, 0), Kind(TileCollisionKind.None));
             tilemap.SetTile(new Vector3Int(5, 0, 0), Kind(TileCollisionKind.Solid));
+            tilemap.SetTile(new Vector3Int(6, 0, 0), Kind(TileCollisionKind.Hazard));
 
             TileGrid grid = CollisionMapReader.Read(tilemap, Nothing, problems).Grid;
             Assert.AreEqual(TileKind.Solid, grid.Get(0, 0));
@@ -55,6 +56,7 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(TileKind.None, grid.Get(3, 0));
             Assert.AreEqual(TileKind.None, grid.Get(4, 0), "an empty cell");
             Assert.AreEqual(TileKind.Solid, grid.Get(5, 0));
+            Assert.AreEqual(TileKind.Hazard, grid.Get(6, 0));
             Assert.IsEmpty(problems);
         }
 

@@ -39,6 +39,7 @@ namespace Orcapafea.Daedalus.Tests
                 { "com.unity.inputsystem", "1.11.2" },
                 { "com.unity.modules.imageconversion", "1.0.0" },
                 { "com.unity.modules.tilemap", "1.0.0" },
+                { "com.unity.ugui", "2.0.0" },
             };
             var actual = new Dictionary<string, string>();
             foreach (Match entry in DependencyEntries())

@@ -21,6 +21,7 @@ namespace Orcapafea.Daedalus
         readonly InputAction down;
         readonly InputAction stick;
         readonly InputAction jump;
+        readonly InputAction playAgain;
 
         int moveX;
         int moveY;
@@ -41,9 +42,21 @@ namespace Orcapafea.Daedalus
             jump = new InputAction("Jump", InputActionType.Button);
             jump.AddBinding("<Keyboard>/space");
             jump.AddBinding("<Gamepad>/buttonSouth");
+
+            // The win screen's "press any key".
+            playAgain = new InputAction("Play Again", InputActionType.Button);
+            playAgain.AddBinding("<Keyboard>/anyKey");
+            playAgain.AddBinding("<Gamepad>/buttonSouth");
+            playAgain.AddBinding("<Gamepad>/buttonEast");
+            playAgain.AddBinding("<Gamepad>/buttonNorth");
+            playAgain.AddBinding("<Gamepad>/buttonWest");
+            playAgain.AddBinding("<Gamepad>/start");
         }
 
         public bool Enabled => jump.enabled;
+
+        /// <summary>Any key or gamepad button was pressed this frame (read by <see cref="ReadFrame"/>).</summary>
+        public bool PlayAgainPressed { get; private set; }
 
         public void Enable()
         {
@@ -53,6 +66,7 @@ namespace Orcapafea.Daedalus
             down.Enable();
             stick.Enable();
             jump.Enable();
+            playAgain.Enable();
         }
 
         public void Disable()
@@ -63,6 +77,7 @@ namespace Orcapafea.Daedalus
             down.Disable();
             stick.Disable();
             jump.Disable();
+            playAgain.Disable();
         }
 
         /// <summary>Reads the devices once per frame. A press is latched until a tick takes it.</summary>
@@ -70,6 +85,7 @@ namespace Orcapafea.Daedalus
         {
             jumpLatched |= jump.WasPressedThisFrame();
             jumpHeld = jump.IsPressed();
+            PlayAgainPressed = playAgain.WasPressedThisFrame();
 
             moveX = (right.IsPressed() ? 1 : 0) - (left.IsPressed() ? 1 : 0);
             moveY = (up.IsPressed() ? 1 : 0) - (down.IsPressed() ? 1 : 0);
@@ -101,6 +117,12 @@ namespace Orcapafea.Daedalus
             return input;
         }
 
+        /// <summary>Drops a latched jump press (a press that restarted the game must not also jump).</summary>
+        public void ClearLatch()
+        {
+            jumpLatched = false;
+        }
+
         public void Dispose()
         {
             Disable();
@@ -110,6 +132,7 @@ namespace Orcapafea.Daedalus
             down.Dispose();
             stick.Dispose();
             jump.Dispose();
+            playAgain.Dispose();
         }
 
         static InputAction Direction(string name, string key, string arrow, string dpad)
