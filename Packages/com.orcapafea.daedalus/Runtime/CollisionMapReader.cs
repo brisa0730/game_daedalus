@@ -90,10 +90,16 @@ namespace Orcapafea.Daedalus
         {
             if (!kinds.TryGetValue(tile, out TileKind kind))
             {
-                kind = tile is DaedalusTile daedalusTile ? DaedalusTile.ToSimKind(daedalusTile.Kind) : TileKind.Solid;
+                kind = KindOf(tile);
                 kinds.Add(tile, kind);
             }
             return kind;
+        }
+
+        /// <summary>The one tile → kind mapping: a <see cref="DaedalusTile"/> has its own kind, any other tile is Solid.</summary>
+        public static TileKind KindOf(TileBase tile)
+        {
+            return tile is DaedalusTile daedalusTile ? DaedalusTile.ToSimKind(daedalusTile.Kind) : TileKind.Solid;
         }
 
         static void AddWorldRect(CellRange cells, Rect world, System.Func<Vector3, Vector3Int> toCell)

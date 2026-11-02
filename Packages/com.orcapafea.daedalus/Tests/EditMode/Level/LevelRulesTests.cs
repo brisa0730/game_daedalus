@@ -19,6 +19,7 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(0.2f, LevelRules.HazardInset, Tolerance);
             Assert.AreEqual(0.0625f, LevelRules.ContactMargin, Tolerance);
             Assert.AreEqual(1f, LevelRules.DefaultZoneGrowUp, Tolerance);
+            Assert.AreEqual(1f, LevelRules.DefaultExitZoneGrow, Tolerance);
             Assert.AreEqual(0f, LevelRules.DefaultTrapDelay, Tolerance);
             Assert.AreEqual(0f, LevelRules.MinTrapDelay, Tolerance);
             Assert.AreEqual(3f, LevelRules.MaxTrapDelay, Tolerance);
@@ -28,6 +29,17 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(30, LevelRules.MaxTrapSize);
             Assert.AreEqual(1f, LevelRules.WinInputLockSeconds, Tolerance);
             Assert.AreEqual(60, LevelRules.WinInputLockTicks);
+            Assert.AreEqual(0, LevelRules.DefaultMoveOffsetX);
+            Assert.AreEqual(-3, LevelRules.DefaultMoveOffsetY);
+            Assert.AreEqual(-30, LevelRules.MinMoveOffset);
+            Assert.AreEqual(30, LevelRules.MaxMoveOffset);
+            Assert.AreEqual(8f, LevelRules.DefaultMoveSpeed, Tolerance);
+            Assert.AreEqual(1f, LevelRules.MinMoveSpeed, Tolerance);
+            Assert.AreEqual(30f, LevelRules.MaxMoveSpeed, Tolerance);
+            Assert.AreEqual(0.25f, LevelRules.CrushNudge, Tolerance);
+            Assert.AreEqual(MovementInternals.CeilingCornerCorrection, LevelRules.CrushNudge, "the nudge is the jump's corner correction");
+            Assert.AreEqual(0.5f, LevelRules.MaxMoveSpeed / FixedStepAccumulator.TicksPerSecond, Tolerance,
+                "the largest per-tick step, which the no-skip tests rely on");
         }
 
         [Test]

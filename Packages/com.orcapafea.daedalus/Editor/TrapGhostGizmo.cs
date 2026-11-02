@@ -18,7 +18,7 @@ namespace Orcapafea.Daedalus.Editor
         [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected)]
         static void DrawGhost(Trap trap, GizmoType type)
         {
-            if (Application.isPlaying || trap.Action != TrapAction.Appear || TrapLook.IsIgnored(trap))
+            if (Application.isPlaying || trap.Action != TrapAction.Appear || TrapLook.IsIgnored(trap) || TrapLook.IsOnExit(trap))
             {
                 return;
             }

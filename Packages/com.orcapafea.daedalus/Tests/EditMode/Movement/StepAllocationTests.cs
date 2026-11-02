@@ -173,16 +173,32 @@ namespace Orcapafea.Daedalus.Tests
             public PlayerInput[] Inputs;
         }
 
-        static LevelRun RecordLevel(LevelScenario s, List<PlayerInput> inputs, HashSet<string> seen)
+        // A branch a recorded level run must reach: checked after each tick with trap 0's motion before the tick.
+        delegate bool Probe(LevelScenario s, PlayerInput input, bool trapWasMoving);
+
+        static LevelRun RecordLevel(LevelScenario s, List<PlayerInput> inputs, HashSet<string> seen, params (string name, Probe probe)[] probes)
         {
-            s.Begin();
-            var run = new LevelRun { Stepper = s.Stepper, StartX = s.Level.StartX, StartY = s.Level.StartY, Inputs = inputs.ToArray() };
+            return RecordLevelAt(s, s.Level.StartX, s.Level.StartY, inputs, seen, probes);
+        }
+
+        static LevelRun RecordLevelAt(LevelScenario s, float x, float y, List<PlayerInput> inputs, HashSet<string> seen, params (string name, Probe probe)[] probes)
+        {
+            s.BeginAt(x, y);
+            var run = new LevelRun { Stepper = s.Stepper, StartX = x, StartY = y, Inputs = inputs.ToArray() };
             foreach (PlayerInput input in run.Inputs)
             {
                 LevelPhase before = s.Stepper.Phase;
                 int changes = s.Stepper.TrapChanges;
                 int checkpoint = s.Stepper.ActiveCheckpoint;
+                bool wasMoving = s.Stepper.TrapCount > 0 && s.Stepper.IsTrapMoving(0);
                 s.Tick(input);
+                foreach ((string name, Probe probe) in probes)
+                {
+                    if (probe(s, input, wasMoving))
+                    {
+                        seen.Add(name);
+                    }
+                }
                 if (s.Stepper.TrapChanges != changes)
                 {
                     seen.Add("trap fire");
@@ -228,7 +244,9 @@ namespace Orcapafea.Daedalus.Tests
                         .Exit(new Box(16, 1, 17, 2)),
                     Script((Hold(1), 33), (Idle, 110), (Hold(1), 200), (Press(1), 20)), seen),
             };
-            foreach (string branch in new[] { "trap fire", "push-out", "crush", "respawn", "checkpoint", "exit" })
+            runs = Concat(runs, RecordMovingTraps(seen));
+            foreach (string branch in new[] { "trap fire", "push-out", "crush", "respawn", "checkpoint", "exit",
+                "move", "carry", "pull-away", "push", "moving crush", "nudge", "fall land", "fall gone", "swept hazard", "exit trap" })
             {
                 Assert.That(seen, Does.Contain(branch), $"precondition: the recorded level scripts exercise {branch}");
             }
@@ -238,6 +256,84 @@ namespace Orcapafea.Daedalus.Tests
                 steps += run.Inputs.Length;
             }
             return runs;
+        }
+
+        static LevelRun[] Concat(LevelRun[] a, LevelRun[] b)
+        {
+            var all = new LevelRun[a.Length + b.Length];
+            a.CopyTo(all, 0);
+            b.CopyTo(all, a.Length);
+            return all;
+        }
+
+        // width x height with a floor on row 0 unless overridden; 'P' parked at (1, 1).
+        static string[] Map(int width, int height, Func<int, int, char> cell = null)
+        {
+            return AsciiLevel.Rows(width, height, (x, y) =>
+            {
+                char c = cell?.Invoke(x, y) ?? '\0';
+                if (c != '\0')
+                {
+                    return c;
+                }
+                return y == 0 ? '#' : x == 1 && y == 1 ? 'P' : '.';
+            });
+        }
+
+        // Phase 4: each run fires its traps with a straight jump into a zone overhead (TrapRig), then plays out.
+        static LevelRun[] RecordMovingTraps(HashSet<string> seen)
+        {
+            const int Delay = 60;
+            List<PlayerInput> jumpThenIdle = Script((Press(), 1), (Hold(0, 0, true), 60), (Idle, 140));
+            Probe moving = (s, input, was) => s.Stepper.IsTrapMoving(0);
+            Probe carry = (s, input, was) => was && s.State.IsStanding && input.MoveX == 0 && s.State.X != s.Previous.X;
+            Probe pullAway = (s, input, was) => was && s.Previous.IsStanding && s.State.Contact == PlayerContact.Air
+                && s.State.CoyoteTicks == MovementInternals.CoyoteTicks - 1;
+            return new[]
+            {
+                // A sliding floor carries its rider into a wall and slides out from under it.
+                RecordLevelAt(new LevelScenario(Map(30, 14, (x, y) => x == 10 && y >= 4 && y <= 7 ? '#' : '\0'))
+                        .Trap(5, 3, 3, 1, TileKind.Solid, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(6.5f, 4f), Delay, 8, 0, 4f),
+                    6.5f, 4f, jumpThenIdle, seen, ("move", moving), ("carry", carry), ("pull-away", pullAway)),
+                // A sinking floor pulls away, then carries the player down after it lands back.
+                RecordLevelAt(new LevelScenario(Map(30, 14))
+                        .Trap(5, 6, 3, 1, TileKind.Solid, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(6.5f, 7f), Delay, 0, -3, 8f),
+                    6.5f, 7f, jumpThenIdle, seen, ("pull-away", pullAway)),
+                // A crusher pushes the player against a wall and crushes it; the beat and a respawn follow.
+                RecordLevelAt(new LevelScenario(Map(14, 8, (x, y) => x == 2 && y >= 1 ? '#' : '\0'))
+                        .Trap(8, 1, 2, 3, TileKind.Solid, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(5f, 1f), Delay, -6, 0, 8f),
+                    5f, 1f, Script((Press(), 1), (Hold(0, 0, true), 60), (Hold(1), 80), (Idle, 40)), seen,
+                    ("push", (s, input, was) => was && input.MoveX > 0 && s.State.X < s.Previous.X),
+                    ("moving crush", (s, input, was) => was && s.Stepper.Phase == LevelPhase.Dying && s.Previous.X == s.State.X && s.Phases.Count > 1
+                        && s.Phases[s.Phases.Count - 2] == LevelPhase.Playing)),
+                // A falling ceiling clipping the player's edge nudges it clear, then lands.
+                RecordLevelAt(new LevelScenario(Map(14, 10))
+                        .Trap(4, 7, 3, 1, TileKind.Solid, TrapActionKind.Fall, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(7.175f, 1f), Delay),
+                    7.175f, 1f, jumpThenIdle, seen,
+                    ("nudge", (s, input, was) => was && MathF.Abs(s.State.X - s.Previous.X - 0.2f) < 1e-3f),
+                    ("fall land", (s, input, was) => was && !s.Stepper.IsTrapMoving(0) && s.Stepper.IsTrapPresent(0))),
+                // A falling floor lands with its rider.
+                RecordLevelAt(new LevelScenario(Map(30, 14))
+                        .Trap(5, 8, 3, 1, TileKind.Solid, TrapActionKind.Fall, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(6.5f, 9f), Delay),
+                    6.5f, 9f, jumpThenIdle, seen,
+                    ("fall land", (s, input, was) => was && !s.Stepper.IsTrapMoving(0) && s.State.IsStanding)),
+                // A falling block over a pit leaves the map.
+                RecordLevelAt(new LevelScenario(Map(30, 14, (x, y) => y == 0 && x >= 9 && x <= 13 ? '.' : '\0'))
+                        .Trap(10, 6, 3, 1, TileKind.Solid, TrapActionKind.Fall, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(4.5f, 1f), Delay),
+                    4.5f, 1f, jumpThenIdle, seen,
+                    ("fall gone", (s, input, was) => was && !s.Stepper.IsTrapPresent(0))),
+                // A fast spike slides into the standing player.
+                RecordLevelAt(new LevelScenario(Map(30, 8))
+                        .Trap(20, 1, 1, 1, TileKind.Hazard, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(8.5f, 1f), Delay, -12, 0, 30f),
+                    8.5f, 1f, jumpThenIdle, seen,
+                    ("swept hazard", (s, input, was) => was && s.Stepper.Phase == LevelPhase.Dying && s.State.X == s.Previous.X && s.Phases.Count > 1
+                        && s.Phases[s.Phases.Count - 2] == LevelPhase.Playing)),
+                // A runaway exit, chased and won.
+                RecordLevel(new LevelScenario(Map(30, 8)).Exit(new Box(12, 1, 13, 2))
+                        .ExitTrap(0, TrapActionKind.Move, TrapTriggerKind.Zone, new Box(8, 1, 9, 3), 0, 6, 0, 8f),
+                    Script((Hold(1), 300)), seen,
+                    ("exit trap", (s, input, was) => s.Stepper.Phase == LevelPhase.Won && s.Stepper.TrapOffsetX(0) == 6f)),
+            };
         }
 
         static void ReplayLevels(LevelRun[] runs)

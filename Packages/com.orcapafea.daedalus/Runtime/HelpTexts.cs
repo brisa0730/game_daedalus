@@ -1,6 +1,7 @@
 using System.Globalization;
 using Orcapafea.Daedalus.Sim;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 namespace Orcapafea.Daedalus
 {
@@ -17,17 +18,46 @@ namespace Orcapafea.Daedalus
         public const string CheckpointNoEffect = "The Player's On hazard is Return to safe ground, so the player comes back where it last stood safely, not here. Set it to Respawn at checkpoint to use checkpoints.";
         public const string ExitNotice = "Touching this ends the game with a win screen.";
         public const string TrapPlayModeNote = "Trap changes take effect the next time you press Play.";
+        public const string MoveStill = "Its Offset is 0 × 0, so it doesn't move.";
 
-        /// <summary>The trap's story in one or more sentences, e.g. "Hidden until the player touches it, then it appears 0.5 s later."</summary>
-        public static string TrapStory(Trap trap)
+        /// <summary>For the editor (which can't name the sim's types): <paramref name="player"/>'s settings, or the defaults without a Player.</summary>
+        public static string TrapStoryInScene(Trap trap, Tilemap collision, Player player)
         {
-            bool hazard = TrapLook.KindOf(trap.Tile) == TileKind.Hazard;
+            return TrapStory(trap, collision, TrapLook.SettingsOf(player));
+        }
+
+        /// <summary>
+        /// The trap's story in one or more sentences, e.g. "Hidden until the player touches it, then it appears 0.5 s later."
+        /// or "Slides 5 tiles right in 0.6 s after the player enters the zone." A Fall's drop and time come from
+        /// <paramref name="collision"/> (the Collision Tilemap; none = nothing below) and <paramref name="settings"/> (the Player's).
+        /// </summary>
+        public static string TrapStory(Trap trap, Tilemap collision, MovementSettings settings)
+        {
+            bool onExit = TrapLook.IsOnExit(trap);
+            bool hazard = !onExit && TrapLook.KindOf(trap.Tile) == TileKind.Hazard;
             string when = trap.Trigger == TrapTrigger.Touch ? "the player touches it" : "the player enters the zone";
-            int ticks = LevelRules.SecondsToTicks(trap.Delay);
-            string later = ticks == 0 ? "" : " " + Number(ticks / (float)FixedStepAccumulator.TicksPerSecond) + " s later";
-            string story = trap.Action == TrapAction.Appear
-                ? $"Hidden until {when}, then it appears{later}."
-                : $"{(hazard ? "Spikes" : "Solid ground")} until {when}, then it vanishes{later}.";
+            int delayTicks = LevelRules.SecondsToTicks(trap.Delay);
+            string delay = delayTicks == 0 ? null : Number(Seconds(delayTicks)) + " s";
+            string later = delay == null ? "" : " " + delay + " later";
+            string after = delay == null ? $"after {when}" : $"{delay} after {when}";
+            string story;
+            switch (trap.Action)
+            {
+                case TrapAction.Appear:
+                    story = onExit ? $"The exit is hidden until {when}, then appears{later}." : $"Hidden until {when}, then it appears{later}.";
+                    break;
+                case TrapAction.Move:
+                    story = MoveStory(trap, onExit, delay, after);
+                    break;
+                case TrapAction.Fall:
+                    story = FallStory(trap, onExit, collision, settings, delay, after);
+                    break;
+                default:
+                    story = onExit
+                        ? (delay == null ? $"The exit vanishes when {when}." : $"The exit vanishes {after}.")
+                        : $"{(hazard ? "Spikes" : "Solid ground")} until {when}, then it vanishes{later}.";
+                    break;
+            }
             if (hazard)
             {
                 story += " It's a spike trap: touching it while it's out kills.";
@@ -41,6 +71,62 @@ namespace Orcapafea.Daedalus
                 }
             }
             return story;
+        }
+
+        // "Slides 5 tiles right in 0.6 s after …"; on an Exit, "The exit runs 5 tiles right in 0.6 s after …".
+        static string MoveStory(Trap trap, bool onExit, string delay, string after)
+        {
+            Vector2Int offset = TrapLook.ClampedOffset(trap);
+            if (offset == Vector2Int.zero)
+            {
+                return MoveStill;
+            }
+            int ticks = TrapMotion.MoveTicks(offset.x, offset.y, TrapLook.ClampedSpeed(trap));
+            string time = Seconds(ticks).ToString("0.0", CultureInfo.InvariantCulture) + " s";
+            int x = Mathf.Abs(offset.x);
+            int y = Mathf.Abs(offset.y);
+            string across = offset.x > 0 ? "right" : "left";
+            string upDown = offset.y > 0 ? "up" : "down";
+            string path;
+            if (offset.y == 0)
+            {
+                path = onExit ? $"The exit runs {Tiles(x)} {across}" : $"Slides {Tiles(x)} {across}";
+            }
+            else if (offset.x == 0)
+            {
+                path = onExit ? $"The exit runs {Tiles(y)} {upDown}" : $"{(offset.y > 0 ? "Rises" : "Sinks")} {Tiles(y)}";
+            }
+            else
+            {
+                path = $"{(onExit ? "The exit runs" : "Moves")} {x} {across} and {y} {upDown}";
+            }
+            return $"{path} in {time}{(delay == null ? "" : ",")} {after}.";
+        }
+
+        static string FallStory(Trap trap, bool onExit, Tilemap collision, MovementSettings settings, string delay, string after)
+        {
+            string subject = onExit ? "The exit falls" : "Falls";
+            if (!TrapLook.FallLanding(trap, collision, settings, out float tiles, out int ticks))
+            {
+                return $"{subject} out of the map {after}.";
+            }
+            if (ticks == 0)
+            {
+                return onExit ? "The exit is already resting on painted ground, so it won't fall." : "It's already resting on painted ground, so it won't fall.";
+            }
+            string time = Seconds(ticks).ToString("0.0", CultureInfo.InvariantCulture) + " s";
+            string drop = Mathf.Approximately(tiles, 1f) ? "1 tile" : Number(tiles) + " tiles";
+            return $"{subject} {drop} in {time}{(delay == null ? "" : ",")} {after}.";
+        }
+
+        static string Tiles(int n)
+        {
+            return n == 1 ? "1 tile" : n + " tiles";
+        }
+
+        static float Seconds(int ticks)
+        {
+            return ticks / (float)FixedStepAccumulator.TicksPerSecond;
         }
 
         // The side where the zone reaches furthest past the trap's box (the default upward growth not counted).

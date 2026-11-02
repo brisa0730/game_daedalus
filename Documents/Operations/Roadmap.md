@@ -16,14 +16,11 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 | 1 | `movement-sim` (Milestone 1, part 1) | v0.07 | [Changelog v0.07](Changelog.md), [prompt](../Phases/archive/phase1-movement-sim.md), [log](../../.claude/memory/logs/phases/phase1-log.md) |
 | 2 | `movement-runtime` (Milestone 1 `movement-prototype`, part 2; play-check passed) | v0.08 | [Changelog v0.08](Changelog.md), [prompt](../Phases/archive/phase2-movement-runtime.md), [log](../../.claude/memory/logs/phases/phase2-log.md) |
 | 3 | `death-and-respawn` (Milestone 2 `traps`, part 1: hazards, pits, checkpoint, exit, static traps, HUD, follow camera; editor check and play-check passed) | v0.10 | [Changelog v0.10](Changelog.md), [prompt](../Phases/archive/phase3-death-and-respawn.md), [log](../../.claude/memory/logs/phases/phase3-log.md) |
+| 4 | `moving-traps` (Milestone 2 `traps` complete: Move and Fall on the moving-box core, riding, pushing, crush nudge, runaway exit, Scene-view previews; editor check and play-check passed) | v0.13 | [Changelog v0.13](Changelog.md), [prompt](../Phases/archive/phase4-moving-traps.md), [log](../../.claude/memory/logs/phases/phase4-log.md) |
 
 ## 1. Milestones & Phases
 
 Each milestone ends with something playable.
-
-### Milestone 2 — `traps` (days 5–10)
-Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Part 1, `death-and-respawn` with static traps, shipped in v0.10 (§0). Remaining:
-- **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Designed in v0.11 (systems.md § Traps, Move and Fall). Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
 
 ### Milestone 3 — `class-gallery` (days 11–15)
 The class gallery at `suwon.orcarin.com` (systems.md § Share), so troll levels get played by classmates from the first weeks. Starts with a **spike**: one WebGL build of the trap bench behind a login on the Mac Mini, to learn what Unity's WebGL output needs from the server (compression headers, saves, how games are kept apart from the gallery's login). Then the gallery app in Rust (Axum + SQLite; developed and tested on the Windows dev laptop, which needs the Rust toolchain installed first; built and run on the Mac Mini, which already builds Thoth) with ID + password logins, the teacher's account page, upload, the game list, removing a game, plus its launchd + Cloudflare Tunnel setup in `Deploy/`, and **Daedalus → Share my game** in the editor (WebGL build + title + nickname + screenshot, zipped for upload). 

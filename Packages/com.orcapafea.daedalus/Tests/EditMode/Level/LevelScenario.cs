@@ -53,10 +53,27 @@ namespace Orcapafea.Daedalus.Tests
 
         /// <summary>A trap whose box is cells (x, y) to (x + w, y + h); the zone defaults to <see cref="LevelRules.DefaultZone"/>.</summary>
         public LevelScenario Trap(int x, int y, int w, int h, TileKind kind, TrapActionKind action,
-            TrapTriggerKind trigger = TrapTriggerKind.Zone, Box? zone = null, int delayTicks = 0)
+            TrapTriggerKind trigger = TrapTriggerKind.Zone, Box? zone = null, int delayTicks = 0,
+            int offsetX = 0, int offsetY = 0, float speed = LevelRules.DefaultMoveSpeed)
         {
             var box = new Box(x, y, x + w, y + h);
-            traps.Add(new TrapSpec(x, y, w, h, kind, action, trigger, zone ?? LevelRules.DefaultZone(box), delayTicks));
+            traps.Add(new TrapSpec(x, y, w, h, kind, action, trigger, zone ?? LevelRules.DefaultZone(box), delayTicks, offsetX, offsetY, speed));
+            return this;
+        }
+
+        /// <summary>A trap on exit <paramref name="exitIndex"/> (add the exit first); the zone defaults to <see cref="LevelRules.DefaultExitZone"/>.</summary>
+        public LevelScenario ExitTrap(int exitIndex, TrapActionKind action, TrapTriggerKind trigger = TrapTriggerKind.Zone,
+            Box? zone = null, int delayTicks = 0, int offsetX = 0, int offsetY = 0, float speed = LevelRules.DefaultMoveSpeed)
+        {
+            Box exit = exits[exitIndex];
+            traps.Add(TrapSpec.ForExit(exitIndex, exit, action, trigger, zone ?? LevelRules.DefaultExitZone(exit), delayTicks, offsetX, offsetY, speed));
+            return this;
+        }
+
+        /// <summary>The traps in reverse order, for order-independence checks (call before <see cref="Begin"/>).</summary>
+        public LevelScenario Reversed()
+        {
+            traps.Reverse();
             return this;
         }
 

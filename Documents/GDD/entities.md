@@ -37,6 +37,10 @@ Student-facing settings, by Player section (field = `MovementSettings` identifie
 | Hazard core inset | 0.2 tile per side |
 | Contact margin (Touch, Checkpoint, Exit) | 0.0625 tile |
 | Default zone | the trap's box grown up by 1 tile |
+| Default zone of a Trap on an Exit | the exit's box grown by 1 tile on every side (`DefaultExitZoneGrow`, Phase 4) |
+| Move offset (Trap) | default 0 × −3, range −30 to 30 per axis (whole tiles) |
+| Move speed (Trap) | default 8, range 1–30 tiles/s |
+| Crush nudge (`CrushNudge`) | 0.25 tile, = the jump's ceiling-corner correction |
 | Win screen input lock | 1 s (60 ticks) |
 
 Combat (sketch, combat-and-enemies): max HP 5, attack damage 1, attack range 6, attack cooldown 0.25; internal hit-stop ~0.05 s, i-frames ~1 s. The Player component sits on the player object, and its placed position is the start (Phase 2).
@@ -106,20 +110,20 @@ Spikes are not a placed element: they are **hazard tiles** painted on the Collis
 
 ## Trap
 
-`Trap` component (`traps`; systems.md § Traps; Add Component → Daedalus → Trap; built v0.10 with Vanish and Appear). At most 8 settings; a setting shows only for the trigger or action that uses it. Built values passed the Phase 3 play-check unchanged; Move and Fall values stay **(proposal)** until the moving traps' play-check.
+`Trap` component (`traps`; systems.md § Traps; Add Component → Daedalus → Trap; built v0.10 with Vanish and Appear, v0.13 with Move and Fall). At most 8 settings; a setting shows only for the trigger or action that uses it. Serialized order: trigger, zone, action, offset, speed, delay, size, tile. Built values passed the Phase 3 and Phase 4 play-checks unchanged.
 
 | Setting | Shows for | Values |
 | --- | --- | --- |
 | Trigger (`trigger`) | always | Player enters zone 0 (default) · Player touches 1 |
-| Zone (`zone`) | Player enters zone | A box stored relative to the trap's object; default: the trap's box grown up by 1 tile |
+| Zone (`zone`) | Player enters zone | A box stored relative to the trap's object; default: the trap's box grown up by 1 tile (on an Exit: the exit's box grown by 1 on every side) |
 | Action (`action`) | always | Vanish 0 (default) · Appear 1 · Move 2 · Fall 3 (moving traps); new traps keep defaulting to Vanish |
-| Offset | Move | Whole tiles, relative to where it starts; default 0 × −3, range −30 to 30 per axis |
-| Speed | Move | Tiles/s; default 8, range 1–30 |
+| Offset (`offset`) | Move | Whole tiles, relative to where it starts; default 0 × −3, range −30 to 30 per axis |
+| Speed (`speed`) | Move | Tiles/s; default 8, range 1–30 |
 | Delay (`delay`) | always | Seconds after the trigger; default 0, range 0–3 |
 | Size (`size`) | not on an Exit | Width × height in whole tiles; default 3 × 1, range 1–30; centred on the object; the object's Scale is ignored |
 | Tile (`tile`) | not on an Exit | The Tile drawn across the box; a Hazard tile makes a Hazard trap, any other tile a Solid one |
 
-Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's base gravity and max fall speed; Move has constant speed and no easing; crush nudge 0.25 tile (proposal); no momentum from a moving trap; hidden `dataVersion` 1. Settings are read at play start, like the Rope's length; in Play the inspector says "Trap changes take effect the next time you press Play" and an edit leaves the running look alone (code review, Phase 3). The object needs a SpriteRenderer (added with the Trap); Add Component sets its Tiled look.
+Fixed (hidden): fires once per life; every death resets it; re-arms after the player has left its trigger; Fall uses the player's rise gravity (base gravity × the Player's Gravity) capped at the Player's Max Fall Speed; Move has constant speed and no easing; crush nudge 0.25 tile; no momentum from a moving trap; hidden `dataVersion` 1. Settings are read at play start, like the Rope's length; in Play the inspector says "Trap changes take effect the next time you press Play" and an edit leaves the running look alone (code review, Phase 3). The object needs a SpriteRenderer (added with the Trap); Add Component sets its Tiled look.
 
 ## Terrains
 

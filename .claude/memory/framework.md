@@ -50,6 +50,10 @@ type: reference
 - `ObjectFactory.componentWasAdded` fires for the Inspector's Add Component on both editors; hook it from an `[InitializeOnLoad]` static constructor to set up a new component (Undo-recorded).
 - The Appear ghost is drawn with GL immediate mode (`GL.QUADS` with a `Sprites/Default` material, one quad per cell from the sprite's `textureRect`) inside a `[DrawGizmo]` method; it never draws in Play or the Game view.
 - **Not checked:** whether a SpriteRenderer in Tiled mode draws a **Tight**-mesh sprite correctly (the phase 3 prompt asked for it). Our dev sprites are Full Rect, and the Trap inspector warns on a non-Full-Rect sprite instead (an import setting, so play start can't see it). Check it when a third-party art pack lands.
+- **`Handles.FreeMoveHandle(position, size, snap, cap)`** (the overload without a rotation) compiles without warnings on both editors; the Move-end handle rounds the dragged centre to whole tiles itself (snap passed as zero).
+- **`Tilemap.tilemapTileChanged`** (static event) fires for Tile Palette painting; the Trap inspector uses it to invalidate its cached Fall landing outline. Subscribe in `OnEnable`, unsubscribe in `OnDisable`.
+- **`EditorJsonUtility.ToJson` / `FromJsonOverwrite`** round-trip a component with fields stripped from the JSON: the missing fields keep the object's field initializers, which is how old saved data with fewer fields loads.
+- **An assembly that doesn't reference another can't call any overload set that mentions that assembly's types** (CS0012 on overload resolution, even when the chosen overload doesn't use them). The editor assembly doesn't reference the sim, so runtime methods it calls need names of their own when a sibling overload takes a sim type (`HelpTexts.TrapStoryInScene`, `TrapLook.FallLandingBox`).
 
 ## WebGL (6000.6.7f1, Chrome, Windows 11)
 - A release WebGL build of the perf check takes ~6 min cold, ~2 min warm. An incremental build keeps unchanged output files **with their old timestamps**, so freshness is only provable by emptying the output folder first.

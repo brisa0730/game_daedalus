@@ -22,6 +22,18 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### `RebuildTrapCells` clears the whole trap layer on each start, rest or landing tick
+- **Severity:** LOW · **Source:** Phase 4 (`moving-traps`, v0.13)
+- **Description:** [LevelStepper.cs](../../Packages/com.orcapafea.daedalus/Runtime/Sim/LevelStepper.cs) `RebuildTrapCells` clears every trap cell and restamps every resting trap whenever any trap starts, comes to rest or leaves the map. Ordinary moving ticks never rebuild.
+- **Why deferred:** a handful of traps on a classroom map costs nothing measurable; the full rebuild is the simplest correct order-independent rule.
+- **Trigger to act:** `perf_check` or a profile showing it on a 500 × 200 map. Fix shape: restamp only the changed trap's old and new area plus any resting trap overlapping it (Hazard first, then Solid).
+
+### The help box's Fall time uses the first Player found
+- **Severity:** LOW · **Source:** Phase 4 (`moving-traps`, v0.13)
+- **Description:** [TrapEditor.cs](../../Packages/com.orcapafea.daedalus/Editor/TrapEditor.cs) `ScenePlayer` takes the first Player in the scene for the Fall preview's gravity and max fall; with several Players the time may not match the one that plays.
+- **Why deferred:** v1 scenes have one Player.
+- **Trigger to act:** a scene with several Players (out of v1 scope) or a student report. Fix shape: use the Player the play start would use, or say which Player the time is for.
+
 ### Play-start warnings appear only in the Console
 - **Severity:** MED · **Source:** Phase 2 (`movement-runtime`, v0.08)
 - **Description:** every Player / Rope problem (no Collision Tilemap, a Rigidbody 2D, a start in a wall, a rope top in a wall, grid settings…) is a one-shot `Debug.LogWarning` from [PlayerWarnings.cs](../../Packages/com.orcapafea.daedalus/Runtime/PlayerWarnings.cs). A student who never opens the Console misses it.

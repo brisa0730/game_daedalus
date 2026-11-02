@@ -146,6 +146,42 @@ namespace Orcapafea.Daedalus.Tests
             Assert.IsTrue(contactsSeen[(int)PlayerContact.OneWayTop], "OneWayTop");
             Assert.IsTrue(contactsSeen[(int)PlayerContact.Rope], "Rope");
             Assert.IsTrue(sawReset, "a fall-out reset");
+
+            // Moving traps: a rider on a Move trap (per-frame trap transform writes) and a Fall out of the map.
+            Level.Dispose();
+            Build(MovingTour, new TestLevelOptions { MainCamera = true });
+            // A 3 x 1 Move at (1, 3) whose zone is a thin column on it; a 3 x 1 Fall over the pit, fired from the floor.
+            Level.AddTrap(1, 3, 3, 1, TrapAction.Move, zone: Rect.MinMaxRect(0.1f, 0.5f, 0.2f, 2.5f), offset: new Vector2Int(5, 0), speed: 4f);
+            Level.AddTrap(8, 4, 3, 1, TrapAction.Fall, zone: Rect.MinMaxRect(-4.5f, -3.5f, -3.5f, -1.5f));
+            player = Level.Player;
+            yield return Frames(2);
+
+            player.Restart(new PlayStart(new Vector2(1.5f, 4), Abilities.Jump));
+            Keys(Key.RightArrow);
+            Measure(12, "walking into the Move trap's zone on it");
+            Keys();
+            Measure(80, "riding the Move trap");
+            Assert.That(player.Session.InterpolatedTrapOffset(0).x, Is.GreaterThan(1f), "precondition: the Move trap moved");
+            Assert.IsTrue(player.Session.Current.IsStanding, "precondition: riding it");
+
+            player.Restart(new PlayStart(new Vector2(3.5f, 1), Abilities.Jump));
+            Keys(Key.RightArrow);
+            Measure(25, "walking into the Fall's zone");
+            Keys();
+            Measure(90, "the Fall leaving the map");
+            Assert.IsFalse(player.Session.IsTrapPresent(1), "precondition: the Fall left the map");
         }
+
+        static readonly string[] MovingTour =
+        {
+            "........................",
+            "........................",
+            "........................",
+            "........................",
+            "........................",
+            "........................",
+            ".P......................",
+            "#######.....############",
+        };
     }
 }

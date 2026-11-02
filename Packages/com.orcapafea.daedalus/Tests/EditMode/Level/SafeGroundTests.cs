@@ -77,5 +77,24 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(safeX, s.Stepper.SafeX);
             Assert.That(safeX + LevelRules.HazardInset - Hw, Is.LessThan(5f), "the safe spot doesn't touch the spike");
         }
+
+        [Test]
+        public void ATouchTrapThatMovedAwayNoLongerBlocksSafeGroundWhereItStarted()
+        {
+            // A Touch-triggered block slides away fast; the player stands where it touched it, on painted floor.
+            LevelScenario s = new LevelScenario(
+                "....................",
+                "....................",
+                ".P..................",
+                "####################")
+                .Trap(6, 1, 1, 1, TileKind.Solid, TrapActionKind.Move, TrapTriggerKind.Touch, null, 0, 6, 0, 30f).Begin();
+            int touched = s.RunUntil(Hold(1), x => x.Stepper.IsTrapMoving(0), 200);
+            Assert.That(touched, Is.GreaterThan(0), "precondition: touched it, and it moved");
+            s.Tick(Idle, 30);
+            Assert.IsTrue(s.State.IsStanding);
+            Assert.IsTrue(Box.Hitbox(s.State.X, s.State.Y).Grown(LevelRules.ContactMargin).Overlaps(new Box(6, 1, 7, 2)),
+                "precondition: still touching where the trap started");
+            Assert.AreEqual(s.State.X, s.Stepper.SafeX, "safe ground: the Touch trigger uses the trap's current box");
+        }
     }
 }

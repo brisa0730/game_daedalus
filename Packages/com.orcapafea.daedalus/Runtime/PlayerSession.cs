@@ -5,20 +5,25 @@ using UnityEngine;
 namespace Orcapafea.Daedalus
 {
     /// <summary>
-    /// Runs the level's sim for the Player component: the world step, the 60 Hz clock, the two player states the
-    /// renderer interpolates between, and restarts. Input-agnostic: the caller pulls one input per tick.
+    /// Runs the level's sim for the Player component: the world step, the 60 Hz clock, the two player states and trap
+    /// offsets the renderer interpolates between, and restarts. Input-agnostic: the caller pulls one input per tick.
     /// </summary>
     internal sealed class PlayerSession
     {
         readonly CollisionMap map;
         readonly LevelStepper level;
         readonly FixedStepAccumulator accumulator = new FixedStepAccumulator();
+        // Each trap's offset from its start (sim = world units) at the last two ticks.
+        readonly Vector2[] previousTrapOffsets;
+        readonly Vector2[] currentTrapOffsets;
 
         public PlayerSession(CollisionMap map, RopeSegment[] ropes, TrapSpec[] traps, Box[] checkpoints, Box[] exits,
             MovementSettings settings, RespawnRule rule, PlayStart start)
         {
             this.map = map ?? throw new ArgumentNullException(nameof(map));
             level = new LevelStepper(map.Grid, ropes, traps, checkpoints, exits, settings, rule);
+            previousTrapOffsets = new Vector2[level.TrapCount];
+            currentTrapOffsets = new Vector2[level.TrapCount];
             Restart(start);
         }
 
@@ -56,6 +61,14 @@ namespace Orcapafea.Daedalus
             }
         }
 
+        /// <summary>Trap <paramref name="index"/>'s offset from its start, in world units, between the last two ticks at the clock's fraction.</summary>
+        public Vector2 InterpolatedTrapOffset(int index)
+        {
+            float t = (float)accumulator.InterpolationFraction;
+            Vector2 previous = previousTrapOffsets[index];
+            return previous + (currentTrapOffsets[index] - previous) * t;
+        }
+
         /// <summary>
         /// Puts the player at <paramref name="start"/> (moved out of walls if needed), at rest, with its abilities plus Jump;
         /// every trap reset and the death counter at 0.
@@ -66,6 +79,7 @@ namespace Orcapafea.Daedalus
             level.Begin(feet.x, feet.y, start.Abilities | Abilities.Jump);
             Current = level.Player;
             Previous = Current;
+            ReadTrapOffsets(true);
             accumulator.Reset();
         }
 
@@ -77,9 +91,24 @@ namespace Orcapafea.Daedalus
             Previous = Current;
             level.Step(input);
             Current = level.Player;
+            // A respawn resets every trap: it snaps back instead of sliding.
+            ReadTrapOffsets(Current.Teleported);
             if (Current.Teleported)
             {
                 Previous = Current;
+            }
+        }
+
+        void ReadTrapOffsets(bool snap)
+        {
+            for (int i = 0; i < currentTrapOffsets.Length; i++)
+            {
+                previousTrapOffsets[i] = currentTrapOffsets[i];
+                currentTrapOffsets[i] = new Vector2(level.TrapOffsetX(i), level.TrapOffsetY(i));
+                if (snap)
+                {
+                    previousTrapOffsets[i] = currentTrapOffsets[i];
+                }
             }
         }
 

@@ -129,15 +129,71 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void ATrapOnAnExitKeepsTheExitsLook()
+        public void ATrapOnAnExitKeepsTheExitsLookWhateverItsAction()
         {
             var go = new GameObject("Exit");
             created.Add(go);
             var renderer = go.AddComponent<SpriteRenderer>();
+            Sprite sprite = PlainTile().sprite;
+            renderer.sprite = sprite;
             go.AddComponent<Exit>();
             Trap trap = ObjectFactory.AddComponent<Trap>(go);
-            Assert.AreEqual(SpriteDrawMode.Simple, renderer.drawMode, "the Exit's renderer is left alone");
-            Assert.IsTrue(TrapLook.IsIgnored(trap));
+            Assert.IsTrue(TrapLook.IsOnExit(trap));
+            Assert.IsFalse(TrapLook.IsIgnored(trap), "it moves the exit");
+            foreach (TrapAction action in new[] { TrapAction.Vanish, TrapAction.Appear, TrapAction.Move, TrapAction.Fall })
+            {
+                trap.Action = action;
+                TrapAuthoring.SyncLook(trap);
+                Assert.AreEqual(SpriteDrawMode.Simple, renderer.drawMode, $"{action}: the Exit's renderer is left alone");
+                Assert.AreSame(sprite, renderer.sprite, $"{action}: its sprite too");
+                Assert.IsTrue(renderer.enabled, $"{action}: and it stays shown");
+            }
+        }
+
+        [Test]
+        public void SyncLookShowsMoveAndFall()
+        {
+            Trap trap = NewTrap(1.5f, 0.5f);
+            trap.Tile = PlainTile();
+            var renderer = trap.GetComponent<SpriteRenderer>();
+            foreach (TrapAction action in new[] { TrapAction.Move, TrapAction.Fall, TrapAction.Vanish })
+            {
+                trap.Action = TrapAction.Appear;
+                TrapAuthoring.SyncLook(trap);
+                Assert.IsFalse(renderer.enabled, "precondition: Appear hides it");
+                trap.Action = action;
+                TrapAuthoring.SyncLook(trap);
+                Assert.IsTrue(renderer.enabled, $"{action} is saved shown (a Phase 3 bug saved Move/Fall hidden)");
+            }
+        }
+
+        [Test]
+        public void FitZoneOnAnExitTrapGrowsTheExitBoxOnEverySide()
+        {
+            var go = new GameObject("Exit");
+            created.Add(go);
+            go.transform.position = new Vector3(4, 2, 0);
+            go.AddComponent<Exit>();
+            Trap trap = ObjectFactory.AddComponent<Trap>(go);
+            trap.Zone = Rect.MinMaxRect(0, 0, 1, 1);
+            TrapAuthoring.FitZone(trap);
+            // No sprite: the exit's box is one tile around its position.
+            Assert.AreEqual(Rect.MinMaxRect(-1.5f, -1.5f, 1.5f, 1.5f), trap.Zone);
+        }
+
+        [Test]
+        public void TheEndHandleRoundsToWholeTilesClampsAndUndoes()
+        {
+            Trap trap = NewTrap(1.5f, 0.5f);
+            trap.Action = TrapAction.Move;
+            Vector2Int before = trap.Offset;
+            Undo.IncrementCurrentGroup();
+            TrapAuthoring.SetEnd(trap, new Vector2(1.5f + 4.4f, 0.5f - 1.6f));
+            Assert.AreEqual(new Vector2Int(4, -2), trap.Offset, "rounded to whole tiles");
+            Undo.PerformUndo();
+            Assert.AreEqual(before, trap.Offset, "undone");
+            TrapAuthoring.SetEnd(trap, new Vector2(1.5f + 99f, 0.5f - 99f));
+            Assert.AreEqual(new Vector2Int(30, -30), trap.Offset, "clamped to the range");
         }
 
         Trap NewTrap(float x, float y)

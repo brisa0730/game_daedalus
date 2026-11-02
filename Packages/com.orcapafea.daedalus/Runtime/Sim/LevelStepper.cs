@@ -13,6 +13,20 @@ namespace Orcapafea.Daedalus.Sim
     {
         const float HalfWidth = MovementInternals.HitboxHalfWidth;
         const float Height = MovementInternals.HitboxHeight;
+        const float Dt = MovementInternals.TickSeconds;
+        const float Epsilon = MovementInternals.ContactEpsilon;
+        // Tiles/s; how much faster than the ride speed a trap going down may sink and still carry its rider (float slack).
+        const float RideSlack = 0.001f;
+
+        enum Motion
+        {
+            Resting = 0,
+            /// <summary>Fired, not yet advanced: still stamped as cells, so collision never has a one-tick hole.</summary>
+            Starting = 1,
+            Moving = 2,
+            /// <summary>A Fall that left the map; back at its start on the next reset.</summary>
+            Gone = 3,
+        }
 
         struct TrapState
         {
@@ -22,6 +36,14 @@ namespace Orcapafea.Daedalus.Sim
             public bool Fired;
             /// <summary>Ticks until a delayed fire; −1 = none.</summary>
             public int Pending;
+            public Motion Motion;
+            /// <summary>The current box's min (sim); the box keeps the start box's size.</summary>
+            public float MinX;
+            public float MinY;
+            /// <summary>Fall only: downward speed, tiles/s.</summary>
+            public float FallSpeed;
+            /// <summary>Move only: ticks travelled.</summary>
+            public int MoveTick;
         }
 
         readonly TileGrid grid;
@@ -30,11 +52,24 @@ namespace Orcapafea.Daedalus.Sim
         readonly TrapState[] trapStates;
         readonly Box[] checkpoints;
         readonly Box[] exits;
+        // The trap on each exit; −1 = none.
+        readonly int[] exitTraps;
+        // Exits whose own trap fired in this tick's trigger phase: not winnable this tick.
+        readonly bool[] exitHeld;
+        readonly MovingBoxes boxes;
+        // Phase 4 scratch: the traps that advanced this tick, their boxes before the advance, and the pushers.
+        readonly int[] movers;
+        readonly Box[] oldBoxes;
+        readonly Box[] pushOld;
+        readonly Box[] pushNew;
         // Solid traps that appeared in the current batch of fires.
         readonly int[] appeared;
         int appearedCount;
         bool batchFired;
         bool crushed;
+        DerivedMovement derived;
+        // Tiles/s; the most a trap going down may sink per second and keep its rider (systems.md § Traps, Riding).
+        float rideSpeed;
 
         public LevelStepper(TileGrid grid, RopeSegment[] ropes, TrapSpec[] traps, Box[] checkpoints, Box[] exits,
             MovementSettings settings, RespawnRule rule)
@@ -53,11 +88,37 @@ namespace Orcapafea.Daedalus.Sim
                 throw new ArgumentNullException(nameof(exits));
             }
             stepper = new PlayerStepper(grid, ropes, settings);
+            derived = new DerivedMovement(stepper.Settings);
             this.traps = (TrapSpec[])traps.Clone();
             trapStates = new TrapState[traps.Length];
             appeared = new int[traps.Length];
+            movers = new int[traps.Length];
+            oldBoxes = new Box[traps.Length];
+            pushOld = new Box[traps.Length];
+            pushNew = new Box[traps.Length];
             this.checkpoints = (Box[])checkpoints.Clone();
             this.exits = (Box[])exits.Clone();
+            exitTraps = new int[exits.Length];
+            exitHeld = new bool[exits.Length];
+            for (int e = 0; e < exits.Length; e++)
+            {
+                exitTraps[e] = -1;
+            }
+            for (int i = 0; i < traps.Length; i++)
+            {
+                int e = traps[i].ExitIndex;
+                if (e < 0)
+                {
+                    continue;
+                }
+                if (e >= exits.Length || exitTraps[e] >= 0)
+                {
+                    throw new ArgumentException($"Trap {i} names exit {e}, which is missing or already has a trap.", nameof(traps));
+                }
+                exitTraps[e] = i;
+            }
+            boxes = new MovingBoxes(traps.Length);
+            grid.AttachBoxes(boxes);
             Rule = rule;
             ActiveCheckpoint = -1;
             ResetTraps();
@@ -89,6 +150,14 @@ namespace Orcapafea.Daedalus.Sim
 
         public bool IsTrapPresent(int index) => trapStates[index].Present;
 
+        /// <summary>Tiles the trap's box is from its start, X (a Move or Fall in progress or done).</summary>
+        public float TrapOffsetX(int index) => trapStates[index].MinX - traps[index].StartBox.MinX;
+
+        public float TrapOffsetY(int index) => trapStates[index].MinY - traps[index].StartBox.MinY;
+
+        /// <summary>True while the trap travels between cells (a moving box).</summary>
+        public bool IsTrapMoving(int index) => trapStates[index].Motion == Motion.Moving;
+
         /// <summary>
         /// A start source (play start, play-from-here, play again): every trap reset, the counter at 0, no checkpoint,
         /// and the player at rest at the nearest free start, which is also the first safe ground.
@@ -109,9 +178,14 @@ namespace Orcapafea.Daedalus.Sim
         }
 
         /// <summary>
-        /// One tick, in a fixed order: (1) Won: count up; (2) Dying: count down the beat, input ignored, then respawn;
-        /// (3) pending trap delays; (4) the player's step; (5) trap triggers; (6) death by crush, hazard or pit (death
-        /// wins over an exit on the same tick); (7) checkpoints, then exits; (8) safe ground.
+        /// One tick, in a fixed order: (1) Won: count up; (2) Dying: count down the beat, input ignored, then respawn
+        /// (traps don't move during the beat); (3) pending trap delays; (4) traps move: each moving trap advances one
+        /// fixed step, riders are carried (Y, then X), leading faces push, a blocked push nudges or crushes, and a moving
+        /// Hazard is swept against the player (a crush or a hit dies at once: the player doesn't step); (5) the player's
+        /// step; (6) trap triggers; (7) death by crush, hazard or pit (death wins over an exit on the same tick);
+        /// (8) checkpoints, then exits; (9) safe ground.
+        /// A Move or Fall fired by its trigger (6) starts moving on the next tick's (4); one fired by its Delay (3)
+        /// moves in the same tick's (4). Until its first advance it stays stamped as cells.
         /// </summary>
         public void Step(in PlayerInput input)
         {
@@ -142,12 +216,33 @@ namespace Orcapafea.Daedalus.Sim
                     Fire(i);
                 }
             }
-            ResolveAppeared();
+            ResolveAppeared(true);
 
             // 4.
-            Player = stepper.Step(Player, input);
+            if (MoveTraps())
+            {
+                Die();
+                return;
+            }
 
-            // 5.
+            // 5. The ride speed starts at the fall speed the player lands on a moving trap with.
+            bool onBoxBefore = StandsOnMovingBox(Player);
+            float fallVelocity = Player.VelocityY;
+            Player = stepper.Step(Player, input);
+            if (!StandsOnMovingBox(Player))
+            {
+                rideSpeed = 0;
+            }
+            else if (!onBoxBefore)
+            {
+                rideSpeed = MathF.Max(0, -fallVelocity);
+            }
+
+            // 6.
+            for (int e = 0; e < exitHeld.Length; e++)
+            {
+                exitHeld[e] = false;
+            }
             for (int i = 0; i < traps.Length; i++)
             {
                 bool inside = Inside(i);
@@ -161,6 +256,10 @@ namespace Orcapafea.Daedalus.Sim
                     if (traps[i].DelayTicks == 0)
                     {
                         Fire(i);
+                        if (traps[i].ExitIndex >= 0)
+                        {
+                            exitHeld[traps[i].ExitIndex] = true;
+                        }
                     }
                     else
                     {
@@ -168,9 +267,9 @@ namespace Orcapafea.Daedalus.Sim
                     }
                 }
             }
-            ResolveAppeared();
+            ResolveAppeared(false);
 
-            // 6.
+            // 7.
             PlayerState p = Player;
             if (crushed || TileCollision.CoreTouchesHazard(grid, p.X, p.Y) || p.Y + Height < 0)
             {
@@ -178,7 +277,7 @@ namespace Orcapafea.Daedalus.Sim
                 return;
             }
 
-            // 7.
+            // 8.
             for (int i = 0; i < checkpoints.Length; i++)
             {
                 if (Touches(checkpoints[i]))
@@ -187,9 +286,9 @@ namespace Orcapafea.Daedalus.Sim
                     break;
                 }
             }
-            for (int i = 0; i < exits.Length; i++)
+            for (int e = 0; e < exits.Length; e++)
             {
-                if (Touches(exits[i]))
+                if (ExitTouched(e))
                 {
                     Phase = LevelPhase.Won;
                     PhaseTicks = 0;
@@ -197,7 +296,7 @@ namespace Orcapafea.Daedalus.Sim
                 }
             }
 
-            // 8.
+            // 9.
             if (p.IsStanding && TileCollision.StandsFullyOnPainted(grid, p.X, p.Y, HalfWidth) && OutsideEveryTrap())
             {
                 SafeX = p.X;
@@ -206,7 +305,11 @@ namespace Orcapafea.Daedalus.Sim
         }
 
         /// <summary>Replaces the movement settings; takes effect on the next tick.</summary>
-        public void ApplySettings(MovementSettings settings) => stepper.ApplySettings(settings);
+        public void ApplySettings(MovementSettings settings)
+        {
+            stepper.ApplySettings(settings);
+            derived = new DerivedMovement(stepper.Settings);
+        }
 
         /// <summary>Replaces the player's ability set between ticks (see <see cref="PlayerStepper.ChangeAbilities"/>).</summary>
         public void ChangeAbilities(Abilities abilities)
@@ -267,39 +370,298 @@ namespace Orcapafea.Daedalus.Sim
             bool changed = false;
             for (int i = 0; i < traps.Length; i++)
             {
-                bool present = traps[i].Action == TrapActionKind.Vanish;
-                changed |= trapStates[i].Present != present;
-                trapStates[i] = new TrapState { Present = present, Armed = false, Fired = false, Pending = -1 };
+                bool present = traps[i].Action != TrapActionKind.Appear;
+                Box start = traps[i].StartBox;
+                TrapState old = trapStates[i];
+                changed |= old.Present != present || old.MinX != start.MinX || old.MinY != start.MinY;
+                trapStates[i] = new TrapState
+                {
+                    Present = present, Armed = false, Fired = false, Pending = -1,
+                    Motion = Motion.Resting, MinX = start.MinX, MinY = start.MinY,
+                };
             }
             if (changed)
             {
                 TrapChanges++;
             }
+            boxes.Clear();
             appearedCount = 0;
             batchFired = false;
             crushed = false;
+            rideSpeed = 0;
             RebuildTrapCells();
         }
 
         // Marks only; ResolveAppeared rebuilds the cells and pushes once per batch, so the result doesn't depend on the trap order.
+        // Move and Fall only start (the next phase 4 advances them) and never change presence.
         void Fire(int i)
         {
-            bool wasPresent = trapStates[i].Present;
-            bool present = traps[i].Action == TrapActionKind.Appear;
-            trapStates[i].Present = present;
+            TrapSpec t = traps[i];
+            if (t.Action == TrapActionKind.Move || t.Action == TrapActionKind.Fall)
+            {
+                bool still = t.Action == TrapActionKind.Move && t.OffsetX == 0 && t.OffsetY == 0;
+                if (!still && trapStates[i].Motion == Motion.Resting)
+                {
+                    trapStates[i].Motion = Motion.Starting;
+                }
+                return;
+            }
             batchFired = true;
+            bool wasPresent = trapStates[i].Present;
+            bool present = t.Action == TrapActionKind.Appear;
+            trapStates[i].Present = present;
             if (present == wasPresent)
             {
                 return;
             }
             TrapChanges++;
-            if (present && traps[i].Kind == TileKind.Solid)
+            if (present && t.Kind == TileKind.Solid)
             {
                 appeared[appearedCount++] = i;
             }
         }
 
-        void ResolveAppeared()
+        // Phase 4. Returns true when the player was crushed or hit (the caller dies at once).
+        bool MoveTraps()
+        {
+            // 1–2. Advance every started or moving trap one tick from its old state.
+            int moverCount = 0;
+            bool restamp = false;
+            for (int i = 0; i < traps.Length; i++)
+            {
+                ref TrapState t = ref trapStates[i];
+                if (t.Motion != Motion.Starting && t.Motion != Motion.Moving)
+                {
+                    continue;
+                }
+                TrapSpec spec = traps[i];
+                Box old = CurrentBox(i);
+                oldBoxes[i] = old;
+                movers[moverCount++] = i;
+                if (t.Motion == Motion.Starting)
+                {
+                    t.Motion = Motion.Moving;
+                    restamp = true;
+                }
+                if (spec.Action == TrapActionKind.Move)
+                {
+                    TrapMotion.MovePosition(spec.StartBox, spec.OffsetX, spec.OffsetY, spec.Speed, ++t.MoveTick,
+                        out t.MinX, out t.MinY, out bool arrived);
+                    if (arrived)
+                    {
+                        t.Motion = Motion.Resting;
+                        restamp = true;
+                    }
+                }
+                else if (TrapMotion.FallStep(grid, old, derived.RiseGravity, derived.MaxFallSpeed, ref t.FallSpeed, out t.MinY))
+                {
+                    t.Motion = Motion.Resting;
+                    restamp = true;
+                }
+                else if (t.MinY + (old.MaxY - old.MinY) < 0)
+                {
+                    t.Motion = Motion.Gone;
+                    t.Present = false;
+                    TrapChanges++;
+                    restamp = true;
+                }
+            }
+            if (moverCount == 0)
+            {
+                return false;
+            }
+
+            // 3–4. The box layer holds the moving tile traps; the cells change only when one starts, rests or goes.
+            for (int k = 0; k < moverCount; k++)
+            {
+                int i = movers[k];
+                if (traps[i].ExitIndex >= 0)
+                {
+                    continue;
+                }
+                if (trapStates[i].Motion == Motion.Moving)
+                {
+                    boxes.Set(i, CurrentBox(i), traps[i].Kind);
+                }
+                else
+                {
+                    boxes.Remove(i);
+                }
+            }
+            if (restamp)
+            {
+                RebuildTrapCells();
+            }
+
+            // 5. Riders: standing on a moving Solid trap's old top. Several carriers: the highest new top, then the
+            // smaller |dx|, then the smaller dx (by value, never by index).
+            PlayerState p = Player;
+            int carrier = -1;
+            if (p.IsStanding)
+            {
+                Box hitbox = Box.Hitbox(p.X, p.Y);
+                for (int k = 0; k < moverCount; k++)
+                {
+                    int i = movers[k];
+                    Box o = oldBoxes[i];
+                    if (!IsPusher(i) || MathF.Abs(p.Y - o.MaxY) > Epsilon
+                        || !TileCollision.SpansOverlap(o.MinX, o.MaxX, hitbox.MinX, hitbox.MaxX))
+                    {
+                        continue;
+                    }
+                    if (carrier < 0 || CarriesBetter(i, carrier))
+                    {
+                        carrier = i;
+                    }
+                }
+            }
+            if (carrier >= 0)
+            {
+                Box o = oldBoxes[carrier];
+                Box n = CurrentBox(carrier);
+                float dx = n.MinX - o.MinX;
+                float dy = n.MaxY - o.MaxY;
+                // Still on the carrier's top after the Y carry; only then does it carry X (sides never carry).
+                bool rides = true;
+                if (dy > 0)
+                {
+                    rideSpeed = 0;
+                    if (BoxIsFreeForPlayer(p.X, n.MaxY))
+                    {
+                        p.Y = n.MaxY;
+                    }
+                    else
+                    {
+                        // Lifted into a ceiling: the crush rule, nudge first.
+                        pushNew[0] = n;
+                        if (!BoxPush.TryNudge(grid, ref p, true, pushNew, 1))
+                        {
+                            Player = p;
+                            return true;
+                        }
+                        rides = false;
+                    }
+                }
+                else if (dy < 0)
+                {
+                    rideSpeed = MathF.Min(rideSpeed + derived.FallGravity * Dt, derived.MaxFallSpeed);
+                    bool otherSupport = TileCollision.Support(grid, p.X, p.Y, HalfWidth) != SupportKind.None;
+                    rides = !otherSupport && -dy / Dt <= rideSpeed + RideSlack;
+                    if (rides)
+                    {
+                        float y = p.Y;
+                        TileCollision.SweepY(grid, ref p.X, ref y, HalfWidth, Height, n.MaxY - p.Y, false, out SupportKind landedOn, out _);
+                        p.Y = landedOn != SupportKind.None && y > n.MaxY + Epsilon ? y : n.MaxY;
+                    }
+                }
+                else
+                {
+                    rideSpeed = 0;
+                }
+                if (dx != 0 && rides)
+                {
+                    // Soft: a wall stops the rider and the trap slides out from under it.
+                    p.X = TileCollision.SweepX(grid, p.X, p.Y, HalfWidth, Height, dx, out _);
+                }
+                if (p.IsStanding && TileCollision.Support(grid, p.X, p.Y, HalfWidth) == SupportKind.None)
+                {
+                    // Pulled away (or slid off): in the air with the walk-off coyote window from this tick.
+                    p.Contact = PlayerContact.Air;
+                    p.CoyoteTicks = MovementInternals.CoyoteTicks;
+                }
+            }
+
+            // 6. Leading-face pushes from every moving Solid trap now overlapping the player.
+            int pushCount = 0;
+            Box after = Box.Hitbox(p.X, p.Y);
+            for (int k = 0; k < moverCount; k++)
+            {
+                int i = movers[k];
+                if (!IsPusher(i))
+                {
+                    continue;
+                }
+                Box n = CurrentBox(i);
+                if (TileCollision.SpansOverlap(n.MinX, n.MaxX, after.MinX, after.MaxX) && TileCollision.SpansOverlap(n.MinY, n.MaxY, after.MinY, after.MaxY))
+                {
+                    pushOld[pushCount] = oldBoxes[i];
+                    pushNew[pushCount] = n;
+                    pushCount++;
+                }
+            }
+            if (pushCount > 0 && !BoxPush.Resolve(grid, ref p, pushOld, pushNew, pushCount))
+            {
+                Player = p;
+                return true;
+            }
+            Player = p;
+
+            // 7. A moving Hazard is swept from its old box to its new one against the player's hazard core.
+            Box core = TileCollision.HazardCore(p.X, p.Y);
+            for (int k = 0; k < moverCount; k++)
+            {
+                int i = movers[k];
+                if (traps[i].ExitIndex >= 0 || traps[i].Kind != TileKind.Hazard)
+                {
+                    continue;
+                }
+                Box o = oldBoxes[i];
+                if (Box.SweptOverlaps(o, trapStates[i].MinX - o.MinX, trapStates[i].MinY - o.MinY, core))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // A moving tile trap that carries and pushes: Solid, not on an exit, not gone.
+        bool IsPusher(int i)
+        {
+            return traps[i].ExitIndex < 0 && traps[i].Kind == TileKind.Solid && trapStates[i].Motion != Motion.Gone;
+        }
+
+        bool CarriesBetter(int a, int b)
+        {
+            float topA = CurrentBox(a).MaxY;
+            float topB = CurrentBox(b).MaxY;
+            if (topA != topB)
+            {
+                return topA > topB;
+            }
+            float dxA = trapStates[a].MinX - oldBoxes[a].MinX;
+            float dxB = trapStates[b].MinX - oldBoxes[b].MinX;
+            if (MathF.Abs(dxA) != MathF.Abs(dxB))
+            {
+                return MathF.Abs(dxA) < MathF.Abs(dxB);
+            }
+            return dxA < dxB;
+        }
+
+        bool BoxIsFreeForPlayer(float x, float y)
+        {
+            return TileCollision.BoxIsFree(grid, x, y, HalfWidth, Height) && !TileCollision.CoreTouchesHazard(grid, x, y);
+        }
+
+        // Standing with the feet on the top of a box in the moving-box layer.
+        bool StandsOnMovingBox(in PlayerState p)
+        {
+            if (!p.IsStanding)
+            {
+                return false;
+            }
+            for (int k = 0; k < boxes.ActiveCount; k++)
+            {
+                boxes.GetActive(k, out Box b, out TileKind kind);
+                if (kind == TileKind.Solid && MathF.Abs(b.MaxY - p.Y) <= Epsilon
+                    && TileCollision.SpansOverlap(p.X - HalfWidth, p.X + HalfWidth, b.MinX, b.MaxX))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void ResolveAppeared(bool playerStepsThisTick)
         {
             if (!batchFired)
             {
@@ -314,7 +676,7 @@ namespace Orcapafea.Daedalus.Sim
             float minX = 0, minY = 0, maxX = 0, maxY = 0;
             for (int k = 0; k < appearedCount; k++)
             {
-                Box box = traps[appeared[k]].CellBox;
+                Box box = CurrentBox(appeared[k]);
                 if (!box.Overlaps(hitbox))
                 {
                     continue;
@@ -338,12 +700,12 @@ namespace Orcapafea.Daedalus.Sim
             appearedCount = 0;
             if (any)
             {
-                PushOut(new Box(minX, minY, maxX, maxY), hitbox);
+                PushOut(new Box(minX, minY, maxX, maxY), hitbox, playerStepsThisTick);
             }
         }
 
         // The shortest free way out of the box: up, left, right or down (ties in that order); none free = crushed.
-        void PushOut(Box box, Box hitbox)
+        void PushOut(Box box, Box hitbox, bool playerStepsThisTick)
         {
             PlayerState s = Player;
             int tried = 0;
@@ -370,30 +732,20 @@ namespace Orcapafea.Daedalus.Sim
                 tried |= 1 << best;
                 float x = best == 1 ? box.MinX - HalfWidth : best == 2 ? box.MaxX + HalfWidth : s.X;
                 float y = best == 0 ? box.MaxY : best == 3 ? box.MinY - Height : s.Y;
-                if (!TileCollision.BoxIsFree(grid, x, y, HalfWidth, Height) || TileCollision.CoreTouchesHazard(grid, x, y))
+                if (!BoxIsFreeForPlayer(x, y))
                 {
                     continue;
                 }
                 s.X = x;
                 s.Y = y;
-                // Zero the speed that points into the trap; let go of a rope or a wall.
-                if ((best == 0 && s.VelocityY < 0) || (best == 3 && s.VelocityY > 0))
-                {
-                    s.VelocityY = 0;
-                }
-                if ((best == 1 && s.VelocityX > 0) || (best == 2 && s.VelocityX < 0))
-                {
-                    s.VelocityX = 0;
-                }
-                s.Contact = PlayerContact.Air;
-                s.RopeIndex = -1;
-                s.WallSide = 0;
+                BoxPush.ApplyPush(ref s, best == 1 ? -1 : best == 2 ? 1 : 0, best == 0 ? 1 : best == 3 ? -1 : 0, playerStepsThisTick);
                 Player = s;
                 return;
             }
             crushed = true;
         }
 
+        // Present tile traps at rest (or started, not yet advanced) are cells at their current rest cells.
         void RebuildTrapCells()
         {
             grid.ClearTrapCells();
@@ -404,13 +756,16 @@ namespace Orcapafea.Daedalus.Sim
                 for (int i = 0; i < traps.Length; i++)
                 {
                     TrapSpec t = traps[i];
-                    if (!trapStates[i].Present || t.Kind != kind)
+                    TrapState state = trapStates[i];
+                    if (!state.Present || t.Kind != kind || (state.Motion != Motion.Resting && state.Motion != Motion.Starting))
                     {
                         continue;
                     }
-                    for (int y = t.CellY; y < t.CellY + t.Height; y++)
+                    int cellX = (int)MathF.Floor(state.MinX + 0.5f);
+                    int cellY = (int)MathF.Floor(state.MinY + 0.5f);
+                    for (int y = cellY; y < cellY + t.Height; y++)
                     {
-                        for (int x = t.CellX; x < t.CellX + t.Width; x++)
+                        for (int x = cellX; x < cellX + t.Width; x++)
                         {
                             grid.SetTrapCell(x, y, kind);
                         }
@@ -419,12 +774,35 @@ namespace Orcapafea.Daedalus.Sim
             }
         }
 
+        // The trap's box now: the start box's size at the current min.
+        Box CurrentBox(int i)
+        {
+            Box start = traps[i].StartBox;
+            float minX = trapStates[i].MinX;
+            float minY = trapStates[i].MinY;
+            return new Box(minX, minY, minX + (start.MaxX - start.MinX), minY + (start.MaxY - start.MinY));
+        }
+
+        // The zone never moves; a Touch trigger uses the current box (a gone trap has none).
         bool Inside(int i)
         {
             TrapSpec t = traps[i];
-            return t.Trigger == TrapTriggerKind.Zone
-                ? Box.Hitbox(Player.X, Player.Y).Overlaps(t.Zone)
-                : Touches(t.CellBox);
+            if (t.Trigger == TrapTriggerKind.Zone)
+            {
+                return Box.Hitbox(Player.X, Player.Y).Overlaps(t.Zone);
+            }
+            return trapStates[i].Motion != Motion.Gone && Touches(CurrentBox(i));
+        }
+
+        // An exit with a trap is where its trap's box is now; hidden or gone, it can't be touched, and not on the tick its trap fired.
+        bool ExitTouched(int e)
+        {
+            int i = exitTraps[e];
+            if (i < 0)
+            {
+                return Touches(exits[e]);
+            }
+            return trapStates[i].Present && !exitHeld[e] && Touches(CurrentBox(i));
         }
 
         // The one touch rule (Touch triggers, checkpoints, exits): the hitbox grown by the contact margin overlaps the box.
@@ -433,13 +811,17 @@ namespace Orcapafea.Daedalus.Sim
             return Box.Hitbox(Player.X, Player.Y).Grown(LevelRules.ContactMargin).Overlaps(box);
         }
 
-        // Safe ground is never inside a trap's trigger nor on or in a trap's box.
+        // Safe ground is never inside a trap's trigger nor on or in a tile trap's current box (an exit trap counts by its trigger only).
         bool OutsideEveryTrap()
         {
             Box hitbox = Box.Hitbox(Player.X, Player.Y);
             for (int i = 0; i < traps.Length; i++)
             {
-                if (Inside(i) || hitbox.Overlaps(traps[i].CellBox))
+                if (Inside(i))
+                {
+                    return false;
+                }
+                if (traps[i].ExitIndex < 0 && trapStates[i].Motion != Motion.Gone && hitbox.Overlaps(CurrentBox(i)))
                 {
                     return false;
                 }

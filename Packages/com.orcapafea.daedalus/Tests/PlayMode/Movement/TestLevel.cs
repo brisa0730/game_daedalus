@@ -79,7 +79,8 @@ namespace Orcapafea.Daedalus.Tests
 
         /// <summary>A Trap whose box is cells (x, y) to (x + w, y + h), drawn with the level's solid or hazard tile.</summary>
         public Trap AddTrap(int x, int y, int w, int h, TrapAction action, bool hazard = false,
-            TrapTrigger trigger = TrapTrigger.Zone, Rect? zone = null, float delay = 0)
+            TrapTrigger trigger = TrapTrigger.Zone, Rect? zone = null, float delay = 0,
+            Vector2Int? offset = null, float speed = Sim.LevelRules.DefaultMoveSpeed)
         {
             var trapObject = Track(new GameObject(hazard ? "Spike Trap" : "Trap"));
             trapObject.transform.position = new Vector3(x + w / 2f, y + h / 2f, 0);
@@ -91,6 +92,28 @@ namespace Orcapafea.Daedalus.Tests
             trap.Delay = delay;
             trap.Tile = hazard ? (TileBase)HazardTile : SolidTile;
             trap.Zone = zone ?? TrapLook.DefaultZoneLocal(trap.Size);
+            if (offset.HasValue)
+            {
+                trap.Offset = offset.Value;
+            }
+            trap.Speed = speed;
+            return trap;
+        }
+
+        /// <summary>A Trap on <paramref name="exit"/>; the zone defaults to the exit's default zone (its box grown on every side).</summary>
+        public Trap AddExitTrap(Exit exit, TrapAction action, TrapTrigger trigger = TrapTrigger.Zone, Rect? zone = null, float delay = 0,
+            Vector2Int? offset = null, float speed = Sim.LevelRules.DefaultMoveSpeed)
+        {
+            Trap trap = exit.gameObject.AddComponent<Trap>();
+            trap.Action = action;
+            trap.Trigger = trigger;
+            trap.Delay = delay;
+            trap.Zone = zone ?? TrapLook.DefaultZoneLocal(trap);
+            if (offset.HasValue)
+            {
+                trap.Offset = offset.Value;
+            }
+            trap.Speed = speed;
             return trap;
         }
 

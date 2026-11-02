@@ -25,13 +25,13 @@ namespace Orcapafea.Daedalus
             return found;
         }
 
-        /// <summary>Every active Trap except those on an Exit or Checkpoint object (they do nothing yet), sorted by snapped box.</summary>
+        /// <summary>Every active Trap except those on a Checkpoint or beside a turned-off Exit (they do nothing), sorted by box.</summary>
         public static Trap[] FindTraps()
         {
             return FindTraps(out _);
         }
 
-        /// <summary>As <see cref="FindTraps()"/>; <paramref name="ignored"/> gets the Traps left out (on an Exit or Checkpoint).</summary>
+        /// <summary>As <see cref="FindTraps()"/>; <paramref name="ignored"/> gets the Traps left out (<see cref="TrapLook.IsIgnored"/>).</summary>
         public static Trap[] FindTraps(out Trap[] ignored)
         {
             Trap[] found = PlayStartScan.FindActive<Trap>();
@@ -67,6 +67,17 @@ namespace Orcapafea.Daedalus
             for (int i = 0; i < boxes.Length; i++)
             {
                 boxes[i] = TrapLook.WorldBox(traps[i]);
+            }
+            return boxes;
+        }
+
+        /// <summary>Each trap's end box (a Move's end; else its box), for the map's bounds.</summary>
+        public static Rect[] EndBoxes(Trap[] traps)
+        {
+            var boxes = new Rect[traps.Length];
+            for (int i = 0; i < boxes.Length; i++)
+            {
+                boxes[i] = TrapLook.EndBox(traps[i]);
             }
             return boxes;
         }

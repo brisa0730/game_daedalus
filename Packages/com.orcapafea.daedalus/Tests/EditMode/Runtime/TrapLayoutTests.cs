@@ -105,7 +105,7 @@ namespace Orcapafea.Daedalus.Tests
             Assert.That(boxes[0].MaxX, Is.LessThanOrEqualTo(map.Grid.Width));
         }
 
-        static readonly string[] TrapPaths = { "m_Script", "trigger", "zone", "action", "delay", "size", "tile" };
+        static readonly string[] TrapPaths = { "m_Script", "trigger", "zone", "action", "offset", "speed", "delay", "size", "tile" };
 
         [Test]
         public void TrapFieldsDefaultsRangesTooltipsAndMenuArePinned()
@@ -119,10 +119,12 @@ namespace Orcapafea.Daedalus.Tests
             {
                 visible.Add(iterator.propertyPath);
             }
-            CollectionAssert.AreEqual(TrapPaths, visible, "six settings, in this order");
+            CollectionAssert.AreEqual(TrapPaths, visible, "eight settings, in this order");
             Assert.AreEqual((int)TrapTrigger.Zone, serialized.FindProperty("trigger").enumValueIndex);
             Assert.AreEqual((int)TrapAction.Vanish, serialized.FindProperty("action").enumValueIndex);
             Assert.AreEqual(LevelRules.DefaultTrapDelay, serialized.FindProperty("delay").floatValue);
+            Assert.AreEqual(new Vector2Int(LevelRules.DefaultMoveOffsetX, LevelRules.DefaultMoveOffsetY), serialized.FindProperty("offset").vector2IntValue);
+            Assert.AreEqual(LevelRules.DefaultMoveSpeed, serialized.FindProperty("speed").floatValue);
             Assert.AreEqual(new Vector2Int(LevelRules.DefaultTrapWidth, LevelRules.DefaultTrapHeight), serialized.FindProperty("size").vector2IntValue);
             Assert.IsNull(serialized.FindProperty("tile").objectReferenceValue);
             Assert.AreEqual(1, serialized.FindProperty("dataVersion").intValue);
@@ -131,6 +133,9 @@ namespace Orcapafea.Daedalus.Tests
             var range = typeof(Trap).GetField("delay", F).GetCustomAttribute<UnityEngine.RangeAttribute>();
             Assert.AreEqual(LevelRules.MinTrapDelay, range.min);
             Assert.AreEqual(LevelRules.MaxTrapDelay, range.max);
+            var speedRange = typeof(Trap).GetField("speed", F).GetCustomAttribute<UnityEngine.RangeAttribute>();
+            Assert.AreEqual(LevelRules.MinMoveSpeed, speedRange.min);
+            Assert.AreEqual(LevelRules.MaxMoveSpeed, speedRange.max);
             foreach (string path in TrapPaths)
             {
                 if (path == "m_Script")
@@ -147,7 +152,12 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(1, (int)TrapTrigger.Touch);
             Assert.AreEqual(0, (int)TrapAction.Vanish);
             Assert.AreEqual(1, (int)TrapAction.Appear);
-            Assert.AreEqual((int)TrapActionKind.Appear, (int)TrapAction.Appear);
+            Assert.AreEqual(2, (int)TrapAction.Move);
+            Assert.AreEqual(3, (int)TrapAction.Fall);
+            Assert.AreEqual(0, (int)TrapActionKind.Vanish);
+            Assert.AreEqual(1, (int)TrapActionKind.Appear);
+            Assert.AreEqual(2, (int)TrapActionKind.Move);
+            Assert.AreEqual(3, (int)TrapActionKind.Fall);
             Assert.AreEqual((int)TrapTriggerKind.Touch, (int)TrapTrigger.Touch);
         }
 
@@ -271,12 +281,137 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void ATrapOnAnExitOrCheckpointIsLeftOutOfTheScan()
+        public void ATrapOnACheckpointOrBesideATurnedOffExitIsLeftOutOfTheScan()
         {
             Trap kept = NewTrap(1, 0);
-            NewTrap(5, 0).gameObject.AddComponent<Exit>();
-            NewTrap(9, 0).gameObject.AddComponent<Checkpoint>();
-            CollectionAssert.AreEqual(new[] { kept }, LevelCollector.FindTraps());
+            Trap onExit = NewTrap(5, 0);
+            onExit.gameObject.AddComponent<Exit>();
+            Trap onCheckpoint = NewTrap(9, 0);
+            onCheckpoint.gameObject.AddComponent<Checkpoint>();
+            Trap offExit = NewTrap(13, 0);
+            offExit.gameObject.AddComponent<Exit>().enabled = false;
+            CollectionAssert.AreEqual(new[] { kept, onExit }, LevelCollector.FindTraps(out Trap[] ignored), "a Trap on an Exit moves it");
+            CollectionAssert.AreEquivalent(new[] { onCheckpoint, offExit }, ignored);
+            Assert.IsTrue(TrapLook.IsOnCheckpoint(onCheckpoint));
+            Assert.IsTrue(TrapLook.IsOnDisabledExit(offExit));
+        }
+
+        [Test]
+        public void IsOnExitFollowsTheExitsEnabledToggleEvenOnAnInactiveObject()
+        {
+            // An inactive object stands in for a prefab asset, where every component reads inactive (round 2, F16).
+            Trap trap = NewTrap(5, 0);
+            Exit exit = trap.gameObject.AddComponent<Exit>();
+            trap.gameObject.SetActive(false);
+            Assert.IsTrue(TrapLook.IsOnExit(trap), "an enabled Exit on an inactive object");
+            Assert.IsFalse(TrapLook.IsIgnored(trap));
+            exit.enabled = false;
+            Assert.IsFalse(TrapLook.IsOnExit(trap), "unticked");
+            Assert.IsTrue(TrapLook.IsIgnored(trap));
+        }
+
+        [Test]
+        public void OldTrapDataLoadsWithTheMoveDefaults()
+        {
+            // A Phase 3 Trap saved only six settings; the new ones take their field initializers.
+            Trap old = NewTrap(0, 0.5f);
+            old.Action = TrapAction.Appear;
+            old.Size = new Vector2Int(2, 1);
+            old.Zone = Rect.MinMaxRect(-3, -1, 2, 4);
+            string json = EditorJsonUtility.ToJson(old);
+            json = System.Text.RegularExpressions.Regex.Replace(json, "\"offset\":\\{[^}]*\\},?", "");
+            json = System.Text.RegularExpressions.Regex.Replace(json, "\"speed\":[^,}]*,?", "");
+            StringAssert.DoesNotContain("offset", json, "precondition: the old data has no offset");
+            StringAssert.DoesNotContain("speed", json, "precondition: nor a speed");
+            Trap loaded = NewTrap(0, 0.5f);
+            EditorJsonUtility.FromJsonOverwrite(json, loaded);
+            Assert.AreEqual(TrapAction.Appear, loaded.Action);
+            Assert.AreEqual(new Vector2Int(2, 1), loaded.Size);
+            Assert.AreEqual(old.Zone, loaded.Zone);
+            Assert.AreEqual(new Vector2Int(0, -3), loaded.Offset);
+            Assert.AreEqual(8f, loaded.Speed);
+            Assert.AreEqual(1, loaded.DataVersion);
+        }
+
+        [Test]
+        public void ToSpecCarriesTheMoveClampedAndFall()
+        {
+            Trap trap = NewTrap(4.5f, 2.5f);
+            trap.Action = TrapAction.Move;
+            trap.Offset = new Vector2Int(40, 2);
+            trap.Speed = 50f;
+            TrapSpec spec = TrapLook.ToSpec(trap, Vector2.zero);
+            Assert.AreEqual(TrapActionKind.Move, spec.Action);
+            Assert.AreEqual(30, spec.OffsetX);
+            Assert.AreEqual(2, spec.OffsetY);
+            Assert.AreEqual(30f, spec.Speed);
+            Assert.AreEqual(-1, spec.ExitIndex);
+            trap.Action = TrapAction.Fall;
+            Assert.AreEqual(TrapActionKind.Fall, TrapLook.ToSpec(trap, Vector2.zero).Action);
+            trap.Action = (TrapAction)7;
+            Assert.AreEqual(TrapActionKind.Vanish, TrapLook.ToSpec(trap, Vector2.zero).Action, "an undefined value reads as Vanish");
+        }
+
+        [Test]
+        public void ToSpecOnAnExitMovesTheExitsBox()
+        {
+            Exit exit = NewObject("Exit").AddComponent<Exit>();
+            var renderer = exit.gameObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = BottomPivotSprite();
+            exit.transform.position = new Vector3(5.2f, 1, 0);
+            Trap trap = ObjectFactory.AddComponent<Trap>(exit.gameObject);
+            trap.Action = TrapAction.Move;
+            trap.Offset = new Vector2Int(6, 0);
+            var origin = new Vector2(-2, 1);
+            TrapSpec spec = TrapLook.ToSpec(trap, origin, 3);
+            Assert.AreEqual(3, spec.ExitIndex);
+            Assert.AreEqual(TileKind.None, spec.Kind);
+            Assert.AreEqual(4.7f + 2f, spec.StartBox.MinX, Tolerance, "the exit's box, in sim coordinates");
+            Assert.AreEqual(0f, spec.StartBox.MinY, Tolerance);
+            Assert.AreEqual(5.7f + 2f, spec.StartBox.MaxX, Tolerance);
+            Assert.AreEqual(6, spec.OffsetX);
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => TrapLook.ToSpec(trap, origin), "a Trap on an Exit needs its index");
+            Assert.IsFalse(TrapLook.IsOffGrid(trap), "an exit's box is never snapped");
+        }
+
+        [Test]
+        public void TheDefaultZoneOfATrapOnAnExitIsTheExitBoxGrownOnEverySide()
+        {
+            Exit exit = NewObject("Exit").AddComponent<Exit>();
+            var renderer = exit.gameObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = BottomPivotSprite();
+            exit.transform.position = new Vector3(5.2f, 1, 0);
+            Trap trap = ObjectFactory.AddComponent<Trap>(exit.gameObject);
+            Assert.AreEqual(-1.5f, trap.Zone.xMin, Tolerance, "Reset: the 1-wide exit box grown by 1, relative to the position");
+            Assert.AreEqual(1.5f, trap.Zone.xMax, Tolerance);
+            Assert.AreEqual(-1f, trap.Zone.yMin, Tolerance, "a bottom pivot: the box starts at the position");
+            Assert.AreEqual(2f, trap.Zone.yMax, Tolerance);
+            Assert.AreEqual(TrapLook.DefaultZoneLocal(trap), trap.Zone);
+        }
+
+        [Test]
+        public void AMoveEndRightOfEveryPaintedTileGrowsTheMap()
+        {
+            var tilemap = new GameObject("Collision", typeof(Grid)).AddComponent<Tilemap>();
+            created.Add(tilemap.transform.root.gameObject);
+            Tile plain = ScriptableObject.CreateInstance<Tile>();
+            created.Add(plain);
+            for (int x = 0; x < 5; x++)
+            {
+                tilemap.SetTile(new Vector3Int(x, 0, 0), plain);
+            }
+            Trap trap = NewTrap(2.5f, 3.5f);
+            trap.Size = new Vector2Int(1, 1);
+            trap.Action = TrapAction.Move;
+            trap.Offset = new Vector2Int(20, 0);
+            Rect end = TrapLook.EndBox(trap);
+            Assert.AreEqual(new Rect(22, 3, 1, 1), end);
+            Trap[] traps = LevelCollector.FindTraps();
+            Rect include = LevelCollector.Grow(new Rect(1, 1, 0.75f, 1.5f), LevelCollector.EndBoxes(traps));
+            CollisionMap map = CollisionMapReader.Read(tilemap, include, new List<string>());
+            Assert.That(map.Grid.Width, Is.GreaterThanOrEqualTo(23), "the Move's end at x = 22 is inside the map");
+            trap.Action = TrapAction.Fall;
+            Assert.AreEqual(TrapLook.WorldBox(trap), TrapLook.EndBox(trap), "only a Move has an end");
         }
 
         Trap NewTrap(float x, float y)

@@ -128,5 +128,110 @@ namespace Orcapafea.Daedalus.Tests
                 "^^^^^^");
             Assert.IsFalse(TileCollision.StandsFullyOnPainted(grid, 2f, 1f, HalfWidth));
         }
+
+        // --- Moving Hazard traps (Phase 4): swept from the old box to the new one, so a fast one can't skip the core. ---
+
+        static readonly PlayerInput Idle = new PlayerInput(0, 0, false, false);
+        static readonly PlayerInput Right = new PlayerInput(1, 0, false, false);
+
+        // 30 x 8, a floor on row 0, 'P' parked at (1, 1).
+        static string[] Corridor()
+        {
+            return AsciiLevel.Rows(30, 8, (x, y) => y == 0 ? '#' : x == 1 && y == 1 ? 'P' : '.');
+        }
+
+        // Runs until death (or the limit) and returns the death tick and the first tick whose swept move (or, after the
+        // player's own step, whose new box) overlaps the core, from the observed trap and player positions.
+        static void Observe(LevelScenario s, Box start, PlayerInput input, out int died, out int expected, out bool movedByTrap)
+        {
+            died = -1;
+            expected = -1;
+            movedByTrap = false;
+            for (int t = 1; t <= 300 && died < 0; t++)
+            {
+                Box before = Current(s, start);
+                s.Tick(input);
+                Box after = Current(s, start);
+                if (expected < 0 && (after.MinX != before.MinX || after.MinY != before.MinY))
+                {
+                    Box core = TileCollision.HazardCore(s.Previous.X, s.Previous.Y);
+                    bool swept = Box.SweptOverlaps(before, after.MinX - before.MinX, after.MinY - before.MinY, core);
+                    bool atEnd = TileCollision.HazardCore(s.State.X, s.State.Y).Overlaps(after);
+                    if (swept || atEnd)
+                    {
+                        expected = t;
+                    }
+                }
+                if (s.Stepper.Phase == LevelPhase.Dying)
+                {
+                    died = t;
+                    movedByTrap = s.State.X != s.Previous.X && input.MoveX == 0;
+                }
+            }
+        }
+
+        static Box Current(LevelScenario s, Box start)
+        {
+            return TrapRig.Current(s, 0, start);
+        }
+
+        [Test]
+        public void AFastHazardMoveCannotSkipAStandingOrRunningPlayer()
+        {
+            // The spike slides 24 left from column 26, so it is still moving when it meets either player.
+            var start = new Box(26, 1, 27, 2);
+            int cases = 0;
+            for (int k = 0; k < 64; k++)
+            {
+                // Standing at a sub-tick offset (the spike moves 0.5 per tick); fired by a jump into the zone overhead.
+                float x0 = 8f + 0.5f * k / 64f;
+                LevelScenario standing = new LevelScenario(Corridor())
+                    .Trap(26, 1, 1, 1, TileKind.Hazard, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(x0, 1f), 60, -24, 0, 30f)
+                    .BeginAt(x0, 1f);
+                TrapRig.JumpAndLand(standing);
+                Observe(standing, start, Idle, out int died, out int expected, out bool moved);
+                Assert.That(died, Is.GreaterThan(0), $"standing case {k}: killed");
+                Assert.AreEqual(expected, died, $"standing case {k}: on the first tick the swept move overlaps the core");
+                Assert.IsFalse(moved, $"standing case {k}: the hazard never moved the player");
+                Assert.AreEqual(x0, standing.State.X, $"standing case {k}: X unchanged");
+                cases++;
+
+                // Running right at Run Speed 12 (the slider maximum) into the spike coming left.
+                MovementSettings fast = MovementSettings.Default;
+                fast.RunSpeed = MovementSettings.MaxRunSpeed;
+                float r0 = 2f + 0.2f * k / 64f;
+                LevelScenario running = new LevelScenario(Corridor()).WithSettings(fast)
+                    .Trap(26, 1, 1, 1, TileKind.Hazard, TrapActionKind.Move, TrapTriggerKind.Zone, new Box(r0 + 0.5f, 1, r0 + 0.6f, 3), 0, -24, 0, 30f)
+                    .BeginAt(r0, 1f);
+                Observe(running, start, Right, out died, out expected, out _);
+                Assert.That(died, Is.GreaterThan(0), $"running case {k}: killed");
+                Assert.AreEqual(expected, died, $"running case {k}: on the first overlapping tick");
+                cases++;
+            }
+            Assert.AreEqual(128, cases);
+        }
+
+        [TestCase(-0.001f, false)]
+        [TestCase(0.001f, true)]
+        public void AHazardMovePassingJustOutsideTheCoreSparesThePlayer(float intoCore, bool dies)
+        {
+            // A spike drops 6 down column 5 at speed 30 beside a standing player whose core edge is 0.001 from it
+            // (the hitbox overlaps the column, inside the 0.2 inset).
+            float x0 = 5f - (HalfWidth - Inset) + intoCore;
+            LevelScenario s = new LevelScenario(Corridor())
+                .Trap(5, 7, 1, 1, TileKind.Hazard, TrapActionKind.Move, TrapTriggerKind.Zone, TrapRig.ZoneOverHead(x0, 1f), 60, 0, -6, 30f)
+                .BeginAt(x0, 1f);
+            TrapRig.JumpAndLand(s);
+            int died = s.RunUntil(Idle, v => v.Stepper.Phase == LevelPhase.Dying, 120);
+            if (dies)
+            {
+                Assert.That(died, Is.GreaterThan(0), "0.001 inside the core: killed");
+            }
+            else
+            {
+                Assert.AreEqual(-1, died, "0.001 outside the core: spared");
+                Assert.AreEqual(-6f, s.Stepper.TrapOffsetY(0), "precondition: it passed all the way down");
+            }
+        }
     }
 }

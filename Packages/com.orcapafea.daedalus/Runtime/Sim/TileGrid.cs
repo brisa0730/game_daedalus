@@ -6,8 +6,10 @@ namespace Orcapafea.Daedalus.Sim
     /// The map's cells, 0-based, y up. The runtime fills it at play start and keeps the
     /// Tilemap's origin as a render offset. Outside the grid, the sides and the top read
     /// Solid and the bottom reads None (falling out is open).
-    /// A second layer holds the cells of the traps that are present (<see cref="LevelStepper"/> stamps it);
-    /// <see cref="Get"/> reads it only where nothing is painted, so painted tiles stay in charge.
+    /// Three layers, in order: painted cells; the cells of the traps that are present and at rest
+    /// (<see cref="LevelStepper"/> stamps them), which <see cref="Get"/> reads only where nothing is painted, so painted
+    /// tiles stay in charge of cells; and the moving boxes (<see cref="Boxes"/>), traps in motion between cells,
+    /// which block wherever they are (<see cref="TileCollision"/> tests them).
     /// </summary>
     public sealed class TileGrid
     {
@@ -24,10 +26,18 @@ namespace Orcapafea.Daedalus.Sim
             Height = height;
             cells = new TileKind[width * height];
             trapCells = new TileKind[width * height];
+            Boxes = new MovingBoxes(0);
         }
 
         public int Width { get; }
         public int Height { get; }
+        /// <summary>The moving-box layer; empty until a <see cref="LevelStepper"/> attaches its own.</summary>
+        public MovingBoxes Boxes { get; private set; }
+
+        public void AttachBoxes(MovingBoxes boxes)
+        {
+            Boxes = boxes ?? throw new ArgumentNullException(nameof(boxes));
+        }
 
         public void Set(int x, int y, TileKind kind)
         {

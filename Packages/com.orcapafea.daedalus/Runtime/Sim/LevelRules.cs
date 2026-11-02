@@ -16,6 +16,11 @@ namespace Orcapafea.Daedalus.Sim
         public const float ContactMargin = 0.0625f;
         /// <summary>Tiles; a trap's default zone is its box grown upward by this.</summary>
         public const float DefaultZoneGrowUp = 1f;
+        /// <summary>
+        /// Tiles; a Trap on an Exit has its default zone grown by this on every side, so a player walking in from the
+        /// side enters the zone before it can touch the exit (round 1, F6).
+        /// </summary>
+        public const float DefaultExitZoneGrow = 1f;
 
         /// <summary>The Trap's Delay setting, in seconds.</summary>
         public const float DefaultTrapDelay = 0f;
@@ -27,6 +32,20 @@ namespace Orcapafea.Daedalus.Sim
         public const int DefaultTrapHeight = 1;
         public const int MinTrapSize = 1;
         public const int MaxTrapSize = 30;
+
+        /// <summary>A Move trap's Offset setting: where it ends, in whole tiles from its start, per axis.</summary>
+        public const int DefaultMoveOffsetX = 0;
+        public const int DefaultMoveOffsetY = -3;
+        public const int MinMoveOffset = -30;
+        public const int MaxMoveOffset = 30;
+
+        /// <summary>A Move trap's Speed setting, in tiles per second.</summary>
+        public const float DefaultMoveSpeed = 8f;
+        public const float MinMoveSpeed = 1f;
+        public const float MaxMoveSpeed = 30f;
+
+        /// <summary>Tiles a blocked push may shift the player at right angles before it crushes.</summary>
+        public const float CrushNudge = MovementInternals.CeilingCornerCorrection;
 
         /// <summary>Seconds the win screen ignores input before a key plays again.</summary>
         public const float WinInputLockSeconds = 1f;
@@ -40,6 +59,12 @@ namespace Orcapafea.Daedalus.Sim
                 return 0;
             }
             return (int)(seconds * FixedStepAccumulator.TicksPerSecond + 0.5f);
+        }
+
+        /// <summary>The default zone of a Trap on an Exit whose box is <paramref name="exitBox"/>: the box grown on every side.</summary>
+        public static Box DefaultExitZone(Box exitBox)
+        {
+            return exitBox.Grown(DefaultExitZoneGrow);
         }
 
         /// <summary>The default zone of a trap whose box is <paramref name="trapBox"/>: the box grown upward.</summary>

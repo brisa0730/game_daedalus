@@ -5,9 +5,10 @@ using UnityEngine.Tilemaps;
 namespace Orcapafea.Daedalus
 {
     /// <summary>
-    /// A box of tiles that vanishes or appears when the player touches it or enters its zone. It looks exactly like
-    /// the Tile drawn across it, and the Tile's kind is the trap's: a Hazard (spike) tile kills, any other is solid
-    /// ground. Fires once per life; every death puts it back. Read once at play start.
+    /// A box of tiles that vanishes, appears, slides (Move) or drops (Fall) when the player touches it or enters its
+    /// zone. It looks exactly like the Tile drawn across it, and the Tile's kind is the trap's: a Hazard (spike) tile
+    /// kills, any other is solid ground. On an Exit it moves, hides or shows the exit instead. Fires once per life;
+    /// every death puts it back. Read once at play start.
     /// </summary>
     [AddComponentMenu("Daedalus/Trap")]
     [DisallowMultipleComponent]
@@ -22,8 +23,15 @@ namespace Orcapafea.Daedalus
         [SerializeField, Tooltip("The box the player must enter to set the trap off. Drag its handles in the Scene view.")]
         Rect zone = TrapLook.DefaultZoneLocal(new Vector2Int(LevelRules.DefaultTrapWidth, LevelRules.DefaultTrapHeight));
 
-        [SerializeField, Tooltip("What the trap does: Vanish (disappears) or Appear (hidden until it fires).")]
+        [SerializeField, Tooltip("What the trap does: Vanish (disappears), Appear (hidden until it fires), Move (slides to its end and stays) or Fall (drops until it lands, or out of the map).")]
         TrapAction action = TrapAction.Vanish;
+
+        [SerializeField, Tooltip("Where a Move trap ends, in whole tiles from where it starts (x right, y up). Drag the arrow's handle in the Scene view.")]
+        Vector2Int offset = new Vector2Int(LevelRules.DefaultMoveOffsetX, LevelRules.DefaultMoveOffsetY);
+
+        [SerializeField, Range(LevelRules.MinMoveSpeed, LevelRules.MaxMoveSpeed)]
+        [Tooltip("How fast a Move trap travels, in tiles per second. It moves at this speed the whole way.")]
+        float speed = LevelRules.DefaultMoveSpeed;
 
         [SerializeField, Range(LevelRules.MinTrapDelay, LevelRules.MaxTrapDelay)]
         [Tooltip("Seconds between the trigger and the action. 0 = at once.")]
@@ -41,6 +49,8 @@ namespace Orcapafea.Daedalus
         internal TrapTrigger Trigger { get => trigger; set => trigger = value; }
         internal Rect Zone { get => zone; set => zone = value; }
         internal TrapAction Action { get => action; set => action = value; }
+        internal Vector2Int Offset { get => offset; set => offset = value; }
+        internal float Speed { get => speed; set => speed = value; }
         internal float Delay { get => delay; set => delay = value; }
         internal Vector2Int Size { get => size; set => size = value; }
         internal TileBase Tile { get => tile; set => tile = value; }
@@ -48,7 +58,7 @@ namespace Orcapafea.Daedalus
 
         void Reset()
         {
-            zone = TrapLook.DefaultZoneLocal(TrapLook.ClampedSize(size));
+            zone = TrapLook.DefaultZoneLocal(this);
         }
 
         void OnDrawGizmos()
@@ -57,9 +67,10 @@ namespace Orcapafea.Daedalus
             {
                 return;
             }
-            // Always on, so a trap that looks like the ground (or is hidden) can be found.
+            // Always on, so a trap that looks like the ground (or is hidden) can be found. On an Exit: the exit's box.
             Rect box = TrapLook.WorldBox(this);
-            Gizmos.color = TrapLook.KindOf(tile) == TileKind.Hazard ? new Color(1f, 0.3f, 0.3f) : Color.white;
+            bool onExit = TrapLook.IsOnExit(this);
+            Gizmos.color = !onExit && TrapLook.KindOf(tile) == TileKind.Hazard ? new Color(1f, 0.3f, 0.3f) : Color.white;
             Gizmos.DrawWireCube(box.center, box.size);
             if (action == TrapAction.Appear)
             {

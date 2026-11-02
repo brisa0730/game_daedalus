@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.Tilemaps;
+using Orcapafea.Daedalus.Sim;
 using Object = UnityEngine.Object;
 
 namespace Orcapafea.Daedalus.Dev
@@ -25,29 +26,33 @@ namespace Orcapafea.Daedalus.Dev
         const int Margin = 2;
         const float CameraSize = 8f;
 
-        // 60 × 16, top row first: '.' none, '#' ground, '^' painted spikes, 'f' Fake Floor (ground painted on
+        // 120 × 18, top row first: '.' none, '#' ground, '^' painted spikes, 'f' Fake Floor (ground painted on
         // Background over a pit), 'P' the Player's feet. Traps, the checkpoint and the exit are placed below by cell.
+        // The Phase 3 sections are columns 0–59; the moving traps (Phase 4) follow on the right.
         static readonly string[] Layout =
         {
-            "............................................................", // 15
-            "............................................................", // 14
-            "............................................................", // 13
-            "............................................................", // 12
-            "............................................................", // 11
-            "............................................................", // 10
-            "............................................................", //  9
-            "............................................................", //  8
-            "............................................................", //  7
-            "............................................................", //  6
-            "............................................................", //  5
-            "............................................................", //  4
-            "............................................................", //  3
-            "............................................................", //  2
-            "..P.................................#......^^...............", //  1  hop block (x 36), spike strip (x 43–44)
-            "#####...####...#############fff##############...############", //  0  pits: Drop Floor A (5–7), B (12–14), Fake Floor (28–30), C (45–47)
+            "........................................................................................................................", // 17
+            "........................................................................................................................", // 16
+            "........................................................................................................................", // 15
+            "........................................................................................................................", // 14
+            "........................................................................................................................", // 13
+            "........................................................................................................................", // 12
+            "........................................................................................................................", // 11
+            "........................................................................................................................", // 10
+            "........................................................................................................................", //  9
+            "........................................................................................................................", //  8
+            "........................................................................................................................", //  7
+            "........................................................................................................................", //  6
+            "........................................................................................................................", //  5
+            "......................................................................................................##########........", //  4  corridor ceiling (x 102–111)
+            "........................................................................................................................", //  3
+            "...................................................................................#....................................", //  2  crusher wall (x 83)
+            "..P.................................#......^^......................................#....................................", //  1  hop block (x 36), spike strip (x 43–44), crusher wall (x 83)
+            "#####...####...#############fff##############...######################.........###############.....#####################", //  0  pits: Drop Floor A (5–7), B (12–14), Fake Floor (28–30), C (45–47), Sliding Floor (70–78), Fall Floor (94–98)
         };
 
-        // Traps: x, y (bottom-left cell), width, height, action, hazard, trigger, zone (world rect; null = default), off-grid nudge.
+        // Traps: x, y (bottom-left cell), width, height, action, hazard, trigger, zone (world rect; null = default), off-grid
+        // nudge, then a Move's offset and speed (the defaults when left out).
         static readonly TrapDef[] Traps =
         {
             new TrapDef("Drop Floor A (start inside its zone)", 5, 0, 3, 1, TrapAction.Vanish, false, TrapTrigger.Zone, Rect.MinMaxRect(1, 1, 8, 3)),
@@ -57,10 +62,19 @@ namespace Orcapafea.Daedalus.Dev
             new TrapDef("Drop Floor C (checkpoint inside its zone)", 45, 0, 3, 1, TrapAction.Vanish, false, TrapTrigger.Zone, Rect.MinMaxRect(39, 1, 48, 3)),
             new TrapDef("Adversarial: over painted tiles", 50, 0, 2, 1, TrapAction.Vanish, false, TrapTrigger.Zone, null),
             new TrapDef("Adversarial: off the grid", 53, 3, 2, 1, TrapAction.Appear, false, TrapTrigger.Zone, null, 0.3f),
+            // Phase 4: moving traps. The ceiling's zone is the column under it; it starts 9 tiles up so a sprinter clears it.
+            new TrapDef("Falling Ceiling", 62, 10, 3, 1, TrapAction.Fall, false, TrapTrigger.Zone, Rect.MinMaxRect(62, 1, 65, 10)),
+            new TrapDef("Adversarial: Move ends in the ground", 67, 4, 2, 1, TrapAction.Move, false, TrapTrigger.Zone, null, 0, new Vector2Int(0, -4)),
+            new TrapDef("Sliding Floor", 70, 0, 3, 1, TrapAction.Move, false, TrapTrigger.Zone, null, 0, new Vector2Int(6, 0), 4f),
+            new TrapDef("Crusher", 88, 1, 2, 3, TrapAction.Move, false, TrapTrigger.Zone, null, 0, new Vector2Int(-4, 0)),
+            new TrapDef("Fall Floor", 94, 0, 3, 1, TrapAction.Fall, false, TrapTrigger.Zone, null),
+            new TrapDef("Fast Spikes", 110, 1, 1, 1, TrapAction.Move, true, TrapTrigger.Zone, Rect.MinMaxRect(101, 1, 102, 3), 0, new Vector2Int(-7, 0), 30f),
         };
 
         static readonly Vector2Int CheckpointCell = new Vector2Int(40, 1);
-        static readonly Vector2Int ExitCell = new Vector2Int(57, 1);
+        static readonly Vector2Int ExitCell = new Vector2Int(112, 1);
+        // The Runaway Exit: the bench's one Exit carries a Move trap with the default exit zone (round 1, F6, F15).
+        static readonly Vector2Int RunawayOffset = new Vector2Int(6, 0);
 
         static readonly Color32 GroundColor = new Color32(70, 150, 80, 255);
         static readonly Color32 GroundSpeck = new Color32(60, 135, 70, 255);
@@ -76,7 +90,8 @@ namespace Orcapafea.Daedalus.Dev
 
         sealed class TrapDef
         {
-            public TrapDef(string name, int x, int y, int w, int h, TrapAction action, bool hazard, TrapTrigger trigger, Rect? zone, float nudge = 0)
+            public TrapDef(string name, int x, int y, int w, int h, TrapAction action, bool hazard, TrapTrigger trigger, Rect? zone, float nudge = 0,
+                Vector2Int? offset = null, float speed = LevelRules.DefaultMoveSpeed)
             {
                 Name = name;
                 X = x;
@@ -88,6 +103,8 @@ namespace Orcapafea.Daedalus.Dev
                 Trigger = trigger;
                 Zone = zone;
                 Nudge = nudge;
+                Offset = offset ?? new Vector2Int(LevelRules.DefaultMoveOffsetX, LevelRules.DefaultMoveOffsetY);
+                Speed = speed;
             }
 
             public readonly string Name;
@@ -97,6 +114,8 @@ namespace Orcapafea.Daedalus.Dev
             public readonly TrapTrigger Trigger;
             public readonly Rect? Zone;
             public readonly float Nudge;
+            public readonly Vector2Int Offset;
+            public readonly float Speed;
         }
 
         [MenuItem("Daedalus Dev/Rebuild Trap Test Scene")]
@@ -185,8 +204,10 @@ namespace Orcapafea.Daedalus.Dev
             {
                 MakeTrap(def, def.Hazard ? (TileBase)spikeTile : groundTile, def.Hazard ? spikeSprite : groundSprite);
             }
-            MakeElement<Checkpoint>("Checkpoint", CheckpointCell, checkpointSprite);
-            MakeElement<Exit>("Exit", ExitCell, exitSprite);
+            Checkpoint checkpoint = MakeElement<Checkpoint>("Checkpoint", CheckpointCell, checkpointSprite);
+            Exit exit = MakeElement<Exit>("Exit", ExitCell, exitSprite);
+            MakeRunawayExit(exit);
+            MakeCheckpointTrap(checkpoint, groundTile);
             MakePlayer(playerSprite, collision, start);
             MakeCamera(width, height);
             var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
@@ -196,7 +217,7 @@ namespace Orcapafea.Daedalus.Dev
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
             string picture = SavePicture(width, height);
-            Debug.Log($"TrapTestSceneBuilder: {ScenePath} with {groundCount} ground, {spikeCount} spike and {fakeCount} fake-floor tiles, {Traps.Length} traps; picture {picture}");
+            Debug.Log($"TrapTestSceneBuilder: {ScenePath} with {groundCount} ground, {spikeCount} spike and {fakeCount} fake-floor tiles, {Traps.Length} traps, a runaway exit and a trap on the checkpoint; picture {picture}");
         }
 
         static void MakeTrap(TrapDef def, TileBase tile, Sprite sprite)
@@ -211,6 +232,8 @@ namespace Orcapafea.Daedalus.Dev
             Property(serialized, "trigger").intValue = (int)def.Trigger;
             Property(serialized, "action").intValue = (int)def.Action;
             Property(serialized, "size").vector2IntValue = new Vector2Int(def.W, def.H);
+            Property(serialized, "offset").vector2IntValue = def.Offset;
+            Property(serialized, "speed").floatValue = def.Speed;
             Property(serialized, "tile").objectReferenceValue = tile;
             // The zone is stored relative to the trap; the default is the box grown up by one tile.
             Rect world = def.Zone ?? Rect.MinMaxRect(def.X, def.Y, def.X + def.W, def.Y + def.H + 1);
@@ -222,17 +245,39 @@ namespace Orcapafea.Daedalus.Dev
             renderer.sprite = sprite;
             renderer.drawMode = SpriteDrawMode.Tiled;
             renderer.size = new Vector2(def.W, def.H);
-            renderer.enabled = def.Action == TrapAction.Vanish;
+            renderer.enabled = def.Action != TrapAction.Appear;
         }
 
-        static void MakeElement<T>(string name, Vector2Int cell, Sprite sprite) where T : Component
+        // The exit runs 6 tiles right when the player comes near; its zone is the default for a Trap on an Exit
+        // (the exit's 1 × 1 box grown on every side), and the exit keeps its own look.
+        static void MakeRunawayExit(Exit exit)
+        {
+            Trap trap = exit.gameObject.AddComponent<Trap>();
+            var serialized = new SerializedObject(trap);
+            Property(serialized, "action").intValue = (int)TrapAction.Move;
+            Property(serialized, "offset").vector2IntValue = RunawayOffset;
+            float grow = LevelRules.DefaultExitZoneGrow;
+            Property(serialized, "zone").rectValue = Rect.MinMaxRect(-0.5f - grow, -0.5f - grow, 0.5f + grow, 0.5f + grow);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // Adversarial: a Trap on the Checkpoint does nothing and warns; the checkpoint still works.
+        static void MakeCheckpointTrap(Checkpoint checkpoint, TileBase tile)
+        {
+            Trap trap = checkpoint.gameObject.AddComponent<Trap>();
+            var serialized = new SerializedObject(trap);
+            Property(serialized, "tile").objectReferenceValue = tile;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static T MakeElement<T>(string name, Vector2Int cell, Sprite sprite) where T : Component
         {
             var element = new GameObject(name);
             element.transform.position = new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0);
             SpriteRenderer spriteRenderer = element.AddComponent<SpriteRenderer>();
             spriteRenderer.sprite = sprite;
             spriteRenderer.sortingOrder = 1;
-            element.AddComponent<T>();
+            return element.AddComponent<T>();
         }
 
         static void MakePlayer(Sprite playerSprite, Tilemap collision, Vector2 start)
@@ -280,17 +325,34 @@ namespace Orcapafea.Daedalus.Dev
             Require(CountTiles(background, t => true) == fakeCount && fakeCount == 3, $"fake-floor tiles = layout {fakeCount}");
 
             Trap[] traps = Object.FindObjectsByType<Trap>(FindObjectsInactive.Include);
-            Require(traps.Length == Traps.Length, $"{Traps.Length} traps (found {traps.Length})");
+            Require(traps.Length == Traps.Length + 2, $"{Traps.Length} traps, the exit's and the checkpoint's (found {traps.Length})");
+            int exitTraps = 0, checkpointTraps = 0;
             foreach (Trap trap in traps)
             {
+                var serialized = new SerializedObject(trap);
+                if (trap.GetComponent<Exit>() != null)
+                {
+                    Require(Property(serialized, "action").intValue == (int)TrapAction.Move, "the exit's trap is a Move");
+                    Require(Property(serialized, "offset").vector2IntValue == RunawayOffset, "the exit's trap offset");
+                    exitTraps++;
+                    continue;
+                }
+                if (trap.GetComponent<Checkpoint>() != null)
+                {
+                    checkpointTraps++;
+                    continue;
+                }
                 TrapDef def = Array.Find(Traps, d => d.Name == trap.name);
                 Require(def != null, $"trap '{trap.name}' is in the layout");
-                var serialized = new SerializedObject(trap);
                 Require(Property(serialized, "action").intValue == (int)def.Action, $"'{trap.name}' action");
+                Require(Property(serialized, "offset").vector2IntValue == def.Offset, $"'{trap.name}' offset");
+                Require(Mathf.Approximately(Property(serialized, "speed").floatValue, def.Speed), $"'{trap.name}' speed");
                 Require(Property(serialized, "trigger").intValue == (int)def.Trigger, $"'{trap.name}' trigger");
                 bool hazard = Property(serialized, "tile").objectReferenceValue is DaedalusTile;
                 Require(hazard == def.Hazard, $"'{trap.name}' kind");
             }
+            Require(exitTraps == 1, "exactly one Exit, carrying a Move trap");
+            Require(checkpointTraps == 1, "one Trap on the Checkpoint (adversarial)");
             Require(Object.FindObjectsByType<Checkpoint>(FindObjectsInactive.Include).Length == 1, "one checkpoint");
             Require(Object.FindObjectsByType<Exit>(FindObjectsInactive.Include).Length == 1, "one exit");
         }

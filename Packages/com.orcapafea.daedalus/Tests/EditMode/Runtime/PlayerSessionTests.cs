@@ -194,5 +194,60 @@ namespace Orcapafea.Daedalus.Tests
             session.Tick(Hold(1));
             Assert.That(session.Current.VelocityX, Is.GreaterThan(MovementSettings.DefaultRunSpeed));
         }
+
+        // The Pit map plus a slow Move trap (1 tile down at 1 tile/s) whose zone the walk enters at once.
+        static PlayerSession WithMovingTrap()
+        {
+            AsciiLevel level = AsciiLevel.Parse(Pit);
+            var map = new CollisionMap(level.Grid, Origin, Vector2Int.zero);
+            var trap = new TrapSpec(9, 4, 1, 1, TileKind.Solid, TrapActionKind.Move, TrapTriggerKind.Zone, new Box(2, 3, 3, 5), 0, 0, -1, 1f);
+            return new PlayerSession(map, level.Ropes, new[] { trap }, new Box[0], new Box[0], MovementSettings.Default,
+                RespawnRule.SafeGround, StartAt(level.StartX, level.StartY, Abilities.Jump));
+        }
+
+        [Test]
+        public void AMovingTrapIsDrawnBetweenItsLastTwoTicks()
+        {
+            PlayerSession session = WithMovingTrap();
+            for (int tick = 0; tick < 12; tick++)
+            {
+                Assert.AreEqual(1, session.AdvanceClock(1 / 60.0));
+                session.Tick(Hold(1));
+            }
+            Vector2 atLastTick = session.InterpolatedTrapOffset(0);
+            Assert.AreEqual(0, session.AdvanceClock(0.5 / 60.0));
+            Vector2 half = session.InterpolatedTrapOffset(0);
+            Assert.AreEqual(0, session.AdvanceClock(0.4999 / 60.0));
+            Vector2 almost = session.InterpolatedTrapOffset(0);
+            Assert.That(almost.y, Is.LessThan(atLastTick.y), "precondition: the trap is moving");
+            Assert.AreEqual((atLastTick.y + almost.y) / 2f, half.y, 1e-5f, "halfway between the last two ticks");
+            Assert.AreEqual(0f, half.x);
+        }
+
+        [Test]
+        public void AfterADeathMidMoveTheTrapSnapsBackOnTheRespawnTick()
+        {
+            PlayerSession session = WithMovingTrap();
+            int respawn = WalkIntoThePitUntilRespawn(session, out int deathTick);
+            Assert.That(respawn, Is.GreaterThan(0));
+            Assert.That(deathTick, Is.GreaterThan(0));
+            Assert.AreEqual(0, session.AdvanceClock(0.5 / 60.0));
+            Assert.AreEqual(Vector2.zero, session.InterpolatedTrapOffset(0), "previous == current == the start: no slide back");
+        }
+
+        [Test]
+        public void ARestartSnapsEveryTrap()
+        {
+            PlayerSession session = WithMovingTrap();
+            for (int tick = 0; tick < 20; tick++)
+            {
+                session.AdvanceClock(1 / 60.0);
+                session.Tick(Hold(1));
+            }
+            Assert.That(session.InterpolatedTrapOffset(0).y, Is.LessThan(0f), "precondition: moved");
+            session.Restart(StartAt(1.5f, 3f, Abilities.Jump));
+            session.AdvanceClock(0.5 / 60.0);
+            Assert.AreEqual(Vector2.zero, session.InterpolatedTrapOffset(0));
+        }
     }
 }

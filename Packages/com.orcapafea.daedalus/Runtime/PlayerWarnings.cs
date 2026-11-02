@@ -15,7 +15,9 @@ namespace Orcapafea.Daedalus
         public const string TrapTileNotDrawable = "This trap's Tile can't be drawn on a trap (Rule Tiles and animated tiles aren't supported). Pick a plain tile.";
         public const string TrapSpriteNotFullRect = "This trap's tile picture may look wrong when repeated. In the sprite's import settings, set Mesh Type to Full Rect.";
         public const string TrapScaled = "This trap is scaled or rotated, but traps ignore Scale and Rotation. Set them back to 1 and 0 and use Size.";
-        public const string TrapOnExitOrCheckpoint = "A Trap on an Exit or a Checkpoint comes in a later update, so this one does nothing yet. Put the Trap on its own object.";
+        public const string TrapOnCheckpoint = "A Trap on a Checkpoint does nothing. Put the Trap on its own object.";
+        public const string TrapOnDisabledExit = "This Trap's Exit is turned off, so the Trap does nothing.";
+        public const string TrapEndInGround = "This Move trap ends inside painted ground. It moves through tiles, so it will stop buried there. Drag its end (the arrow's handle) out of the ground.";
         public const string NoFreeStart = "The Player is buried in walls or spikes and no free spot with ground under it is nearby. Move the Player out of the walls.";
         public const string RotatedOrScaled = "The Collision Tilemap (or its Grid) is rotated or scaled. Reset its Rotation to 0 and its Scale to 1, or collisions won't match the picture.";
         public const string CellLayout = "The Collision Tilemap's Grid must use the Rectangle cell layout.";

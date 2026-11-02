@@ -64,7 +64,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Time to full speed | Draft | The setting for how fast the player reaches run speed from rest on the ground, in seconds. |
 | Ceiling-corner correction | Draft | Sliding a rising head at most 0.25 tile sideways past a ceiling corner it barely clips. |
 | Nearest free start | Draft | Moving a start that is inside solid to the nearest free spot within 8 cells. |
-| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out is a death: a pit). The map covers the Collision Tilemap's painted cells, grown to include the start, the ropes, traps, checkpoints and exits, plus the **map headroom**: 24 empty rows on top. |
+| Map bounds | Draft | The map's sides and top are solid; its bottom is open (falling out is a death: a pit). The map covers the Collision Tilemap's painted cells, grown to include the start, the ropes, traps (and every Move trap's end), checkpoints and exits, plus the **map headroom**: 24 empty rows on top. |
 | Tile grid | Draft | The sim's 0-based grid of tile kinds, filled from the Collision Tilemap at play start. |
 | Player (component) | Draft | The one Daedalus component that makes an object the player; its placed position is the start. Sections: Movement and Abilities. |
 | Daedalus tile | Draft | A tile asset with a collision kind (`DaedalusTile`). Plain tiles on the Collision Tilemap count as solid. |
@@ -83,11 +83,19 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Touch | Draft | Contact on the player's hitbox grown by the contact margin (0.0625 tile); used by Touch triggers, the Checkpoint and the Exit. |
 | Hazard core | Draft | The player's hitbox inset by 0.2 tile per side; a hazard kills only when it overlaps the core. |
 | Re-arm | Draft | A trap that a death reset fires again only after the player has been outside its trigger, from every start source. |
-| Push-out | Draft | A Solid trap appearing on the player moves it out the shortest free way (ties: up, left, right, down); with no way free, it crushes. |
+| Push-out | Active | A Solid trap appearing on the player moves it out the shortest free way (ties: up, left, right, down); with no way free, it crushes. |
 | Trap cells | Draft | The sim's second cell layer in `TileGrid` for present traps; painted tiles stay in charge, Solid beats Hazard. |
-| Moving solid | Draft | A Solid trap in motion (Move or Fall): it carries a player standing on it, pushes with its leading face and can crush the player; carrying is soft. |
-| Moving-box core | Draft | The sim layer for traps in motion: boxes between cells, beside the grid; a trap at rest is trap cells again. Reused by `world-systems`' moving and crumbling platforms. |
-| Crush | Draft | Death when a moving solid pushes the player into the grid, or a Solid trap appears on the player with no way out. |
+| Moving solid | Active | A Solid trap in motion (Move or Fall): it carries a player standing on it, pushes with its leading face and can crush the player; carrying is soft. |
+| Moving-box core | Active | The sim layer for traps in motion: boxes between cells, beside the grid; a trap at rest is trap cells again. Reused by `world-systems`' moving and crumbling platforms. |
+| Crush | Active | Death when a moving solid pushes the player into the grid (after the crush nudge), two pushes squeeze it, or a Solid trap appears on the player with no way out. |
+| Rider (carry) | Draft | A player standing on a moving Solid trap's top; the trap carries it, Y then X, softly (a wall stops it). |
+| Pull-away | Draft | A trap going down faster than the rider's ride speed leaves it: the player is in the air with the 6-tick coyote window. |
+| Ride speed | Draft | How fast a trap going down may sink and keep its rider: the player's fall speed on landing (0 if standing before it moved), growing by fall gravity up to Max Fall Speed. |
+| Leading face | Draft | The face of a moving trap that moves into the player; only it pushes. |
+| Crush nudge | Draft | The up-to-0.25-tile shift at right angles to a blocked push that saves the player from a crush (`LevelRules.CrushNudge`). |
+| Move end | Draft | Where a Move trap stops: its box plus its Offset; dragged in the Scene view by a handle that snaps to whole tiles. |
+| Landing outline | Draft | The Scene-view dotted box where a Fall trap will land (from the sim's own landing rule), or "Falls out of the map". |
+| Runaway Exit | Draft | An Exit with a Move trap on it: it runs as the player comes near and is won at its end. |
 | On hazard | Draft | The Player setting for what a hazard does: Return to safe ground (default) or Respawn at checkpoint. |
 | Death beat | Draft | The 0.4 s (24-tick) flash and burst after any death before the player reappears; input is ignored; the same for spikes, pits and crush. |
 | Death counter | Draft | The skull and number in the top-left corner counting every death since Play began. |

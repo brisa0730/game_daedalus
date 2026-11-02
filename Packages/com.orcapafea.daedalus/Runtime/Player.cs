@@ -46,6 +46,10 @@ namespace Orcapafea.Daedalus
         int shownCheckpoint = -1;
         SpriteRenderer[] trapRenderers;
         int shownTrapChanges;
+        // Each trap's transform, its position at play start (after the Play-mode look) and the offset last drawn.
+        Transform[] trapTransforms;
+        Vector3[] trapBases;
+        Vector2[] shownTrapOffsets;
         // The start used at play start; play again comes back to it.
         PlayStart firstStart;
         CameraFollow cameraFollow;
@@ -205,6 +209,8 @@ namespace Orcapafea.Daedalus
             }
             include = LevelCollector.Grow(LevelCollector.Grow(include, checkpointBoxes), exitBoxes);
             include = LevelCollector.Grow(include, LevelCollector.Boxes(traps));
+            // A Move's end is inside the map too.
+            include = LevelCollector.Grow(include, LevelCollector.EndBoxes(traps));
 
             var problems = new List<string>();
             CollisionMap map;
@@ -221,7 +227,9 @@ namespace Orcapafea.Daedalus
             var specs = new TrapSpec[traps.Length];
             for (int i = 0; i < traps.Length; i++)
             {
-                specs[i] = TrapLook.ToSpec(traps[i], map.Origin);
+                // A Trap on an Exit moves that exit: its index in the exit list (an enabled Exit on an active object is in it).
+                int exitIndex = TrapLook.IsOnExit(traps[i]) ? System.Array.IndexOf(exits, traps[i].GetComponent<Exit>()) : -1;
+                specs[i] = TrapLook.ToSpec(traps[i], map.Origin, exitIndex);
             }
             // Before the session stamps trap cells, so the check reads the grid the stepper snapped the ropes on.
             WarnRopeTops(ropes, segments, map.Grid);
@@ -231,10 +239,15 @@ namespace Orcapafea.Daedalus
             // Before the Play-mode look, which snaps each trap onto the grid.
             WarnLevel(tilemap, tilemaps, traps, ignoredTraps);
             trapRenderers = new SpriteRenderer[traps.Length];
+            trapTransforms = new Transform[traps.Length];
+            trapBases = new Vector3[traps.Length];
+            shownTrapOffsets = new Vector2[traps.Length];
             for (int i = 0; i < traps.Length; i++)
             {
                 trapRenderers[i] = traps[i].GetComponent<SpriteRenderer>();
                 TrapLook.ApplyPlayLook(traps[i], trapRenderers[i], session.IsTrapPresent(i));
+                trapTransforms[i] = traps[i].transform;
+                trapBases[i] = trapTransforms[i].position;
             }
             shownTrapChanges = session.TrapChanges;
             firstStart = start;
@@ -335,6 +348,16 @@ namespace Orcapafea.Daedalus
                     trapRenderers[i].enabled = session.IsTrapPresent(i);
                 }
             }
+            for (int i = 0; i < trapTransforms.Length; i++)
+            {
+                Vector2 offset = session.InterpolatedTrapOffset(i);
+                if (offset.x != shownTrapOffsets[i].x || offset.y != shownTrapOffsets[i].y)
+                {
+                    shownTrapOffsets[i] = offset;
+                    Vector3 basePosition = trapBases[i];
+                    trapTransforms[i].position = new Vector3(basePosition.x + offset.x, basePosition.y + offset.y, basePosition.z);
+                }
+            }
             int active = session.ActiveCheckpoint;
             if (active != shownCheckpoint)
             {
@@ -371,6 +394,15 @@ namespace Orcapafea.Daedalus
             for (int i = 0; i < traps.Length; i++)
             {
                 Trap trap = traps[i];
+                if (TrapLook.EndCoversPaintedSolid(trap, collision))
+                {
+                    Debug.LogWarning(PlayerWarnings.TrapEndInGround, trap);
+                }
+                if (TrapLook.IsOnExit(trap))
+                {
+                    // The exit's own look and box: no tile, grid or scale to check.
+                    continue;
+                }
                 if (TrapLook.CoversPaintedTiles(trap, collision))
                 {
                     Debug.LogWarning(PlayerWarnings.TrapOverPaintedTiles, trap);
@@ -395,7 +427,8 @@ namespace Orcapafea.Daedalus
             }
             for (int i = 0; i < ignoredTraps.Length; i++)
             {
-                Debug.LogWarning(PlayerWarnings.TrapOnExitOrCheckpoint, ignoredTraps[i]);
+                Trap trap = ignoredTraps[i];
+                Debug.LogWarning(TrapLook.IsOnCheckpoint(trap) ? PlayerWarnings.TrapOnCheckpoint : PlayerWarnings.TrapOnDisabledExit, trap);
             }
             for (int i = 0; i < tilemaps.Length; i++)
             {

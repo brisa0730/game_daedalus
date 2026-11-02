@@ -133,6 +133,41 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void ANewGridHasAnEmptyBoxLayerAndAttachRejectsNull()
+        {
+            var grid = new TileGrid(4, 2);
+            Assert.IsNotNull(grid.Boxes);
+            Assert.AreEqual(0, grid.Boxes.ActiveCount);
+            Assert.AreEqual(0, grid.Boxes.Capacity);
+            Assert.Throws<ArgumentNullException>(() => grid.AttachBoxes(null));
+            var layer = new MovingBoxes(2);
+            grid.AttachBoxes(layer);
+            Assert.AreSame(layer, grid.Boxes);
+        }
+
+        [Test]
+        public void TheBoxLayerKeepsActiveBoxesInSlotOrder()
+        {
+            var layer = new MovingBoxes(4);
+            layer.Set(3, new Box(3, 0, 4, 1), TileKind.Solid);
+            layer.Set(1, new Box(1, 0, 2, 1), TileKind.Hazard);
+            layer.Set(2, new Box(2, 0, 3, 1), TileKind.Solid);
+            layer.Set(1, new Box(1, 5, 2, 6), TileKind.Hazard);
+            Assert.AreEqual(3, layer.ActiveCount, "re-setting a slot doesn't add it twice");
+            layer.GetActive(0, out Box first, out TileKind kind);
+            Assert.AreEqual(5f, first.MinY, "slot 1, updated");
+            Assert.AreEqual(TileKind.Hazard, kind);
+            layer.Remove(2);
+            layer.Remove(2);
+            Assert.AreEqual(2, layer.ActiveCount);
+            layer.GetActive(1, out Box last, out _);
+            Assert.AreEqual(3f, last.MinX, "slot 3 follows slot 1");
+            layer.Clear();
+            Assert.AreEqual(0, layer.ActiveCount);
+            Assert.Throws<ArgumentOutOfRangeException>(() => layer.Set(0, new Box(0, 0, 1, 1), TileKind.OneWay));
+        }
+
+        [Test]
         public void RopeNeedsTopAboveBottom()
         {
             Assert.Throws<ArgumentException>(() => new RopeSegment(0.5f, 2f, 2f));
