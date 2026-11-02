@@ -28,4 +28,4 @@ The Unity Editor's own accessibility is Unity's. To be set during `editor-tools`
 
 ## Student Content
 
-Students share games as WebGL builds. Moderation / takedown for shared student content is a pre-launch gate (Roadmap §2), shaped by the hosting decision.
+Students share games on the class gallery (systems.md § Share), which only the teacher and the students can enter. The teacher removes any game or account; that is the takedown path (pre-launch gate, Roadmap §2).

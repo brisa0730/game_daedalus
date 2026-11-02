@@ -1,6 +1,6 @@
 # Roadmap
 
-Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launch gates, deferred features and open decisions. Live state: GDD version / stack in the [GDD.md](../GDD/GDD.md) header; open issues in [Issues.md](Issues.md). Per-version narrative lives in [Changelog.md](Changelog.md). Estimated 5–7 weeks to a class-ready v1.
+Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launch gates, deferred features and open decisions. Live state: GDD version / stack in the [GDD.md](../GDD/GDD.md) header; open issues in [Issues.md](Issues.md). Per-version narrative lives in [Changelog.md](Changelog.md). Estimated 6–8 weeks to a class-ready v1.
 
 ⚠️ **Phase numbers are assigned when a phase STARTS, never in advance.** §1 lists unstarted work by name and order only.
 
@@ -25,20 +25,23 @@ Each milestone ends with something playable.
 Troll levels, how students begin the course (GDD.md § The Pitch; systems.md § Traps). Part 1, `death-and-respawn` with static traps, shipped in v0.10 (§0). Remaining:
 - **Moving traps:** the Move and Fall actions on a moving-box core in the sim: traps move before the player, carry, push, crush (death); falling traps carry no faster than the player falls; a push lets go of a rope; Hazard traps kill on touch and never carry or push. Designed in v0.11 (systems.md § Traps, Move and Fall). Specified as scenario tests. `world-systems`' moving and crumbling platforms reuse the core.
 
-### Milestone 3 — `combat-and-enemies` (days 11–14)
+### Milestone 3 — `class-gallery` (days 11–15)
+The class gallery at `suwon.orcarin.com` (systems.md § Share), so troll levels get played by classmates from the first weeks. Starts with a **spike**: one WebGL build of the trap bench behind a login on the Mac Mini, to learn what Unity's WebGL output needs from the server (compression headers, saves, how games are kept apart from the gallery's login). Then the gallery app in Rust (Axum + SQLite; developed and tested on the Windows dev laptop, which needs the Rust toolchain installed first; built and run on the Mac Mini, which already builds Thoth) with ID + password logins, the teacher's account page, upload, the game list, removing a game, plus its launchd + Cloudflare Tunnel setup in `Deploy/`, and **Daedalus → Share my game** in the editor (WebGL build + title + nickname + screenshot, zipped for upload). 
+
+### Milestone 4 — `combat-and-enemies` (days 16–19)
 The attack, HP, damage, i-frames, knockback, hit-stop (HP 0 respawns at the checkpoint); the Enemy component with all movement types and the Shoots Projectiles add-on. Hazards, death and respawn land in `traps`.
 
-### Milestone 4 — `world-systems` (days 15–17)
+### Milestone 5 — `world-systems` (days 20–22)
 Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`; checkpoints, the exit and traps in `traps`), active radius, camera smoothing and look-ahead (a minimal snap follow lands in `traps`), the in-game progress save at checkpoints, ability pickups, moving and crumbling platforms (on the `traps` moving-box core).
 
-### Milestone 5 — `editor-tools` (days 18–26)
+### Milestone 6 — `editor-tools` (days 23–31)
 Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs, opening with troll sections and five example traps: Drop Floor, Pop Spike, Falling Ceiling, Runaway Exit, Fake Floor). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make a floor that drops when the player gets close, make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
 
-### Milestone 6 — `assets-and-sharing` (days 27–32)
-Default art pack (CC0, pre-mapped, with a seamless single-tile ground style so traps look like normal ground) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, the WebGL build-and-share path, and the first OpenUPM release. Needs the hosting decision (§4).
+### Milestone 7 — `assets-and-sharing` (days 32–36)
+Default art pack (CC0, pre-mapped, with a seamless single-tile ground style so traps look like normal ground) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, Share my game moved into the daedalus window, and the first OpenUPM release.
 
-### Milestone 7 — `classroom-test` (days 33+)
-Run a class session with students, starting with troll levels, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter); fix what blocks them.
+### Milestone 8 — `classroom-test` (days 37+)
+Run a class session with students, starting with troll levels, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter) and a first sign-in and upload to the class gallery; fix what blocks them.
 
 ## 2. Pre-launch gates
 
@@ -47,7 +50,7 @@ Run a class session with students, starting with troll levels, including the ins
 - **Both editors.** Every suite green on 6000.0.85f1 and the current dev editor.
 - **Update safety.** A fixture project from each released package version opens, upgrades and plays on the newest version.
 - **Default art pack licensed.** License file beside every third-party pack in the package's `Samples~/`.
-- **Hosting for shared builds** running, with whatever moderation / takedown path the operator wants for student content.
+- **Class gallery** running at `suwon.orcarin.com`: every student has an account, an uploaded game plays in Chrome, the teacher can remove a game, and an uploaded game can't act as the signed-in user.
 
 ## 3. Deferred features
 
@@ -80,5 +83,4 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 | Decision | Options | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | Auto-tile layouts on Unity's Tilemap (reopens v0.02's "all three, dual-grid first") | Rule Tiles for blob + single only · plus a custom dual-grid tool (a display Tilemap offset half a tile, driven from the logical Collision Tilemap) | Blob + single on Rule Tiles first: they come with 2D Tilemap Extras and cover a CC0 pack. Build dual-grid only if the mid-`editor-tools` student check shows students drawing their own terrain need it | `editor-tools` |
-| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before `assets-and-sharing` (milestone 6): OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |
-| Hosting for shared WebGL builds | A teacher-run static site (e.g. GitHub Pages) · itch.io under a teacher account · handing the build folder around (no hosting) | Decide before `assets-and-sharing` (milestone 6) | `assets-and-sharing` |
+| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before `assets-and-sharing` (milestone 7): OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |

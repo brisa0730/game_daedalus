@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.10
+**Last updated:** v0.12
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -16,7 +16,9 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Runtime | Draft | The package's play-time part: reads the scene into the sim, runs it, drives sprites, camera, input and saves. |
 | Editor tools | Draft | Our additions to the Unity Editor: custom inspectors and gizmos, the daedalus window, play-from-here, validation, scene autosave. No gameplay logic. |
 | Daedalus window | Draft | The editor window holding the play-from-here ability checkboxes and the validation warnings. |
-| Shared build | Draft | A WebGL build of a student's game, played in a browser. |
+| Shared build | Draft | A WebGL build of a student's game, uploaded to the class gallery and played in a browser. |
+| Class gallery | Draft | The website at `suwon.orcarin.com` where signed-in students upload their games and play each other's; our web app on the operator's Mac Mini. |
+| Share my game | Draft | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title, a nickname and a screenshot, ready to upload. |
 | Play-from-here | Draft | Entering Play mode at the Scene-view cursor with a chosen ability set; leaving Play mode returns to the same view. |
 | Play from start | Draft | Unity's Play button: starting at the Player start with only the starting abilities, the real experience. |
 | Live tuning | Draft | Changing component settings in the Inspector during Play mode to try them out. As everywhere in Unity, the changes are thrown away when Play mode ends; Copy / Paste Component Values keeps a result. |

@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.11 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and death and respawn with static traps landed; moving traps designed, next to build; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.12 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and death and respawn with static traps landed; moving traps designed, next to build; the class gallery decided; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
 
 ---
 
@@ -30,18 +30,18 @@ A Unity package where students build their own platformer **inside the Unity Edi
 **Student (maker):** paint (Tile Palette) → place objects and add components (Inspector) → tune (Inspector) → play-from-here → fix → repeat → save → WebGL build → share.
 **Classmate (player):** open the shared build in a browser → explore one continuous map → collect ability pickups that open new areas → survive enemies and hazards → reach the exit.
 
-**v1 success:** in one class session a student can (1) paint a large map with tiles; (2) place the player, enemies, ropes, checkpoints, ability pickups and an exit by adding components to objects, and paint hazards; (3) tune the player and enemies with Inspector sliders and toggles; (4) press play from any spot, with chosen abilities, and test; (5) save the scene and share the finished game as a WebGL build.
+**v1 success:** in one class session a student can (1) paint a large map with tiles; (2) place the player, enemies, ropes, checkpoints, ability pickups and an exit by adding components to objects, and paint hazards; (3) tune the player and enemies with Inspector sliders and toggles; (4) press play from any spot, with chosen abilities, and test; (5) save the scene and share the finished game as a WebGL build on the class gallery.
 
 ## Open Questions
 
-- **Hosting for shared builds**: decide before `assets-and-sharing` ([Roadmap.md](../Operations/Roadmap.md) §4).
 - **Auto-tile layouts on Unity's Tilemap**: Unity has no dual-grid tilemap ([Roadmap.md](../Operations/Roadmap.md) §4).
 
+**Decided (v0.12):** shared games live on the **class gallery** at `suwon.orcarin.com`, a small web app of ours on the operator's Mac Mini behind a Cloudflare Tunnel: one ID + password account per student plus the teacher's, students upload their own game, only signed-in users can see or play anything; built in Milestone 3 `class-gallery`, right after `traps` (systems.md § Share); the server is Rust (Axum + SQLite).
 **Decided (v0.09):** troll levels are how students begin the course, built as Milestone 2 `traps` before combat: one `Trap` component (trigger + one action, no chaining); hazards can respawn at the checkpoint instead of returning to safe ground; every death resets all traps; one continuous map of short sections, no rooms.
 **Decided (v0.04):** students build objects with Add Component, one Daedalus component per kind of thing plus a few add-ons; at most ~8 settings per component; enemy types are prefabs (students learn prefabs and overrides).
 **Decided (v0.05):** no special Play-mode treatment: edits made in Play mode are thrown away as everywhere in Unity; students learn it (and Copy / Paste Component Values to keep a tuned result).
 **Decided (v0.03):** a Unity 6 package, `com.orcapafea.daedalus`, installed from OpenUPM; any Unity 6 (minimum 6000.0), developed on 6000.6.7f1 and tested on 6000.0.85f1 too; code-free for students; a custom kinematic sim (no Unity 2D physics for gameplay) on Unity's Tilemap and sprites; Unity's editor replaces the planned React editor.
-**Still in force from v0.02:** 16 px tiles; auto-targeting attack only; wall climb only on climbable tiles; collision only from the collision layer; spikes are hazard tiles; fixed default sound effects; a CC0 art pack to start; no student accounts in v1.
+**Still in force from v0.02:** 16 px tiles; auto-targeting attack only; wall climb only on climbable tiles; collision only from the collision layer; spikes are hazard tiles; fixed default sound effects; a CC0 art pack to start. (No student accounts in v1 is replaced in v0.12 by class gallery accounts.)
 
 ## GDD Files
 

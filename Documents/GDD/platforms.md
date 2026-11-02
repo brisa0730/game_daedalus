@@ -34,6 +34,6 @@
 
 ## External Services
 
-- None in the package.
-- **Sharing WebGL builds** needs hosting. **Open** (Roadmap §4). Decide before `assets-and-sharing`.
-- **Student accounts:** none of ours in v1. The Unity account each student needs is Unity's.
+- None in the package: the editor and the runtime never go online. Share my game only writes a zip; the student uploads it in the browser.
+- **Class gallery** at `suwon.orcarin.com`: our web app on the operator's Mac Mini, reachable only through a Cloudflare Tunnel (the app listens on the Mac Mini itself, never the network). Server files live in `Deploy/`. Server: one Rust binary (Axum, SQLite in one file) run by launchd, as Thoth is on the same Mac Mini.
+- **Accounts:** the class gallery's own, one ID + password per student plus the teacher's, created by the teacher. The Unity account each student needs is Unity's.
