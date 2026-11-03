@@ -65,6 +65,7 @@ type: reference
 - `cloudflared tunnel route dns <name> <host>` with no `--config` takes the tunnel from `~/.cloudflared/config.yml` (octopus on the Mac Mini), **not** the name given: the record silently points at the wrong tunnel. Always pass `--config Deploy/cloudflared/suwon.yml` (and `--overwrite-dns` to repoint), and check the `tunnelID=` in the output.
 - The tunnel keeps the public `Host`; a request with `Host: 127.0.0.1` can only come from the machine itself.
 - Through the tunnel, `Content-Encoding: br` / `gzip` from the origin reach Chrome unchanged (HTTP/3), and an uncompressed `.wasm` is not compressed on the way, with `Cache-Control: no-transform`.
+- **Our zone is served from LAX, not Seoul,** on the Mac's KT line: `curl https://<host>/cdn-cgi/trace` shows `colo=LAX` (~258 ms) for every orcarin.com host, while cloudflare.com is `colo=ICN` (~3 ms). The tunnel itself registers at ICN, so visitors' traffic crosses the Pacific twice. Check `colo=` first when the tunnel is slow.
 - Tunnel throughput on the Mac Mini swings widely and is not the line's (TCP speed test ~36 MB/s up): a 7.3 MB file took 2–162 s (2026-11-03/04); Orcarin's tunnel hits the same ~160 KB/s at times. `protocol: http2` didn't help (4 alternating rounds: median 29.2 s vs QUIC 18.1 s), so the tunnel stays on QUIC. A test from the same LAN (the office PC) shares the uplink and skews timings. curl without `Accept-Encoding: br` gets the file decompressed by Cloudflare (38 MB for a 7.3 MB `.wasm.br`).
 
 ## Unity WebGL loader
