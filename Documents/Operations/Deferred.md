@@ -22,6 +22,18 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### Share my game's operator editor check isn't done
+- **Severity:** MED · **Source:** Phase 6 (`share-my-game`, v0.17; Step 12)
+- **Description:** the menu flow was verified by EditMode tests, the batch build (`Tools/share_check.py`) and a real upload, but nobody has clicked through it in the Editor: the title window (focus, Enter, the cleaned-title line), the save dialog's Desktop / last-folder start, the done dialog's three buttons, the stop dialogs in Play mode and during a reload, Unity's save dialog for a new scene, and above all **a Korean title typed with the IME on a Windows school laptop with 6000.0** and **one timed first share** there (it decides whether "several minutes" needs a number). Also unchecked: a Build Profile with a Player Settings override (Gzip) — Share should either still produce `.br` files or fail with the build-failed text.
+- **Why deferred:** the operator closed the phase satisfied ("for now") without running it.
+- **Trigger to act:** before the classroom test (Milestone 8), or any student report about Share. Fix shape: run the checklist in [phase6-log](../../.claude/memory/logs/phases/phase6-log.md) § Operator editor check; fix what fails, reword messages that read badly.
+
+### Share's checks look at every open scene, but only the active one is built
+- **Severity:** LOW · **Source:** Phase 6 (`share-my-game`, v0.17; code review)
+- **Description:** [ShareBuild.cs](../../Packages/com.orcapafea.daedalus/Editor/ShareBuild.cs) `SharedPlayer()` and `Camera.main` search all loaded scenes. With a second scene open that holds the Player or the camera, the stops and the picture pass, yet the game built from the active scene alone has no Player.
+- **Why deferred:** v1 students work in one scene; multi-scene editing isn't taught.
+- **Trigger to act:** a student shares with several scenes open, or the starter sample uses additive scenes. Fix shape: limit both checks to `SceneManager.GetActiveScene()` (filter by `gameObject.scene`), and stop with a plain message when the camera is in another scene.
+
 ### Gallery backups live on the same disk
 - **Severity:** MED · **Source:** Phase 5 (`gallery-server`, v0.16; handshake round 1, R3)
 - **Description:** the nightly backup ([backup.rs](../../Deploy/gallery/src/backup.rs), job `com.orcapafea.daedalus.gallery-backup`) keeps 7 database copies and a games mirror in `~/Library/Application Support/daedalus-gallery-backups/`, on the Mac Mini's own disk. It covers corruption and mistakes within 7 days, not losing the disk.
@@ -45,12 +57,6 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Description:** an abandoned upload keeps its unpack slot until the work ends (permit in the blocking task) and its staging files are deleted by a `Drop` guard ([upload.rs](../../Deploy/gallery/src/upload.rs) `Cleanup`); no test drops a request mid-upload to prove it.
 - **Why deferred:** dropping an in-flight request in a router test needs a body that stalls on purpose; the code is small and was reviewed.
 - **Trigger to act:** any change to the upload pipeline's staging or permits. Fix shape: a test body that yields a few frames and then pends forever, the request future dropped after a timeout, then assert `staging/` is empty and a permit is free.
-
-### The spike's WebGL build script and save probe stay in `Assets/Dev`
-- **Severity:** LOW · **Source:** class gallery spike (v0.14)
-- **Description:** [GallerySpikeBuild.cs](../../Assets/Dev/Editor/GallerySpikeBuild.cs) builds the trap bench to WebGL with a chosen compression, an optional development build, and URP's stripping report copied beside it. [SaveProbe.cs](../../Assets/Dev/GallerySpike/SaveProbe.cs) logs a `PlayerPrefs` launch count, compiled only under `DAEDALUS_GALLERY_SPIKE`.
-- **Why deferred:** they are the only WebGL builds of a real level until the gallery phase's Share my game build replaces them (ISS-001 was diagnosed and verified with them).
-- **Trigger to act:** **Daedalus → Share my game** landed. Fix shape: delete both; keep any WebGL build setting they proved in the Share build, and move `BuildScenes` (scene-list guard) into the Share build's editor code if it isn't already. Its `File.Exists` check would wrongly reject a scene inside a registry package (those live under `Library/PackageCache`); the Share version checks `AssetDatabase.AssetPathToGUID(path, AssetPathToGUIDOptions.OnlyExistingAssets)` instead (code review, v0.15).
 
 ### `RebuildTrapCells` clears the whole trap layer on each start, rest or landing tick
 - **Severity:** LOW · **Source:** Phase 4 (`moving-traps`, v0.13)

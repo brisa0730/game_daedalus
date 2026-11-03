@@ -57,6 +57,35 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [UnityTest]
+        public IEnumerator FirstViewFramesLikeTheFirstFrame([Values(2, 30)] int column)
+        {
+            string[] rows = Long();
+            rows[rows.Length - 2] = new string('.', Width).Remove(column, 1).Insert(column, "P");
+            Build(rows, new TestLevelOptions { MainCamera = true, ViewWidth = ViewWidth, Abilities = Sim.Abilities.Jump });
+            // The Share screenshot's framing, computed before play start reads the scene.
+            Rect map = Level.Player.FirstView(out Vector2 target);
+            yield return null;
+
+            var probe = new GameObject("First view probe").AddComponent<Camera>();
+            try
+            {
+                probe.orthographic = true;
+                probe.orthographicSize = Level.Camera.orthographicSize;
+                probe.aspect = Level.Camera.aspect;
+                probe.transform.position = new Vector3(0f, 0f, -10f);
+                new CameraFollow(probe, map).Follow(target);
+                Vector3 cam = Level.Camera.transform.position;
+                Assert.AreEqual(cam.x, probe.transform.position.x, 1e-4f, "x as the first frame");
+                Assert.AreEqual(cam.y, probe.transform.position.y, 1e-4f, "y as the first frame");
+                Assert.AreEqual(Level.Player.Session.Map.Origin, map.position, "the same map");
+            }
+            finally
+            {
+                Object.Destroy(probe.gameObject);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ARespawnCutsTheCameraWithNoFrameInBetween()
         {
             Build(Long(), new TestLevelOptions

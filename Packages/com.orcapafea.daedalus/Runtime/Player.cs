@@ -200,29 +200,8 @@ namespace Orcapafea.Daedalus
             PlayStart start = pendingStart ?? DefaultStart;
             pendingStart = null;
 
-            Rect include = StartHitbox(start.Feet);
-            if (RopeCollector.TryGetWorldBounds(ropes, out Rect ropeBounds))
-            {
-                include = Rect.MinMaxRect(
-                    Mathf.Min(include.xMin, ropeBounds.xMin), Mathf.Min(include.yMin, ropeBounds.yMin),
-                    Mathf.Max(include.xMax, ropeBounds.xMax), Mathf.Max(include.yMax, ropeBounds.yMax));
-            }
-            include = LevelCollector.Grow(LevelCollector.Grow(include, checkpointBoxes), exitBoxes);
-            include = LevelCollector.Grow(include, LevelCollector.Boxes(traps));
-            // A Move's end is inside the map too.
-            include = LevelCollector.Grow(include, LevelCollector.EndBoxes(traps));
-
             var problems = new List<string>();
-            CollisionMap map;
-            if (tilemap != null)
-            {
-                map = CollisionMapReader.Read(tilemap, include, problems);
-            }
-            else
-            {
-                map = CollisionMapReader.Empty(include);
-                problems.Add(PlayerWarnings.NoCollisionTilemap);
-            }
+            CollisionMap map = ReadMap(tilemap, start.Feet, ropes, checkpointBoxes, exitBoxes, traps, problems);
             RopeSegment[] segments = RopeCollector.ToSegments(ropes, map.Origin);
             var specs = new TrapSpec[traps.Length];
             for (int i = 0; i < traps.Length; i++)
@@ -372,7 +351,7 @@ namespace Orcapafea.Daedalus
                 shownCheckpoint = active;
             }
             burst.Show(session.Phase, session.PhaseTicks, session.InterpolationFraction, session.DeathFeetWorld);
-            cameraFollow.Follow(new Vector2(feet.x, feet.y + MovementInternals.GripHeight));
+            cameraFollow.Follow(CameraTarget(feet));
             hud.Show(session.Deaths, session.Phase == LevelPhase.Won, session.CanPlayAgain, frameDelta);
         }
 
@@ -464,6 +443,55 @@ namespace Orcapafea.Daedalus
                     Debug.LogWarning(PlayerWarnings.RopeTopInWall, ropes[i]);
                 }
             }
+        }
+
+        /// <summary>
+        /// The map play start reads: the Collision Tilemap's cells around the start, ropes, checkpoints, exits and traps
+        /// (a Move's end too). Without a Tilemap, an empty map of that size and a warning in <paramref name="problems"/>.
+        /// </summary>
+        internal static CollisionMap ReadMap(Tilemap tilemap, Vector2 feet, Rope[] ropes, Rect[] checkpointBoxes,
+            Rect[] exitBoxes, Trap[] traps, List<string> problems)
+        {
+            Rect include = StartHitbox(feet);
+            if (RopeCollector.TryGetWorldBounds(ropes, out Rect ropeBounds))
+            {
+                include = Rect.MinMaxRect(
+                    Mathf.Min(include.xMin, ropeBounds.xMin), Mathf.Min(include.yMin, ropeBounds.yMin),
+                    Mathf.Max(include.xMax, ropeBounds.xMax), Mathf.Max(include.yMax, ropeBounds.yMax));
+            }
+            include = LevelCollector.Grow(LevelCollector.Grow(include, checkpointBoxes), exitBoxes);
+            include = LevelCollector.Grow(include, LevelCollector.Boxes(traps));
+            // A Move's end is inside the map too.
+            include = LevelCollector.Grow(include, LevelCollector.EndBoxes(traps));
+
+            if (tilemap != null)
+            {
+                return CollisionMapReader.Read(tilemap, include, problems);
+            }
+            problems.Add(PlayerWarnings.NoCollisionTilemap);
+            return CollisionMapReader.Empty(include);
+        }
+
+        /// <summary>
+        /// The map rectangle and camera target of the game's first frame, as play start will compute them from where the
+        /// player is placed; works in Edit mode (the Share screenshot frames through it). An edit-time one-off: it runs the
+        /// play-start scans, so never call it per frame.
+        /// </summary>
+        internal Rect FirstView(out Vector2 cameraTarget)
+        {
+            Vector3 position = transform.position;
+            var feet = new Vector2(position.x, position.y + FeetOffset(GetComponent<SpriteRenderer>(), transform));
+            Trap[] traps = LevelCollector.FindTraps(out _);
+            CollisionMap map = ReadMap(ResolveCollisionTilemap(), feet, RopeCollector.FindSorted(),
+                LevelCollector.Boxes(LevelCollector.FindCheckpoints()), LevelCollector.Boxes(LevelCollector.FindExits()),
+                traps, new List<string>());
+            cameraTarget = CameraTarget(feet);
+            return new Rect(map.Origin, new Vector2(map.Grid.Width, map.Grid.Height));
+        }
+
+        static Vector2 CameraTarget(Vector2 feet)
+        {
+            return new Vector2(feet.x, feet.y + MovementInternals.GripHeight);
         }
 
         static Rect StartHitbox(Vector2 feet)

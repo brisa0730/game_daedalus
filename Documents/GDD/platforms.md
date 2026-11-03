@@ -49,7 +49,7 @@
 
 ## Share zip
 
-The one file Daedalus → Share my game makes and the class gallery accepts (checked by [share_zip.rs](../../Deploy/gallery/src/share_zip.rs)). Phase 6 `share-my-game` must produce exactly this.
+The one file Daedalus → Share my game makes and the class gallery accepts (checked by [share_zip.rs](../../Deploy/gallery/src/share_zip.rs)). Share my game produces exactly this (v0.17): its build is always named `game`, and every entry is Deflated (Unity's zip writer never Stores; the contract allows both).
 - **At the zip's root** (no wrapper folder): `daedalus.json`: UTF-8 JSON `{"format": 1, "title": "<text>"}`, unknown keys ignored, at most 4 KB; `screenshot.png`: a PNG, at most 1,000,000 bytes and 1280 × 720; `Build/<name>.loader.js`, `Build/<name>.data.br`, `Build/<name>.framework.js.br`, `Build/<name>.wasm.br`: exactly one of each, one shared `<name>` of `[A-Za-z0-9_-]{1,64}` (Unity names it after the output folder), Brotli only.
 - Entries Stored or Deflated, no duplicate names, at most 256 entries, at most 120 MB unpacked, at most 50,000,000 bytes zipped.
 - Anything else (`index.html`, `TemplateData/`, `StreamingAssets/`, other files) is ignored: never unpacked, never served.

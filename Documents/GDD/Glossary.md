@@ -20,8 +20,8 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Class gallery | Draft | The website at `suwon.orcarin.com` where signed-in students upload their games and play each other's; our web app on the operator's Mac Mini. |
 | Games host | Draft | `suwon-play.orcarin.com`: the class gallery's second hostname, which serves the shared builds into a sandboxed frame so a game can't use the gallery's login. |
 | Play grant | Draft | The signed, short-lived token the class gallery puts in a game frame's address; the games host trades it for a per-game cookie. Carries the game, not the user. |
-| Share my game | Draft | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title and a screenshot as a Share zip, ready to upload. |
-| Share zip | Draft | The one file Share my game makes and the class gallery accepts: `daedalus.json`, `screenshot.png` and the four Brotli build files (platforms.md § Share zip). |
+| Share my game | Active | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title and a screenshot as a Share zip, ready to upload. |
+| Share zip | Active | The one file Share my game makes and the class gallery accepts: `daedalus.json`, `screenshot.png` and the four Brotli build files (platforms.md § Share zip). |
 | Display name | Draft | A student's name as the teacher typed it in the class gallery; shown on their game cards and in the gallery's header. |
 | Account slip | Draft | The printable slip the class gallery shows once when the teacher creates or resets an account: address, ID, password. |
 | Player page | Draft | The games host's own page that loads a shared build; the zip's `index.html` is never used. |

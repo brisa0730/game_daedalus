@@ -33,6 +33,7 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **A diagnosis heuristic must check the definite signal before the circumstantial one.** `unity_tests.py` read "lockfile present + early exit" as "project open" and hid a compile error that also leaves the lockfile; check `error CS` first (phase 1).
 - **A compiler-warning gate only sees what was compiled in that run.** Unity prints warnings only when it builds the assembly; on a warm cache the gate checks nothing. Force the build and assert it happened before trusting "no warnings" (scaffold code review).
 
+- **A restore check must start from values the code would change.** share_check.py compared settings before and after a share, but the projects already held the pinned values for 3 of 4 keys, so a broken restore would have passed (Phase 6 code review). Seed the opposite of every value the code sets, then compare.
 - **A gate that measures frames must also check something was drawn.** The WebGL perf check passed its timing gates for weeks on blank frames (ISS-001); its screenshot now has to show the map and the sprites.
 
 ## Data & state
