@@ -1,6 +1,6 @@
 # daedalus — Game Design Document Index
 *`daedalus` is the project code name; the working title is **Student Platformer Maker**.*
-**Version:** v0.14 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and Milestone 2 `traps` landed: death and respawn, static and moving traps; the class gallery decided and its spike done, next to build after ISS-001 (WebGL builds draw nothing); exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
+**Version:** v0.15 · **Stack:** Unity 6 package `com.orcapafea.daedalus` (minimum 6000.0, developed on 6000.6.7f1 and tested on 6000.0.85f1), C#; custom kinematic sim, Unity Tilemap + sprites, URP 2D, students build in the Unity Editor (scaffold, the movement prototype and Milestone 2 `traps` landed: death and respawn, static and moving traps; the class gallery decided and its spike done, next to build; exact versions in `.claude/CLAUDE.md` § Project Config) · **Genre:** 2D platformer maker for students (troll levels first, then an Ori / Hollow Knight-style map); activate the `platformer` (+ `action`) genre profiles
 
 ---
 

@@ -67,7 +67,8 @@ type: reference
 - Through the tunnel, `Content-Encoding: br` / `gzip` from the origin reach Chrome unchanged (HTTP/3), and an uncompressed `.wasm` is not compressed on the way, with `Cache-Control: no-transform`.
 
 ## WebGL (6000.6.7f1, Chrome)
-- **ISS-001: every WebGL build draws nothing.** URP's resource shaders are null in the player (`Cannot create required material because shader is null` each frame). A native macOS player is fine. See Issues.md.
+- **A missing scene in Build Settings blanks every WebGL build (URP 17.6, ISS-001, fixed v0.15).** `Light2DPrefilteringAnalysis.AnalyzeBuildScenes` opens every enabled Build Settings scene (not `BuildPlayerOptions.scenes`) and throws on a missing one. That empties URP's feature list, and URP then strips every shader variant: the player logs `Cannot create required material because shader is null` each frame. An empty list strips every `Hidden/Light2D` variant instead. Our dev builds use `BuildScenes.Use`. URP 17.0 (6000.0) doesn't have the analysis. A native macOS player drew despite the same exception (unexplained).
+- A build also rewrites `Assets/Settings/UniversalRP.asset`'s `m_Light2DKeptVariantCombos` with the 2D light combinations it found; that is per-build churn, so don't commit it.
 - Chrome accepts Brotli from `http://127.0.0.1` (a secure context), so loopback tests can serve `.br` files.
 - A WebGL build's `Application.persistentDataPath` is `/idbfs/<md5 of the page URL up to its last '/'>` (query ignored), stored in IndexedDB `/idbfs`; `PlayerPrefs` live there too. In an opaque-origin (sandboxed without `allow-same-origin`) frame, IndexedDB throws `SecurityError`.
 - On the Mac Mini a WebGL build of the trap bench takes ~4 min cold and 13–18 s warm; the build report's "2 errors" are licensing and network noise ("Access token is unavailable", "Curl error 42") and the build succeeds.

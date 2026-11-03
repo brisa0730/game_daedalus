@@ -31,8 +31,8 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 ### The spike's WebGL build script and save probe stay in `Assets/Dev`
 - **Severity:** LOW · **Source:** class gallery spike (v0.14)
 - **Description:** [GallerySpikeBuild.cs](../../Assets/Dev/Editor/GallerySpikeBuild.cs) builds the trap bench to WebGL with a chosen compression, an optional development build, and URP's stripping report copied beside it. [SaveProbe.cs](../../Assets/Dev/GallerySpike/SaveProbe.cs) logs a `PlayerPrefs` launch count, compiled only under `DAEDALUS_GALLERY_SPIKE`.
-- **Why deferred:** ISS-001 is being investigated with exactly these builds, and the gallery phase's Share my game build replaces them.
-- **Trigger to act:** ISS-001 fixed and **Daedalus → Share my game** landed. Fix shape: delete both; keep any WebGL build setting they proved in the Share build.
+- **Why deferred:** they are the only WebGL builds of a real level until the gallery phase's Share my game build replaces them (ISS-001 was diagnosed and verified with them).
+- **Trigger to act:** **Daedalus → Share my game** landed. Fix shape: delete both; keep any WebGL build setting they proved in the Share build, and move `BuildScenes` (scene-list guard) into the Share build's editor code if it isn't already. Its `File.Exists` check would wrongly reject a scene inside a registry package (those live under `Library/PackageCache`); the Share version checks `AssetDatabase.AssetPathToGUID(path, AssetPathToGUIDOptions.OnlyExistingAssets)` instead (code review, v0.15).
 
 ### `RebuildTrapCells` clears the whole trap layer on each start, rest or landing tick
 - **Severity:** LOW · **Source:** Phase 4 (`moving-traps`, v0.13)

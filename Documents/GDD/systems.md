@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.14
+**Last updated:** v0.15
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -195,7 +195,7 @@ No rule editing for students: they paint with preconfigured terrains. Fixed layo
 ## Share
 
 Students share games on the **class gallery** at `suwon.orcarin.com`, a website only the teacher and the students can enter.
-- **Make the upload:** **Daedalus → Share my game** asks for a title and the student's nickname, makes a WebGL build with the settings the gallery needs, takes a screenshot for the card, and writes one zip. A build contains only the game. The editor never goes online.
+- **Make the upload:** **Daedalus → Share my game** asks for a title and the student's nickname, makes a WebGL build with the settings the gallery needs, takes a screenshot for the card, and writes one zip. The build puts exactly the shared scene into Build Settings while it runs and restores the student's list afterwards; a missing scene stops it with a plain message naming the scene. On newer editors URP's 2D shader preparation reads Build Settings, and a deleted scene listed there (the template's SampleScene, say) ships a game that draws nothing (v0.15). A build contains only the game. The editor never goes online.
 - **Sign in:** each student has their own ID and password; the teacher has one too. Only signed-in users see or play anything.
 - **Upload:** a signed-in student uploads their zip in the browser; uploading again replaces their earlier version of that game **at the same address**, so the game keeps its players' saves (a WebGL build keys its saves by the page's address). The gallery checks the zip (only a WebGL build, at most 50 MB) and rejects anything else with a plain message.
 - **Play:** the gallery lists every game as a card (title, nickname, screenshot); a click plays it in Chrome.

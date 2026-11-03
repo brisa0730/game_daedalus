@@ -33,6 +33,8 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **A diagnosis heuristic must check the definite signal before the circumstantial one.** `unity_tests.py` read "lockfile present + early exit" as "project open" and hid a compile error that also leaves the lockfile; check `error CS` first (phase 1).
 - **A compiler-warning gate only sees what was compiled in that run.** Unity prints warnings only when it builds the assembly; on a warm cache the gate checks nothing. Force the build and assert it happened before trusting "no warnings" (scaffold code review).
 
+- **A gate that measures frames must also check something was drawn.** The WebGL perf check passed its timing gates for weeks on blank frames (ISS-001); its screenshot now has to show the map and the sprites.
+
 ## Data & state
 - **A save/project validator must not depend on tunable data.** Comparing stored values with current defaults turns every retune into a rejected (lost) save. Validate shape, invariants and content only; re-derive caches on load.
 - **View state that accumulates across sim events must decay on render time, not on capped frame time.** Otherwise a hidden tab or a slow frame lets it pile up; a dt cap is for visual continuity only.

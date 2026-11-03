@@ -1,6 +1,6 @@
 # Plan: WebGL blank builds (ISS-001)
 
-**Date:** 2026-11-02 | **Status:** approved (handshake, round 1)
+**Date:** 2026-11-02 | **Status:** complete
 
 ## Overview
 
@@ -197,3 +197,10 @@ What else would I say if asked "what do you think?" Only that F1 strengthens the
 ## Reviewer's view
 
 I would build this as written. The diagnosis checks out against the log and the URP 17.6 source at every cited line except F2's off-by-one. The guard and the pixel gate address the trigger and the fail-open check, and the step order (gate fails → guard fixes with the stale entry still present → entry removed) proves each part on its own. F1 is the substantive fold-in: the mechanism is traceable, and the student risk is wider than a missing scene. F2–F4 are small. Approved, with F1–F4 to fold at close.
+
+---
+
+**Approval:** User confirmed 2026-11-03 (handshake approved in round 1; plan committed `24b28d9`).
+**Execution:** COMPLETE 2026-11-03.
+**Verification:** perf check FAIL at 0.00 / 0.00 before the guard, PASS at 0.74 / 0.18 with the guard and after removing the entry, `perf-check.png` showing map and sprites; Build Settings restored unchanged; a missing path threw naming it; trap bench WebGL draws in Chrome with no `shader is null`; Unity suites green on both editors and both modes; code review PASS WITH FLAGS (no HIGH/MED).
+**Version note:** shipped as GDD v0.15. The entity fraction also counts the sprites' edge shade (more accurate than the plan's wording). The trap bench screenshot shows ground, player and HUD; the spikes start off-screen to the right.

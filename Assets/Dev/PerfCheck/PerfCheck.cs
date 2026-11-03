@@ -9,7 +9,8 @@ namespace Orcapafea.Daedalus.Dev
     /// <summary>
     /// Dev-only WebGL speed test (scaffold plan, Step 6): a full-size 500 x 200 Tilemap in Chunk
     /// mode, 200 moving sprites, and a camera sweeping the whole map width. Measures frame times
-    /// after a warm-up and posts the result and a screenshot back to Tools/perf_check.py.
+    /// after a warm-up and posts the result, how much of the final screenshot shows tiles and
+    /// sprites, and the screenshot itself back to Tools/perf_check.py.
     /// </summary>
     public class PerfCheck : MonoBehaviour
     {
@@ -27,6 +28,9 @@ namespace Orcapafea.Daedalus.Dev
             new Color32(90, 100, 120, 255),
             new Color32(150, 150, 90, 255),
         };
+        static readonly Color32 EntityColor = new Color32(230, 120, 40, 255);
+        // How far a screenshot pixel may stray from a sprite colour (sRGB rounding) and still count as drawn.
+        const int ColorTolerance = 4;
 
         Camera mainCamera;
         Transform[] entities;
@@ -52,6 +56,8 @@ namespace Orcapafea.Daedalus.Dev
             public string unityVersion;
             public int screenWidth;
             public int screenHeight;
+            public float tilePixelFraction;
+            public float entityPixelFraction;
         }
 
         void Start()
@@ -100,7 +106,7 @@ namespace Orcapafea.Daedalus.Dev
 
         void BuildEntities()
         {
-            Sprite sprite = CheckerSprite(new Color32(230, 120, 40, 255));
+            Sprite sprite = CheckerSprite(EntityColor);
             entities = new Transform[EntityCount];
             entityOffsets = new Vector2[EntityCount];
             for (int i = 0; i < EntityCount; i++)
@@ -200,6 +206,8 @@ namespace Orcapafea.Daedalus.Dev
             yield return new WaitForEndOfFrame();
             Texture2D screenshot = ScreenCapture.CaptureScreenshotAsTexture();
             byte[] png = screenshot.EncodeToPNG();
+            // Timing alone passes on frames where nothing is drawn (ISS-001): prove the map and the sprites are on screen.
+            CountDrawnPixels(screenshot.GetPixels32(), out result.tilePixelFraction, out result.entityPixelFraction);
 
             using (UnityWebRequest post = UnityWebRequest.Post(ServerUrl("result"), JsonUtility.ToJson(result), "application/json"))
             {
@@ -218,11 +226,51 @@ namespace Orcapafea.Daedalus.Dev
             return new Uri(new Uri(Application.absoluteURL), path).ToString();
         }
 
+        static void CountDrawnPixels(Color32[] pixels, out float tileFraction, out float entityFraction)
+        {
+            int tilePixels = 0;
+            int entityPixels = 0;
+            foreach (Color32 pixel in pixels)
+            {
+                if (IsSpriteColor(pixel, EntityColor))
+                {
+                    entityPixels++;
+                    continue;
+                }
+                foreach (Color32 tileColor in TileColors)
+                {
+                    if (IsSpriteColor(pixel, tileColor))
+                    {
+                        tilePixels++;
+                        break;
+                    }
+                }
+            }
+            tileFraction = pixels.Length > 0 ? (float)tilePixels / pixels.Length : 0f;
+            entityFraction = pixels.Length > 0 ? (float)entityPixels / pixels.Length : 0f;
+        }
+
+        // A checker sprite's colour or the darker shade of its edge.
+        static bool IsSpriteColor(Color32 pixel, Color32 color)
+        {
+            return IsNear(pixel, color) || IsNear(pixel, EdgeShade(color));
+        }
+
+        static bool IsNear(Color32 a, Color32 b)
+        {
+            return Mathf.Abs(a.r - b.r) <= ColorTolerance && Mathf.Abs(a.g - b.g) <= ColorTolerance && Mathf.Abs(a.b - b.b) <= ColorTolerance;
+        }
+
+        static Color32 EdgeShade(Color32 color)
+        {
+            return new Color32((byte)(color.r * 0.8f), (byte)(color.g * 0.8f), (byte)(color.b * 0.8f), 255);
+        }
+
         static Sprite CheckerSprite(Color32 color)
         {
             var texture = new Texture2D(16, 16, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
             var pixels = new Color32[16 * 16];
-            var dark = new Color32((byte)(color.r * 0.8f), (byte)(color.g * 0.8f), (byte)(color.b * 0.8f), 255);
+            Color32 dark = EdgeShade(color);
             for (int i = 0; i < pixels.Length; i++)
             {
                 bool edge = i % 16 == 0 || i < 16;

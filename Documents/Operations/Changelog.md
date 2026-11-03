@@ -8,6 +8,22 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.15 — ISS-001 fixed (2026-11-03) · **WebGL builds draw again: a stale Build Settings scene blanked them; the perf check now fails on blank frames**
+
+- **Bug + fix.** ISS-001 (HIGH) is fixed, per the critic-reviewed and handshake-approved [plan](../Plans/archive/webgl-blank-builds.md).
+  - **Cause:** `ProjectSettings/EditorBuildSettings.asset` still listed `Assets/Scenes/SampleScene.unity`, which the v0.06 scaffold deleted. URP 17.6's `Light2DPrefilteringAnalysis.AnalyzeBuildScenes` opens every Build Settings scene and threw on it. That left URP's shader feature list empty, so every URP variant was stripped and the WebGL player drew nothing.
+  - **Fix:** the stale entry is removed. A dev guard, [BuildScenes.cs](../../Assets/Dev/Editor/BuildScenes.cs), puts exactly the built scenes into Build Settings for each build, restores the list afterwards, and fails on a missing scene; [PerfCheckBuild](../../Assets/Dev/Editor/PerfCheckBuild.cs) and [GallerySpikeBuild](../../Assets/Dev/Editor/GallerySpikeBuild.cs) build inside it.
+  - **Perf check:** [PerfCheck.cs](../../Assets/Dev/PerfCheck/PerfCheck.cs) and [perf_check.py](../../Tools/perf_check.py) now fail when the screenshot doesn't show the map (≥ 0.4) and sprites (≥ 0.05).
+- **Verified.**
+  - The broken build read tiles 0.00 / sprites 0.00 and failed.
+  - With the guard (stale entry still listed), the build read 0.74 / 0.18 and passed, 60 fps and p95 17 ms with real drawing. Build Settings came back unchanged, and a missing path threw with its name.
+  - With the entry removed: 0.74 / 0.18 again.
+  - The trap bench WebGL build draws in Chrome (`TestResults/webgl-trap-bench.png`) with no `shader is null` errors.
+  - EditMode 422 and PlayMode 83 pass on 6000.0.85f1 and 6000.6.7f1.
+- **Diagnosis.** A fresh 2D template draws in WebGL on both editors, while our project fails even with a camera-only scene, a Library-free copy, or a working project's whole Library swapped in. Bisection pinned it to the Build Settings entry. The handshake Reviewer traced the chain in the URP source. Unexplained: a native macOS build hits the same exception yet draws. URP 17.0 (6000.0) doesn't run the analysis.
+- **Design.** Students hit the same trap if they delete the template's SampleScene, so Share my game builds inside the same guard ([systems.md](../GDD/systems.md) § Share). Code review PASS WITH FLAGS: no HIGH or MED; 2 LOW fixed (the PerfCheck summary; the package-scene caveat filed in Deferred.md for the Share build), 1 LOW skipped (precomputing edge shades in a one-off loop).
+- **GDD deltas.** GDD v0.14 → v0.15: [GDD.md](../GDD/GDD.md), [systems.md](../GDD/systems.md) (§ Share); [Issues.md](Issues.md) (ISS-001 removed); [Roadmap.md](Roadmap.md) (Milestone 3 unblocked, the Share guard); [Deferred.md](Deferred.md) (spike build entry); CLAUDE.md (perf gate line); `framework.md` (the WebGL root cause, `UniversalRP.asset` churn), `lessons-learned.md` (+1). Commit: `v0.15: ISS-001 — WebGL builds draw again: stale Build Settings scene removed, build-scene guard, perf check fails on blank frames`.
+
 ## v0.14 — class gallery spike (2026-11-02) · **spike: how games are served and kept apart from the login, measured on the Mac Mini; ISS-001 found**
 
 - **Landed.** The [class gallery spike](../Plans/archive/class-gallery-spike.md) on the Mac Mini: the trap bench built to WebGL in each compression mode with a save probe, a loopback-only Rust server with one test login behind a new Cloudflare tunnel `suwon` (`suwon.orcarin.com`, `suwon-play.orcarin.com`), and an attack page run under four isolation setups in Chrome. Operator decisions, all as recommended: games on `suwon-play.orcarin.com` in a sandboxed frame, Brotli builds, a 50 MB upload limit, one address per game for life, and games reaching each other's saves accepted. Before it: the test and perf scripts run on macOS (`8d9d6c6`), and both suites are green on the Mac Mini (EditMode 422, PlayMode 83 on 6000.0.85f1 and 6000.6.7f1). `cargo test` covers 8 tests.

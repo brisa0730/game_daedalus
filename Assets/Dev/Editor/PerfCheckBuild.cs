@@ -25,13 +25,16 @@ namespace Orcapafea.Daedalus.Dev
             {
                 PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
                 PlayerSettings.runInBackground = true;
-                report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                using (BuildScenes.Use(new[] { ScenePath }))
                 {
-                    scenes = new[] { ScenePath },
-                    locationPathName = output,
-                    target = BuildTarget.WebGL,
-                    options = BuildOptions.None,
-                });
+                    report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                    {
+                        scenes = new[] { ScenePath },
+                        locationPathName = output,
+                        target = BuildTarget.WebGL,
+                        options = BuildOptions.None,
+                    });
+                }
             }
             finally
             {

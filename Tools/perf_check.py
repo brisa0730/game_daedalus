@@ -7,7 +7,9 @@ Builds Assets/Dev/PerfCheck as a release WebGL build with Unity 6000.6.7f1, serv
 localhost, opens it in Chrome, and waits for the page to post its measurements and a
 screenshot. Writes TestResults/perf-check.json and TestResults/perf-check.png.
 
-Gate: frameIntervalP95Ms <= 20 (primary), fpsMean >= 58, sweepTiles >= 500.
+Gate: frameIntervalP95Ms <= 20 (primary), fpsMean >= 58, sweepTiles >= 500, and the screenshot
+shows the map and the sprites: tilePixelFraction >= 0.4, entityPixelFraction >= 0.05 (a
+blank frame fails; ISS-001).
 The dev project must be closed in the Unity Editor while this runs.
 """
 
@@ -37,6 +39,8 @@ PAGE_TIMEOUT_SECONDS = 120
 GATE_P95_MS = 20.0
 GATE_FPS = 58.0
 GATE_SWEEP_TILES = 500.0
+GATE_TILE_PIXELS = 0.4
+GATE_ENTITY_PIXELS = 0.05
 
 
 def unity_exe():
@@ -160,6 +164,9 @@ def main():
         "frameIntervalP95Ms <= 20": result["frameIntervalP95Ms"] <= GATE_P95_MS,
         "fpsMean >= 58": result["fpsMean"] >= GATE_FPS,
         "sweepTiles >= 500": result["sweepTiles"] >= GATE_SWEEP_TILES,
+        # An older build has no fractions: count that as nothing drawn.
+        "tilePixelFraction >= 0.4": result.get("tilePixelFraction", 0) >= GATE_TILE_PIXELS,
+        "entityPixelFraction >= 0.05": result.get("entityPixelFraction", 0) >= GATE_ENTITY_PIXELS,
     }
     result["gate"] = checks
     result["passed"] = all(checks.values())
@@ -169,7 +176,8 @@ def main():
     print(f"fpsMean {result['fpsMean']:.1f}, p95 {result['frameIntervalP95Ms']:.1f} ms, "
           f"refresh {result['refreshRate']:.0f} Hz, {result['frames']} frames, "
           f"{result['tiles']} tiles, {result['entities']} entities, sweep {result['sweepTiles']:.0f} tiles, "
-          f"{result['screenWidth']}x{result['screenHeight']}")
+          f"{result['screenWidth']}x{result['screenHeight']}, "
+          f"drawn: tiles {result.get('tilePixelFraction', 0):.2f}, sprites {result.get('entityPixelFraction', 0):.2f}")
     for name, ok in checks.items():
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
     print("PASS" if result["passed"] else "FAIL", "-> TestResults/perf-check.json, perf-check.png")

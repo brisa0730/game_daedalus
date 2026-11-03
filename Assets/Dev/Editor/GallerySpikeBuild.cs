@@ -37,15 +37,18 @@ namespace Orcapafea.Daedalus.Dev
                 PlayerSettings.WebGL.compressionFormat = format;
                 PlayerSettings.WebGL.decompressionFallback = false;
                 PlayerSettings.WebGL.dataCaching = false;
-                report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                using (BuildScenes.Use(new[] { ScenePath }))
                 {
-                    scenes = new[] { ScenePath },
-                    locationPathName = output,
-                    target = BuildTarget.WebGL,
-                    options = Array.IndexOf(Environment.GetCommandLineArgs(), "-spikeDevelopment") >= 0
-                        ? BuildOptions.Development : BuildOptions.None,
-                    extraScriptingDefines = new[] { "DAEDALUS_GALLERY_SPIKE" },
-                });
+                    report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                    {
+                        scenes = new[] { ScenePath },
+                        locationPathName = output,
+                        target = BuildTarget.WebGL,
+                        options = Array.IndexOf(Environment.GetCommandLineArgs(), "-spikeDevelopment") >= 0
+                            ? BuildOptions.Development : BuildOptions.None,
+                        extraScriptingDefines = new[] { "DAEDALUS_GALLERY_SPIKE" },
+                    });
+                }
             }
             finally
             {
