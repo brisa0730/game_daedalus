@@ -1,0 +1,17 @@
+# Handshake log: webgl-blank-builds
+
+## Opened 2026-11-03T10:36:40+09:00 (Author: Claude Code)
+- **Document:** `Documents/Plans/webgl-blank-builds.md`, the plan to fix ISS-001 (every WebGL build of the dev project draws nothing).
+- **Proposes:** removing the stale `Assets/Scenes/SampleScene.unity` entry from Build Settings; a dev build helper (`BuildScenes.Use`) that sets Build Settings to exactly the scenes being built, fails on a missing scene and restores the list afterwards; perf check gates that fail when the map and sprites aren't drawn; and recording the student-facing risk for the Share build.
+- **Context:** the diagnosis was done before drafting (fresh-template probes, a Library-free copy, Library swaps, bisection to the Build Settings entry), and a critic sub-agent's findings (H1 colour match, H2 Light2D stripping with an empty list, M1–M3, L1–L6) are already folded in.
+- **Reviewer evidence on disk:** `TestResults/perf-build.log` (the exception), the URP 17.6 sources under `Library/PackageCache/com.unity.render-pipelines.universal@ffe395a3a1d1/Editor/`, `Assets/Dev/PerfCheck/PerfCheck.cs`, `Tools/perf_check.py`, `ProjectSettings/EditorBuildSettings.asset`. The probe projects live in the Author's scratchpad and are not in the repo.
+- Nothing is built; this handshake reviews the plan only.
+
+## Round 1 dispositions (2026-11-03T10:50:32+09:00, Author)
+The Reviewer approved round 1 (verdict: approved, 0 blocking, 4 non-blocking). Each finding was re-verified against the URP 17.6 source and folded into the plan at close.
+- **F1 (accuracy, MED): accepted.** I re-read `ShaderBuildPreprocessor.cs:286-312` (the clears at :290-291, the throw site :297 before `HandleEnabledShaderStripping` :311) and `ShaderScriptableStripper.cs:1364-1388` (`removeInput = stripUnusedVariants`, reset only inside the loop over `supportedFeaturesList`) and :1306-1312 (Light2D returns false on an empty list). The chain reproduces. Changes: § Diagnosis replaces "What isn't traced" with the three-step chain and keeps the macOS anomaly as the one unexplained part. § Notes gains "The risk is wider than one missing scene", which says what catches the rest (the dev perf gate, and a post-build check for the gallery phase to consider). The Upstream note now carries the chain.
+- **F2 (accuracy, LOW): accepted.** I re-read :518-526 (comment, `SetDirty` :523, `SaveAssetIfDirty` :524, the stripping-off path) and :596-602 (`SetDirty`/`SaveAssetIfDirty` at :600-601, the stripping path). Step 5 now cites both sites.
+- **F3 (design, LOW): accepted.** I confirmed both build methods end in `EditorApplication.Exit` after a `try`/`finally` around `BuildPlayer`. The manifest rows now say the `using` wraps only the `BuildPlayer` call, inside the `try`, and why. Step 5's restore list adds `ProjectSettings/EditorBuildSettings.asset` and the crash case.
+- **F4 (design, LOW): accepted.** Step 1 now records the broken readings. Step 2 records both fractions, looks at `perf-check.png`, and says to fix the colour match, not the build, if the picture is right but a fraction is low.
+- **Fold re-verified:** every line number introduced or re-cited (:290-291, :297, :311, :118, :260, :1364, :1386, :523-524, :600-601) was re-read in the source. The Overview's plain description still matches the traced chain. The review is appended verbatim to the plan under "Review round 1". The plan's status is now approved.
+- **Closed:** handshake done. Nothing has been built; the plan is approved for execution.
