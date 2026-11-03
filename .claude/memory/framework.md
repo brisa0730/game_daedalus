@@ -86,6 +86,8 @@ type: reference
 - Chrome's `--window-size=1366,768` gave a 1440 × 900 canvas on this machine (display scaling).
 
 ## Gallery server (Rust: axum 0.8, sqlx 0.8, zip 9; Chrome 157; launchd)
+- SQL `x != NULL` is NULL, so `DELETE … WHERE token_hash != ?` bound to `None` deletes nothing; branch to a second statement. An sqlx `Transaction` dropped before `commit` rolls back, so `?` mid-transaction can't leave a half state.
+- A router test can't reach a race *inside* a handler by ordering requests: `require_access` turns a request with an ended session away first. Prove such a guard at the db layer (change-password plan, handshake F1).
 - `DefaultBodyLimit` limits only buffering extractors (`Bytes`, `Form`, `Json`); a handler that streams `Body` frames must count bytes itself.
 - Axum 0.8 merges `.route()` calls on the same path with different methods; a capture takes a whole segment (`/shots/{file}`, not `/shots/{id}.png`).
 - zip 9: `ZipArchive::has_duplicate_names()` (the index map collapses duplicates), `ZipFile::name()` returns `ZipResult<Cow<str>>`, `enclosed_name()` catches absolute, `..` and NUL names. argon2 0.5's `SaltString::generate(&mut OsRng)` needs password-hash's `getrandom`; `SaltString::encode_b64(&rand::random::<[u8; 16]>())` doesn't.

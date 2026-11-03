@@ -46,11 +46,11 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Why deferred:** only a signed-in student can upload, one upload at a time; the cost is memory for a moment, not a crash.
 - **Trigger to act:** memory pressure on the Mac Mini during uploads, or a report of a slow upload rejection. Fix shape: read the end-of-central-directory record's entry count before `ZipArchive::new`, and reject over 256.
 
-### Leftover spike code in the gallery crate
-- **Severity:** LOW · **Source:** Phase 5 (`gallery-server`, v0.16; code review)
-- **Description:** [files.rs](../../Deploy/gallery/src/files.rs) `safe_join` is used only by its own test (the server serves build files by their stored names), and `headers_for`'s `.gz` and `html` branches can't be reached (uploads are Brotli only; the player page is ours). `db::Game` loads `bytes` and `updated_at` that nothing reads.
-- **Why deferred:** harmless and tested; removing them is cleanup, not behaviour.
-- **Trigger to act:** the next change to `files.rs` or `db.rs`. Fix shape: delete `safe_join` and the dead branches with their tests; drop the two unread fields.
+### `post_login`'s Busy path clears a reservation a known browser never made
+- **Severity:** LOW · **Source:** gallery change-password plan (v0.18; handshake round 1, F3)
+- **Description:** in [session.rs](../../Deploy/gallery/src/session.rs) `post_login`, a known browser skips `reserve`, yet on `HashError::Busy` it still calls `clear_reservation`, which sets `next_allowed = touched` when the account has failures: someone else's pending delay is erased. Needs a full hashing queue at that moment. `post_password` already releases only when it reserved.
+- **Why deferred:** kept the change-password plan surgical; the window is a full queue.
+- **Trigger to act:** the next change to `post_login` or the throttle. Fix shape: `if !known { clear_reservation }`, as in `post_password`, plus a test like `a_known_browsers_busy_answer_keeps_someone_elses_delay` for `/login`.
 
 ### Upload cancellation isn't covered by a test
 - **Severity:** LOW · **Source:** Phase 5 (`gallery-server`, v0.16; code review MED 4)

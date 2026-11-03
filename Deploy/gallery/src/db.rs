@@ -61,8 +61,6 @@ pub struct Game {
     pub title: String,
     pub build_name: String,
     pub version: i64,
-    pub bytes: i64,
-    pub updated_at: i64,
 }
 
 impl Game {
@@ -74,8 +72,6 @@ impl Game {
             title: row.get("title"),
             build_name: row.get("build_name"),
             version: row.get("version"),
-            bytes: row.get("bytes"),
-            updated_at: row.get("updated_at"),
         }
     }
 }
@@ -99,8 +95,8 @@ pub struct NewGame<'a> {
     pub now: i64,
 }
 
-const GAME_COLUMNS: &str = "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, g.bytes, \
-     g.updated_at FROM games g LEFT JOIN users u ON u.id = g.owner_id";
+const GAME_COLUMNS: &str =
+    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version FROM games g LEFT JOIN users u ON u.id = g.owner_id";
 
 #[derive(Clone)]
 pub struct Db {
@@ -188,6 +184,63 @@ impl Db {
         sqlx::query("DELETE FROM sessions WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM known_browsers WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
         tx.commit().await
+    }
+
+    /// A user's own password change, unlike [`Db::set_password`] (the teacher's reset, which forgets every session):
+    /// only while `old_session` still exists (a reset that ended it meanwhile wins: `Ok(false)`, nothing changed), the
+    /// session moves to `new_session` keeping its start time, every other session of the user ends, and every known
+    /// browser of the user but `keep_browser` is forgotten (all of them when there is none).
+    pub async fn change_own_password(
+        &self,
+        user_id: i64,
+        hash: &str,
+        old_session: &[u8],
+        new_session: &[u8],
+        keep_browser: Option<&[u8]>,
+        now: i64,
+    ) -> Result<bool> {
+        let mut tx = self.pool.begin().await?;
+        let changed = sqlx::query(
+            "UPDATE users SET password_hash = ? WHERE id = ? \
+             AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND user_id = ?)",
+        )
+        .bind(hash)
+        .bind(user_id)
+        .bind(old_session)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+        if changed.rows_affected() == 0 {
+            tx.rollback().await?;
+            return Ok(false);
+        }
+        sqlx::query(
+            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen) \
+             SELECT ?, user_id, created_at, ? FROM sessions WHERE token_hash = ?",
+        )
+        .bind(new_session)
+        .bind(now)
+        .bind(old_session)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?")
+            .bind(user_id)
+            .bind(new_session)
+            .execute(&mut *tx)
+            .await?;
+        // Two statements: `token_hash != NULL` would match nothing.
+        match keep_browser {
+            Some(keep) => {
+                sqlx::query("DELETE FROM known_browsers WHERE user_id = ? AND token_hash != ?")
+                    .bind(user_id)
+                    .bind(keep)
+                    .execute(&mut *tx)
+                    .await?
+            }
+            None => sqlx::query("DELETE FROM known_browsers WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?,
+        };
+        tx.commit().await?;
+        Ok(true)
     }
 
     /// Deletes the user (sessions and known browsers cascade; games keep their rows with no owner).

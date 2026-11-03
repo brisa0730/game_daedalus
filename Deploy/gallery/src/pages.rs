@@ -33,6 +33,7 @@ pub fn shell(title: &str, user: Option<&User>, body: Markup) -> Markup {
                         }
                         div.who {
                             span.signed-in { (s::signed_in_as(&user.display_name)) }
+                            a href="/password" { (s::NAV_PASSWORD) }
                             form method="post" action="/logout" {
                                 button type="submit" { (s::SIGN_OUT) }
                             }

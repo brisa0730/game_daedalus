@@ -11,21 +11,6 @@ fn form_text(text: &str) -> String {
     format!("text={}", url_encode(text))
 }
 
-fn url_encode(text: &str) -> String {
-    text.bytes()
-        .map(|b| match b {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => (b as char).to_string(),
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
-}
-
-/// The passwords printed on a slips page, in order.
-fn slip_passwords(html: &str) -> Vec<String> {
-    html.split(r#"<dd class="big">"#).skip(1).map(|p| p[..p.find('<').unwrap()].to_string()).collect::<Vec<_>>()
-        .chunks(2).map(|pair| pair[1].clone()).collect()
-}
-
 #[tokio::test]
 async fn students_are_refused_on_every_teacher_route() {
     let app = TestApp::new().await;

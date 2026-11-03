@@ -7,11 +7,27 @@ pub const NAV_GAMES: &str = "게임 목록";
 pub const NAV_UPLOAD: &str = "업로드";
 pub const NAV_TEACHER: &str = "선생님";
 pub const SIGN_OUT: &str = "로그아웃";
+pub const NAV_PASSWORD: &str = "비밀번호 변경";
 pub const SHARED_LAPTOP_NOTE: &str = "같이 쓰는 컴퓨터라면 끝날 때 꼭 로그아웃하세요.";
 
 pub fn signed_in_as(name: &str) -> String {
     format!("{name} 님으로 로그인됨")
 }
+
+// Change password
+pub const PASSWORD_TITLE: &str = "비밀번호 변경";
+pub const PASSWORD_CURRENT: &str = "지금 비밀번호";
+pub const PASSWORD_NEW: &str = "새 비밀번호";
+pub const PASSWORD_CONFIRM: &str = "새 비밀번호 확인";
+pub const PASSWORD_BUTTON: &str = "바꾸기";
+pub const PASSWORD_RULE: &str = "8글자 이상. 아이디나 지금 비밀번호와 달라야 해요.";
+pub const PASSWORD_WRONG_CURRENT: &str = "지금 비밀번호가 틀렸어요.";
+pub const PASSWORD_MISMATCH: &str = "새 비밀번호 두 칸이 서로 달라요.";
+pub const PASSWORD_TOO_SHORT: &str = "새 비밀번호는 8글자 이상이어야 해요.";
+pub const PASSWORD_TOO_LONG: &str = "새 비밀번호는 128글자까지예요.";
+pub const PASSWORD_SAME_AS_LOGIN: &str = "새 비밀번호가 아이디와 같아요.";
+pub const PASSWORD_SAME_AS_CURRENT: &str = "새 비밀번호가 지금 비밀번호와 같아요.";
+pub const PASSWORD_CHANGED: &str = "비밀번호를 바꿨어요. 다른 브라우저에서는 로그아웃됐어요.";
 
 // Sign in
 pub const LOGIN_TITLE: &str = "로그인";

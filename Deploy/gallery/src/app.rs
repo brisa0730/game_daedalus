@@ -104,6 +104,8 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
         route(Method::GET, "/login", Public, get(session::login_page)),
         route(Method::POST, "/login", Public, post(session::post_login)),
         route(Method::POST, "/logout", Page, post(session::post_logout)),
+        route(Method::GET, "/password", Page, get(session::password_page)),
+        route(Method::POST, "/password", Page, post(session::post_password)),
         route(Method::GET, "/", Page, get(gallery::list)),
         route(Method::GET, "/shots/{file}", Page, get(gallery::screenshot)),
         route(Method::GET, "/play/{id}", Page, get(gallery::play_view)),

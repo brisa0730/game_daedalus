@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use axum::extract::{Form, Request, State};
+use axum::extract::{Extension, Form, Query, Request, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -17,6 +17,7 @@ use crate::config::{Config, unix_now};
 use crate::db::{Role, User};
 use crate::pages;
 use crate::strings as s;
+use crate::text::{PasswordProblem, check_new_password};
 use crate::upload::json_answer;
 
 pub const SESSION_COOKIE: &str = "__Host-gallery_session";
@@ -203,14 +204,7 @@ pub async fn post_login(State(state): State<AppState>, headers: HeaderMap, Form(
         return wrong();
     };
     let now = unix_now();
-    let known_token = cookie(&headers, KNOWN_COOKIE).filter(|t| is_token(t)).map(str::to_string);
-    let known = match &known_token {
-        Some(token) => {
-            let since = now as i64 - state.config.known_browser_secs as i64;
-            state.db.browser_known(&token_hash(token), user.id, since).await.unwrap_or(false)
-        }
-        None => false,
-    };
+    let (known_token, known) = known_browser(&state, &headers, user.id, now).await;
     if !known && let Err(wait) = state.throttle.lock().expect("throttle lock").reserve(user.id, now, &state.config) {
         return login_form(StatusCode::TOO_MANY_REQUESTS, &typed, Some(&s::wait_seconds(wait)));
     }
@@ -244,6 +238,121 @@ pub async fn post_login(State(state): State<AppState>, headers: HeaderMap, Form(
         format!("{KNOWN_COOKIE}={known_token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age={}", state.config.known_browser_secs);
     headers.append(header::SET_COOKIE, HeaderValue::from_str(&session_cookie).expect("cookie is ASCII"));
     headers.append(header::SET_COOKIE, HeaderValue::from_str(&known_cookie).expect("cookie is ASCII"));
+    response
+}
+
+/// This browser's known-browser token (when well-formed) and whether it has signed in to `user_id` recently, so
+/// its attempts skip that account's sign-in delay.
+async fn known_browser(state: &AppState, headers: &HeaderMap, user_id: i64, now: u64) -> (Option<String>, bool) {
+    let token = cookie(headers, KNOWN_COOKIE).filter(|t| is_token(t)).map(str::to_string);
+    let known = match &token {
+        Some(token) => {
+            let since = now as i64 - state.config.known_browser_secs as i64;
+            state.db.browser_known(&token_hash(token), user_id, since).await.unwrap_or(false)
+        }
+        None => false,
+    };
+    (token, known)
+}
+
+#[derive(Deserialize)]
+pub struct PasswordQuery {
+    changed: Option<String>,
+}
+
+pub async fn password_page(Extension(CurrentUser(user)): Extension<CurrentUser>, Query(query): Query<PasswordQuery>) -> Response {
+    let done = query.changed.is_some().then_some(s::PASSWORD_CHANGED);
+    password_form(StatusCode::OK, &user, None, done)
+}
+
+/// The change-password page. It never echoes a typed password back.
+fn password_form(status: StatusCode, user: &User, error: Option<&str>, done: Option<&str>) -> Response {
+    let body = html! {
+        h1 { (s::PASSWORD_TITLE) }
+        form.login method="post" action="/password" {
+            @if let Some(error) = error { p.error role="alert" { (error) } }
+            @if let Some(done) = done { p.done role="status" { (done) } }
+            // For password managers: which account's entry to update.
+            input type="hidden" name="username" autocomplete="username" value=(user.login);
+            label { (s::PASSWORD_CURRENT) input name="current" type="password" autocomplete="current-password" required; }
+            label { (s::PASSWORD_NEW) input name="new" type="password" autocomplete="new-password" required; }
+            label { (s::PASSWORD_CONFIRM) input name="confirm" type="password" autocomplete="new-password" required; }
+            p { (s::PASSWORD_RULE) }
+            button type="submit" { (s::PASSWORD_BUTTON) }
+        }
+    };
+    let mut response = pages::page(status, s::PASSWORD_TITLE, Some(user), body);
+    response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+#[derive(Deserialize)]
+pub struct PasswordForm {
+    current: String,
+    new: String,
+    confirm: String,
+}
+
+/// A signed-in user's own password change: the rule first (typed text only: no throttle slot, no hash), then the
+/// current password through the same per-account delay as sign-in (with the same known-browser skip), then the new
+/// session for this browser and the end of every other one.
+pub async fn post_password(
+    State(state): State<AppState>,
+    Extension(CurrentUser(user)): Extension<CurrentUser>,
+    Extension(SessionHash(old_session)): Extension<SessionHash>,
+    headers: HeaderMap,
+    Form(form): Form<PasswordForm>,
+) -> Response {
+    let refuse = |status, text: &str| password_form(status, &user, Some(text), None);
+    if let Err(problem) = check_new_password(&form.new, &form.confirm, &form.current, &user.login) {
+        let text = match problem {
+            PasswordProblem::Mismatch => s::PASSWORD_MISMATCH,
+            PasswordProblem::TooShort => s::PASSWORD_TOO_SHORT,
+            PasswordProblem::TooLong => s::PASSWORD_TOO_LONG,
+            PasswordProblem::SameAsLogin => s::PASSWORD_SAME_AS_LOGIN,
+            PasswordProblem::SameAsCurrent => s::PASSWORD_SAME_AS_CURRENT,
+        };
+        return refuse(StatusCode::BAD_REQUEST, text);
+    }
+    let now = unix_now();
+    let (known_token, known) = known_browser(&state, &headers, user.id, now).await;
+    if !known && let Err(wait) = state.throttle.lock().expect("throttle lock").reserve(user.id, now, &state.config) {
+        return refuse(StatusCode::TOO_MANY_REQUESTS, &s::wait_seconds(wait));
+    }
+    match state.hasher.verify(user.password_hash.clone(), form.current).await {
+        Ok(true) => {}
+        Ok(false) => {
+            state.throttle.lock().expect("throttle lock").fail(user.id, now, &state.config);
+            tracing::info!(login = %user.login, "password change refused: wrong current password");
+            return refuse(StatusCode::UNAUTHORIZED, s::PASSWORD_WRONG_CURRENT);
+        }
+        Err(HashError::Busy) => {
+            // Only a reservation this request made: a known browser's would erase someone else's pending delay.
+            if !known {
+                state.throttle.lock().expect("throttle lock").clear_reservation(user.id);
+            }
+            return refuse(StatusCode::SERVICE_UNAVAILABLE, s::LOGIN_BUSY);
+        }
+        Err(HashError::Internal) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, s::LOGIN_BUSY),
+    }
+    state.throttle.lock().expect("throttle lock").clear(user.id);
+    let hash = match state.hasher.hash(form.new).await {
+        Ok(hash) => hash,
+        Err(HashError::Busy) => return refuse(StatusCode::SERVICE_UNAVAILABLE, s::LOGIN_BUSY),
+        Err(HashError::Internal) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, s::LOGIN_BUSY),
+    };
+    let new_session = new_token();
+    let keep_browser = known_token.as_deref().map(token_hash);
+    match state.db.change_own_password(user.id, &hash, &old_session, &token_hash(&new_session), keep_browser.as_deref(), now as i64).await {
+        Ok(true) => {}
+        // The session ended meanwhile (a teacher reset): the reset stands.
+        Ok(false) => return pages::see_other("/login"),
+        Err(_) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, s::LOGIN_BUSY),
+    }
+    tracing::info!(login = %user.login, "password changed");
+    let mut response = pages::see_other("/password?changed=1");
+    let session_cookie = format!("{SESSION_COOKIE}={new_session}; HttpOnly; Secure; SameSite=Lax; Path=/");
+    response.headers_mut().append(header::SET_COOKIE, HeaderValue::from_str(&session_cookie).expect("cookie is ASCII"));
     response
 }
 

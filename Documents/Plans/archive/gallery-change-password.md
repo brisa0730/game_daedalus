@@ -1,6 +1,6 @@
 # Plan: Gallery change-password
 
-**Date:** 2026-11-03 | **Status:** draft (critic-reviewed; handshake-approved, 2 rounds)
+**Date:** 2026-11-03 | **Status:** complete (critic-reviewed; handshake-approved, 2 rounds)
 
 ## Overview
 
@@ -310,3 +310,10 @@ Is there anything I would say about this plan that isn't in my round files? No. 
 
 ## Reviewer's view
 I would build this plan as written. F1's race guard now has a test that fails without it, and the F2–F7 folds introduced no new defects. The `INSERT … SELECT` ordering for F4 is sound. F8 is a small test-strength fold for close. **Approved.**
+
+---
+
+**Approval:** User confirmed 2026-11-03 ("commit, and execute").
+**Execution:** COMPLETE 2026-11-03.
+**Verification:** cargo test 121 → 136 (15 in `tests/password.rs`) and clippy clean; redeployed live (previous binary kept as `gallery.previous`); the two-browser Chrome check passed and its screenshots were looked at; code review PASS WITH FLAGS (no HIGH/MED), test-coverage flags folded (echo checks in cases 3 and 7, case 4's list, a shared `slip_passwords`).
+**Version note:** shipped as GDD v0.18. Extras: `known_browser` extracted from `post_login` (same code, shared); `.login { word-break: keep-all }` so Korean lines wrap at word boundaries (the done line broke mid-word in the live screenshot; also applies to the sign-in form). Known divergences, accepted: a link to `/password?changed=1` shows the done line without a change (standard Post/Redirect/Get); a browser whose known cookie is missing or malformed isn't re-remembered by a change (every session comes from a sign-in that sets one).

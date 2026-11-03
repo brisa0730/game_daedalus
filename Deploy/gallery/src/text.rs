@@ -36,6 +36,36 @@ pub fn normalize_login(raw: &str) -> Option<String> {
     ok.then_some(id)
 }
 
+/// Why a new password was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasswordProblem {
+    Mismatch,
+    TooShort,
+    TooLong,
+    SameAsLogin,
+    SameAsCurrent,
+}
+
+/// The rule for a password a user chooses: both copies equal, 8–128 characters, not the login ID (ASCII case
+/// ignored; IDs are ASCII) and not the current password. Kept exactly as typed. Every input is typed text, so it
+/// is checked before any hashing and reveals nothing.
+pub fn check_new_password(new: &str, confirm: &str, current: &str, login: &str) -> Result<(), PasswordProblem> {
+    let chars = new.chars().count();
+    if new != confirm {
+        Err(PasswordProblem::Mismatch)
+    } else if chars < 8 {
+        Err(PasswordProblem::TooShort)
+    } else if chars > 128 {
+        Err(PasswordProblem::TooLong)
+    } else if new.eq_ignore_ascii_case(login) {
+        Err(PasswordProblem::SameAsLogin)
+    } else if new == current {
+        Err(PasswordProblem::SameAsCurrent)
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,6 +78,24 @@ mod tests {
         assert_eq!(clean_label("ab cd", 3).as_deref(), Some("ab"));
         assert_eq!(clean_label(" \t\u{202E} ", 40), None);
         assert_eq!(clean_label("", 40), None);
+    }
+
+    #[test]
+    fn new_passwords_follow_the_rule() {
+        use PasswordProblem::*;
+        let check = |new: &str, confirm: &str| check_new_password(new, confirm, "bear-moon-234", "kim01");
+        assert_eq!(check("abcdefgh", "abcdefgi"), Err(Mismatch));
+        assert_eq!(check("abcdefg", "abcdefg"), Err(TooShort));
+        assert_eq!(check("abcdefgh", "abcdefgh"), Ok(()));
+        let longest = "a".repeat(128);
+        assert_eq!(check(&longest, &longest), Ok(()));
+        let too_long = "a".repeat(129);
+        assert_eq!(check(&too_long, &too_long), Err(TooLong));
+        assert_eq!(check("가나다라마바사아", "가나다라마바사아"), Ok(()));
+        assert_eq!(check("가나다라마바사", "가나다라마바사"), Err(TooShort));
+        assert_eq!(check_new_password("KIM01ABC", "KIM01ABC", "x", "kim01abc"), Err(SameAsLogin));
+        assert_eq!(check("bear-moon-234", "bear-moon-234"), Err(SameAsCurrent));
+        assert_eq!(check("        ", "        "), Ok(()), "kept as typed, spaces count");
     }
 
     #[test]

@@ -57,6 +57,22 @@ impl Answer {
     }
 }
 
+/// Percent-encodes a form value (everything but unreserved ASCII), so Korean, spaces and `& + % =` survive.
+pub fn url_encode(text: &str) -> String {
+    text.bytes()
+        .map(|b| match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+/// The passwords printed on a slips page, in order.
+pub fn slip_passwords(html: &str) -> Vec<String> {
+    html.split(r#"<dd class="big">"#).skip(1).map(|p| p[..p.find('<').unwrap()].to_string()).collect::<Vec<_>>()
+        .chunks(2).map(|pair| pair[1].clone()).collect()
+}
+
 pub fn test_config(dir: &std::path::Path) -> Config {
     let mut config = Config::new(dir);
     config.argon2.memory_kib = 64;
@@ -143,9 +159,23 @@ impl TestApp {
 
     /// Signs in and returns the `Cookie` header value for the session.
     pub async fn sign_in(&self, login: &str, password: &str) -> String {
-        let answer = self.post_form("/login", None, &format!("login={login}&password={password}")).await;
+        self.sign_in_keeping_browser(login, password, None).await.0
+    }
+
+    /// Signs in from a browser (its known cookie, if any, is sent) and returns that browser's session and known
+    /// cookies as `name=value`.
+    pub async fn sign_in_keeping_browser(&self, login: &str, password: &str, known: Option<&str>) -> (String, String) {
+        let form = format!("login={}&password={}", url_encode(login), url_encode(password));
+        let answer = self.post_form("/login", known, &form).await;
         assert_eq!(answer.status, StatusCode::SEE_OTHER, "sign-in failed: {}", answer.text());
-        answer.cookie("__Host-gallery_session").expect("a session cookie")
+        let session = answer.cookie("__Host-gallery_session").expect("a session cookie");
+        let known = answer.cookie("__Host-gallery_known").expect("a known-browser cookie");
+        (session, known)
+    }
+
+    /// Forgets one account's sign-in delay, so a test can sign in right after a deliberate failure.
+    pub fn clear_throttle(&self, user_id: i64) {
+        self.state.throttle.lock().unwrap().clear(user_id);
     }
 
     pub async fn student(&self, login: &str, name: &str) -> String {
