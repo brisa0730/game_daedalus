@@ -130,8 +130,8 @@ pub async fn screenshot(State(state): State<AppState>, Path(file): Path<String>)
 }
 
 /// The play view: the game full-page in the games host's sandboxed frame, entered with a fresh 60 s grant. Open to
-/// anyone: the frame keeps the game away from the gallery, not people away from the game. The copy-link control
-/// gives this page's address for sharing.
+/// anyone: the frame keeps the game away from the gallery, not people away from the game; this page's address is
+/// the one to share.
 pub async fn play_view(
     State(state): State<AppState>,
     user: Option<Extension<CurrentUser>>,
@@ -141,22 +141,13 @@ pub async fn play_view(
     let Some(game) = live(&state, &id).await else { return pages::not_found(user.as_ref()) };
     let grant = state.key.sign(Purpose::Enter, &game.id, unix_now() + ENTER_TTL_SECS);
     let src = format!("{}/enter/{}?grant={}", state.config.games_origin, game.id, grant);
-    let share_url = format!("{}/play/{}", state.config.gallery_origin, game.id);
     let body = html! {
         div.theater {
             div.playbar {
                 a.back href="/" { (s::BACK_TO_GAMES) }
                 div.play-title {
                     h1 { (game.title) }
-                    span.owner { (s::made_by(game.owner_name.as_deref().unwrap_or(""))) }
-                }
-                span.note { (s::NEEDS_KEYBOARD) }
-                div.share {
-                    input #share-url type="text" readonly value=(share_url) aria-label=(s::SHARE_LINK_LABEL);
-                    button #copy-link type="button" data-msg-copied=(s::LINK_COPIED) data-msg-selected=(s::LINK_SELECTED) {
-                        (s::COPY_LINK)
-                    }
-                    span #copy-note.copy-note role="status" {}
+                    span.owner { (game.owner_name.as_deref().unwrap_or("")) }
                 }
                 button #fullscreen type="button" {
                     svg viewBox="0 0 7 7" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true" {

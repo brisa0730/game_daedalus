@@ -40,7 +40,6 @@ pub const LOGIN_BUTTON: &str = "로그인";
 pub const LOGIN_WRONG: &str = "아이디나 비밀번호가 틀려요.";
 pub const LOGIN_BUSY: &str = "잠시 후 다시 해 보세요.";
 pub const LOGIN_WELCOME: &str = "게임을 올리려면 로그인하세요";
-pub const LOGIN_HINT: &str = "아이디와 비밀번호는 선생님께 받아요.";
 
 pub fn wait_seconds(seconds: u64) -> String {
     format!("{seconds}초 뒤에 다시 해 보세요.")
@@ -77,15 +76,7 @@ pub fn remove_game_confirm(title: &str) -> String {
 // Play view (gallery) and player page (games host)
 pub const BACK_TO_GAMES: &str = "← 게임 목록";
 pub const FULLSCREEN: &str = "전체 화면";
-pub const NEEDS_KEYBOARD: &str = "키보드나 게임패드가 필요해요.";
-pub const COPY_LINK: &str = "링크 복사";
-pub const LINK_COPIED: &str = "복사했어요!";
-pub const LINK_SELECTED: &str = "링크를 선택했어요. 복사해서 보내 주세요.";
-pub const SHARE_LINK_LABEL: &str = "이 게임의 링크";
 
-pub fn made_by(name: &str) -> String {
-    format!("{name} 만듦")
-}
 pub const REOPEN_FROM_GALLERY: &str = "갤러리에서 게임을 다시 열어 주세요.";
 pub const PLAYER_LOAD_FAILED: &str = "게임을 불러오지 못했어요. 갤러리에서 다시 열어 주세요.";
 

@@ -208,7 +208,7 @@ async fn rename_changes_the_nickname_everywhere() {
     let list = app.get(GALLERY, "/", None).await.text();
     let play = app.get(GALLERY, &format!("/play/{game}"), None).await.text();
     assert!(list.contains("별 빛") && !list.contains("김민수") && !list.contains("김 실명"));
-    assert!(play.contains(&s::made_by("별 빛")) && !play.contains("김민수"));
+    assert!(play.contains(r#"<span class="owner">별 빛</span>"#) && !play.contains("김민수"));
     assert!(app.get(GALLERY, "/teacher", Some(&teacher)).await.text().contains("김 실명"));
 
     for (body, message) in [

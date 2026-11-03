@@ -8,6 +8,18 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.21 — Gallery trims (2026-11-03) · **fewer words on the play and sign-in pages; the update list shows only when updating**
+
+- **Landed.** These are operator requests after v0.20 went public:
+  - The play view drops "만듦" after the nickname, the keyboard note, and the link box with 링크 복사 (and its script). 전체 화면 takes their place on the right of the bar.
+  - The sign-in page drops 아이디와 비밀번호는 선생님께 받아요.
+  - On the upload page, the list of the student's games shows only once 내 게임 업데이트하기 is picked (CSS `:has`, no script). With 새 게임 checked, a game could look chosen, though the upload would still have made a new game.
+
+  `cargo test` 145, clippy clean.
+- **Key surfaces.** `gallery.rs` (`play_view`), `session.rs` (`login_form`), `strings.rs` (`made_by`, `NEEDS_KEYBOARD`, the copy-link strings and `LOGIN_HINT` removed), `gallery.css`, `gallery.js`; `tests/games.rs`, `tests/look.rs`, `tests/teacher.rs`.
+- **Verified.** Look check: 44 checks pass (the play frame is still 16:9 at three sizes; no overflow at 390 px). In headless Chrome, the upload list is hidden at first, shows on 내 게임 업데이트하기, lets a game be picked, and hides again on 새 게임. Screenshots inspected. Live after the deploy: the play page has none of the removed text and shows the nickname only; the sign-in page has no hint; the new CSS is served.
+- **GDD deltas.** GDD v0.20 → v0.21: [systems.md](../GDD/systems.md) § Share (Upload, Play). Commit: `v0.21: gallery trims — no 만듦, keyboard note or copy link; update list only when updating`.
+
 ## v0.20 — Gallery public (2026-11-03) · **anyone can browse and play the class gallery; students sign in only to upload; nicknames in public, real names for the teacher**
 
 - **Landed.** Per the critic-reviewed, handshake-approved (3 rounds) [plan](../Plans/archive/gallery-public.md): the game list, screenshots and play view are an `Open` access rule, so anyone can browse and play without signing in. Upload, remove, password and the teacher's pages still need a session. Students show by a public nickname; a teacher-only real name (migration `0002_real_name`, filled from the names typed before) appears only on the teacher's pages. The teacher edits both names per row, and pasted lines are `ID, 이름, 별명`. Also: 링크 복사 on the play view, `X-Robots-Tag: noindex, nofollow` on both hosts, sign-out lands on the list, and the 404 keeps the asker's header. `cargo test` 141 → 145 (new and rewritten router tests), clippy clean.

@@ -196,7 +196,6 @@ fn login_form(status: StatusCode, login: &str, error: Option<&str>) -> Response 
                 label { (s::LOGIN_ID) input name="login" value=(login) autocomplete="username" autocapitalize="none" required; }
                 label { (s::LOGIN_PASSWORD) input name="password" type="password" autocomplete="current-password" required; }
                 button type="submit" { (s::LOGIN_BUTTON) }
-                p.hint { (s::LOGIN_HINT) }
             }
             // A little level: the player, a row of spikes and the goal flag on the ground.
             div.scene aria-hidden="true" {

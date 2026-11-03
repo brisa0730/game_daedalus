@@ -104,11 +104,8 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
 
     // The script's wires: every id and data attribute gallery.js reads is still rendered.
     for play in ["play", "play-public"] {
-        for id in ["game", "frame", "fullscreen", "copy-link", "share-url", "copy-note"] {
+        for id in ["game", "frame", "fullscreen"] {
             assert!(page(play).contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
-        }
-        for data in ["msg-copied", "msg-selected"] {
-            assert!(page(play).contains(&format!("data-{data}=")), "{play}: data-{data}");
         }
     }
     // The teacher's list edits both names per student, under the hint that the nickname is public.
