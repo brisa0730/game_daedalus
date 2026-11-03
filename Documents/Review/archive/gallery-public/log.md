@@ -1,0 +1,35 @@
+# Handshake log: gallery-public
+
+## Opened 2026-11-03T22:07:10+09:00 (Author)
+Doc: `Documents/Plans/gallery-public.md`. It proposes making the class gallery (suwon.orcarin.com, Deploy/gallery/) public to browse and play, with sign-in only for upload, remove, password and teacher pages: a new `Access::Open` rule for `/`, `/shots/{file}` and `/play/{id}`; the sandboxed games host and its grant/gate kept; a teacher rename action so students appear by public nickname, rolled out in two deploys so no real name is ever public; a copy-link button on the play view; and `X-Robots-Tag: noindex, nofollow` on both hosts. Operator decisions behind it (2026-11-03): whole gallery public, nicknames, noindex, bandwidth accepted. The plan was critic-reviewed before this round (trailer at the end of the doc). One open question is left for the operator: losing real names after a rename.
+
+## Doc updated before round 1 (2026-11-03T22:15:35+09:00, Author)
+The operator decided to **store students' real names, for the teacher only**, which closes the plan's open question. Step 4 is rewritten:
+- migration `0002_real_name.sql` adds `real_name`, filled from today's names;
+- `display_name` becomes the public nickname;
+- paste lines become `ID, 이름, 별명`, and the nickname is required;
+- the teacher page shows both names, with rename for the nickname only;
+- slips and the remove confirm show both names.
+
+Step 5 gains a test that a real name never appears on a page a student or visitor can fetch. The Manifest, Overview, Notes and Completion Criteria are updated to match. If round 1 was drafted against the earlier text, its findings on Step 4 or the open question will be dispositioned against this version.
+
+## Round 1 dispositions (2026-11-03T22:17:31+09:00, Author)
+Round 1 reviewed the text from before the operator's real-name decision (logged above). Every finding was re-checked against the current plan and the code.
+- **F1 (blocking): accepted.** Confirmed: code review was Step 10, after the public deploy in Step 8. The new order is: Step 8 Code Review, which re-runs Step 7's tests before anything deploys; Step 9 Deploy and live check; Step 10 Verify. Re-checked: the step headings run 1–10 in order, and Step 8 refers back to Step 7.
+- **F2 (non-blocking): accepted, wording.** Confirmed: the commit is Post-Plan Cleanup item 5, after the deploy. Step 9 now says both builds come from the reviewed working tree (earlier gallery plans did the same), and 9.3 restores the three routes, checked by `git diff src/app.rs` showing only this plan's change.
+- **F3 (non-blocking): accepted.** Confirmed `content.md:31` ("which only the teacher and the students can enter"). Added to the Notes. The two `systems.md` § Share bullets are merged into one.
+- **F4 (non-blocking): accepted.** Step 9.2: the operator glances at every card's screenshot for a real name, along with every game title.
+- **F5 (non-blocking): accepted, first half of the remedy chosen differently.** Confirmed: `app.rs:136` fallback `not_found(None)` and `guard.rs:43` `forbidden(None)`. Instead of a logo-only header, the fallback becomes a handler that reads the session through `session::current_user` (the pattern `login_page` already uses), so the header is right both signed in and signed out. The guard's cross-origin 403 keeps `None`, because a student never navigates to it. Step 5 gains an assertion that a 404 fetched with a cookie shows the signed-in name and no `/login` link.
+- **R1 (recommendation): recorded** in Notes beside the decision, with the Author's counter-view. The question it answers was already settled by the operator (store real names, teacher only, Step 4). Counter-view: `display_name` already holds real names on the server today, so the column adds no new exposure, and a test pins it to the teacher's pages.
+- **Not-verified note on the clipboard read permission:** taken. The Step 6 check will grant clipboard read as well as write; I'll handle it when I run it, so nothing changes in the plan.
+
+## Round 2 dispositions (2026-11-03T22:24:05+09:00, Author)
+- **F1–F5:** resolved, as the Reviewer confirmed. **R1:** withdrawn by the Reviewer; the recorded text stays in Notes.
+- **F6 (blocking): accepted.** Verified: `teacher::remove` removes every live game, then the user ("Removes a student and all their games"). `db.rs` now has `set_names(user_id, real_name, nickname)` instead of `set_nickname`. The inline rename form has two prefilled inputs (`real_name`, `name`) and one 바꾸기. The handler requires both names (400 with `LINE_NO_NAME` / `LINE_NO_NICKNAME`, nothing changes). The "remove and re-add" sentence is gone. `rename_changes_the_nickname_everywhere` also renames the real name, which shows on `/teacher` only. Re-grepped: no `set_nickname` or "re-add" text left, and the Manifest row says `set_names`.
+- **F7 (non-blocking): accepted.** Verified in sqlx-core 0.8.6 `migrate/migrator.rs`: `ignore_missing: false` by default, and `VersionMissing` is returned when an applied migration is missing. Step 9.1 now runs `gallery backup --data … --to …` (the CLI form in `cli.rs:15`; the nightly job's folders) just before installing, and states the rollback: the v0.19 binary plus that backup's database, or the new binary with the routes set to `Page`, which needs no restore.
+- **F8 (non-blocking): accepted in part.** Verified `src/teacher.rs` `pasted_lines_are_checked` (two-field lines) and `a_name_may_contain_commas`. Both are now named in Step 5 with their new expectations: three-field lines plus one two-field line expected `NoNickname`, and `a_nickname_may_contain_commas` (`"kim, 김민수, 별, 빛"` → real name 김민수, nickname "별, 빛"). Step 4 states the rule: a nickname may contain commas, a real name may not. **Rejected:** adding `tests/support/mod.rs` to the Manifest. It doesn't paste lines; `student()` and `teacher()` call `db.create_user` (`support/mod.rs:155-157`), which leaves `real_name` at its default `''` and needs no change. The wrong "support/" mention in Step 5 is corrected to say so. (I briefly added a Manifest row myself, saw it was wrong, and removed it before handing back.)
+
+## Round 3: approved; closing dispositions (2026-11-03T22:27:58+09:00, Author)
+- **F6, F7, F8:** resolved, as the Reviewer confirmed. The rejected half of F8 (`tests/support/mod.rs`) was accepted by the Reviewer.
+- **F9 (non-blocking): accepted, the second remedy chosen.** Verified that the unquoted path splits on the space. Step 9.1 now runs the nightly job itself (`launchctl kickstart gui/$(id -u)/com.orcapafea.daedalus.gallery-backup`), whose plist (lines 19-24) carries the exact paths, so nothing needs quoting. Re-verified: the backups folder holds `db/gallery-2026-11-03.db`, so copies are named by date. A same-day run overwrites that file, so the check is now that today's copy has a modification time of just now, not merely that a file exists.
+- **Outcome:** approved in 3 rounds. **Nothing has been built.** This approves the proposal; the code, tests, deploys and GDD updates are separate work, started after the operator approves the plan.
