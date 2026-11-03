@@ -22,11 +22,29 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
-### The gallery's file serving doesn't check symlinks
-- **Severity:** MED · **Source:** class gallery spike (v0.14; code review)
-- **Description:** [files.rs](../../Deploy/gallery/src/files.rs) `safe_join` keeps a request path lexically inside a game's folder but doesn't follow symlinks, so a symlink inside an uploaded game's folder could point outside it.
-- **Why deferred:** nothing extracts uploads yet; the spike served only our own builds.
-- **Trigger to act:** the gallery phase's upload. Fix shape: the unzip rejects symlinks and absolute or `..` entries, with a test for each.
+### Gallery backups live on the same disk
+- **Severity:** MED · **Source:** Phase 5 (`gallery-server`, v0.16; handshake round 1, R3)
+- **Description:** the nightly backup ([backup.rs](../../Deploy/gallery/src/backup.rs), job `com.orcapafea.daedalus.gallery-backup`) keeps 7 database copies and a games mirror in `~/Library/Application Support/daedalus-gallery-backups/`, on the Mac Mini's own disk. It covers corruption and mistakes within 7 days, not losing the disk.
+- **Why deferred:** a second disk or cloud folder isn't set up; the database is small and the step up is a copy.
+- **Trigger to act:** the operator adds a second disk or cloud folder, or before the classroom launch (Milestone 8). Fix shape: copy `db/gallery-*.db` (and optionally the games mirror) there after each backup.
+
+### The Share zip's entry limit is checked after the zip's directory is read
+- **Severity:** LOW · **Source:** Phase 5 (`gallery-server`, v0.16; code review)
+- **Description:** [share_zip.rs](../../Deploy/gallery/src/share_zip.rs) rejects more than 256 entries only after `ZipArchive::new` has parsed the central directory; a 50 MB zip of ~1 M tiny entries costs a few hundred MB while it is parsed (× 3 unpack permits).
+- **Why deferred:** only a signed-in student can upload, one upload at a time; the cost is memory for a moment, not a crash.
+- **Trigger to act:** memory pressure on the Mac Mini during uploads, or a report of a slow upload rejection. Fix shape: read the end-of-central-directory record's entry count before `ZipArchive::new`, and reject over 256.
+
+### Leftover spike code in the gallery crate
+- **Severity:** LOW · **Source:** Phase 5 (`gallery-server`, v0.16; code review)
+- **Description:** [files.rs](../../Deploy/gallery/src/files.rs) `safe_join` is used only by its own test (the server serves build files by their stored names), and `headers_for`'s `.gz` and `html` branches can't be reached (uploads are Brotli only; the player page is ours). `db::Game` loads `bytes` and `updated_at` that nothing reads.
+- **Why deferred:** harmless and tested; removing them is cleanup, not behaviour.
+- **Trigger to act:** the next change to `files.rs` or `db.rs`. Fix shape: delete `safe_join` and the dead branches with their tests; drop the two unread fields.
+
+### Upload cancellation isn't covered by a test
+- **Severity:** LOW · **Source:** Phase 5 (`gallery-server`, v0.16; code review MED 4)
+- **Description:** an abandoned upload keeps its unpack slot until the work ends (permit in the blocking task) and its staging files are deleted by a `Drop` guard ([upload.rs](../../Deploy/gallery/src/upload.rs) `Cleanup`); no test drops a request mid-upload to prove it.
+- **Why deferred:** dropping an in-flight request in a router test needs a body that stalls on purpose; the code is small and was reviewed.
+- **Trigger to act:** any change to the upload pipeline's staging or permits. Fix shape: a test body that yields a few frames and then pends forever, the request future dropped after a timeout, then assert `staging/` is empty and a permit is free.
 
 ### The spike's WebGL build script and save probe stay in `Assets/Dev`
 - **Severity:** LOW · **Source:** class gallery spike (v0.14)

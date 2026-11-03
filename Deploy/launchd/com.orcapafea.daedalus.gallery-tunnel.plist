@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The class gallery's named tunnel `suwon`: suwon.orcarin.com and suwon-play.orcarin.com -> 127.0.0.1:8470.
+     Runs at login, restarts on crash. Isolated from the orcarin and octopus tunnels: its own config and credentials.
+
+     It reads ~/.cloudflared/suwon.yml, a COPY of the repo's Deploy/cloudflared/suwon.yml: a launchd job may be
+     blocked by macOS privacy protection from reading ~/Documents, and a `git pull` must not change the live tunnel.
+     Credentials stay in ~/.cloudflared/<tunnel id>.json (never in the repo).
+
+     Install / redeploy:
+       mkdir -p "$HOME/Library/Logs/daedalus-gallery"
+       cp Deploy/cloudflared/suwon.yml "$HOME/.cloudflared/suwon.yml"
+       cp Deploy/launchd/com.orcapafea.daedalus.gallery-tunnel.plist "$HOME/Library/LaunchAgents/"
+       launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.orcapafea.daedalus.gallery-tunnel.plist"
+       (after a config change: copy the file again, then
+        launchctl kickstart -k gui/$(id -u)/com.orcapafea.daedalus.gallery-tunnel) -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.orcapafea.daedalus.gallery-tunnel</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/cloudflared</string>
+    <string>tunnel</string>
+    <string>--config</string>
+    <string>/Users/brisa/.cloudflared/suwon.yml</string>
+    <string>run</string>
+    <string>suwon</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/tunnel.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/tunnel.log</string>
+</dict>
+</plist>

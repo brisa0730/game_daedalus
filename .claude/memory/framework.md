@@ -79,3 +79,16 @@ type: reference
 - `-buildTarget WebGL` leaves the project's active target on WebGL; `PerfCheckBuild` switches it back to the host's standalone target.
 - `Screen.currentResolution.refreshRateRatio` reports 60 Hz in the browser even on a ~240 Hz display (mean ~240 fps measured); judge by frame-time percentiles, not the reported rate.
 - Chrome's `--window-size=1366,768` gave a 1440 × 900 canvas on this machine (display scaling).
+
+## Gallery server (Rust: axum 0.8, sqlx 0.8, zip 9; Chrome 157; launchd)
+- `DefaultBodyLimit` limits only buffering extractors (`Bytes`, `Form`, `Json`); a handler that streams `Body` frames must count bytes itself.
+- Axum 0.8 merges `.route()` calls on the same path with different methods; a capture takes a whole segment (`/shots/{file}`, not `/shots/{id}.png`).
+- zip 9: `ZipArchive::has_duplicate_names()` (the index map collapses duplicates), `ZipFile::name()` returns `ZipResult<Cow<str>>`, `enclosed_name()` catches absolute, `..` and NUL names. argon2 0.5's `SaltString::generate(&mut OsRng)` needs password-hash's `getrandom`; `SaltString::encode_b64(&rand::random::<[u8; 16]>())` doesn't.
+- curl won't send `Secure` / `__Host-` cookies from a cookie jar over plain HTTP: loopback smokes pass cookies as `-H "Cookie: …"`.
+- `suwon.orcarin.com` and `suwon-play.orcarin.com` are one *site*: Chrome runs the game frame in the gallery's renderer process, so CDP sees no separate iframe target; address the frame by its execution context (origin `https://suwon-play.orcarin.com`, `auxData.isDefault`).
+- Cloudflare injects its Web Analytics beacon (`static.cloudflareinsights.com`) into proxied HTML; a strict CSP blocks it (console noise only; turn Web Analytics off for the host to silence it).
+- A page shown inside another page's frame must set its own background and text colours: the games host's 403 line was black on the gallery's black frame.
+- Through the tunnel a 10 MB upload from a browser on the same Mac takes ~30 s (out to Cloudflare and back); drivers must wait for it.
+- launchd user agents: XML comments can't contain `--`; launchd doesn't create log folders; a job reading `~/Documents` may be blocked by macOS privacy protection, so the tunnel job reads a config copy in `~/.cloudflared/`. FileVault on means no auto-login: user agents start only after the operator logs in.
+- Replacing a running binary: `cargo build --release` writes `target/`; the live copy is a separate installed file, so redeploy with `install` + `kickstart -k`.
+

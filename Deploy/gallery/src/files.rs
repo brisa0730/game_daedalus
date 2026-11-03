@@ -37,8 +37,9 @@ pub fn response_headers(path: &str) -> Vec<(&'static str, &'static str)> {
     let file = headers_for(path);
     let mut headers = vec![
         ("content-type", file.content_type),
-        // `private`: Cloudflare never caches a gated file; `no-cache`: the browser keeps it but checks back, so a
-        // re-upload at the same address is picked up; `no-transform`: Cloudflare passes Unity's files through as they are.
+        // `private`: Cloudflare never caches a gated file; `no-cache`: the browser keeps it but checks back (the
+        // player's ETag answers 304), so a re-upload at the same address is picked up; `no-transform`: Cloudflare
+        // passes Unity's files through as they are.
         ("cache-control", "private, no-cache, no-transform"),
         ("x-content-type-options", "nosniff"),
         ("referrer-policy", "no-referrer"),
@@ -51,7 +52,8 @@ pub fn response_headers(path: &str) -> Vec<(&'static str, &'static str)> {
 }
 
 /// `root` joined with a request's relative path, or `None` unless the path names something lexically inside `root`.
-/// Symlinks are not followed or checked here: the upload never extracts one (Deferred.md).
+/// Symlinks are not followed or checked here: an upload never unpacks one (`share_zip` rejects any link entry and
+/// writes only its six files, at names it builds itself).
 pub fn safe_join(root: &Path, relative: &str) -> Option<PathBuf> {
     let relative = Path::new(relative);
     if relative.as_os_str().is_empty() || !relative.components().all(|c| matches!(c, Component::Normal(_))) {

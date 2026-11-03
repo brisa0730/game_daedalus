@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The daedalus class gallery server (suwon.orcarin.com) - bound to LOOPBACK ONLY (127.0.0.1:8470), reachable
+     only through the `suwon` tunnel (com.orcapafea.daedalus.gallery-tunnel). A user LaunchAgent: it runs once the
+     operator has logged in, and restarts on crash. No secrets exist (the play key is generated per process and
+     sessions live in SQLite), so there is no env file; if one is ever needed it goes in a 0600 file read by a
+     wrapper, never in this plist.
+
+     Install (from the repo root):
+       (cd Deploy/gallery && cargo build --release)
+       mkdir -p "$HOME/Library/Application Support/daedalus-gallery/bin" "$HOME/Library/Logs/daedalus-gallery"
+       chmod 700 "$HOME/Library/Application Support/daedalus-gallery"
+       install -m 0755 Deploy/gallery/target/release/gallery "$HOME/Library/Application Support/daedalus-gallery/bin/gallery"
+       cp Deploy/launchd/com.orcapafea.daedalus.gallery.plist "$HOME/Library/LaunchAgents/"
+       launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.orcapafea.daedalus.gallery.plist"
+     Redeploy after a change: build, install the binary as above, then
+       launchctl kickstart -k gui/$(id -u)/com.orcapafea.daedalus.gallery
+     The teacher account is created by the operator in Terminal (password shown once, never logged): run the
+     installed binary with `teacher create <id> "<name>"` plus the same data-folder option as ProgramArguments
+     below (`gallery` with no arguments prints the usage). -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.orcapafea.daedalus.gallery</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/brisa/Library/Application Support/daedalus-gallery/bin/gallery</string>
+    <string>serve</string>
+    <string>--data</string>
+    <string>/Users/brisa/Library/Application Support/daedalus-gallery</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/brisa/Library/Application Support/daedalus-gallery</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/gallery.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/gallery.log</string>
+</dict>
+</plist>

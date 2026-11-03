@@ -7,6 +7,12 @@ use subtle::ConstantTimeEq;
 
 type HmacSha256 = Hmac<Sha256>;
 
+/// An `enter` grant only has to survive the frame loading.
+pub const ENTER_TTL_SECS: u64 = 60;
+/// A `gate` cookie only has to outlive loading and reloads; shorter limits how long a game opened on a shared
+/// laptop stays playable from history after sign-out (sign-out can't clear another host's cookie).
+pub const GATE_TTL_SECS: u64 = 2 * 3600;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Purpose {
     Enter,
@@ -16,8 +22,8 @@ pub enum Purpose {
 pub struct Key([u8; 32]);
 
 impl Key {
-    /// A fresh random key: every grant signed before a restart stops working (the gallery phase decides whether to
-    /// keep the key across restarts or let players simply reopen the game).
+    /// A fresh random key per process (decided in phase 5): a restart ends every open game's file access, and
+    /// reopening the game from the gallery gets a new grant. Nothing secret has to be stored.
     pub fn generate() -> Self {
         Key(rand::random())
     }

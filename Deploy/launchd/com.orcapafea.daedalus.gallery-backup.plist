@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The class gallery's nightly backup at 03:30 (Octopus's runs at 03:00): a dated database copy (newest 7 kept)
+     and a mirror of the games' folders (gone folders kept 7 days). Same disk only: it protects against corruption
+     and mistakes within 7 days, not against losing the disk. Restore steps: Deploy/gallery/src/backup.rs.
+
+     Install:
+       mkdir -p "$HOME/Library/Logs/daedalus-gallery" "$HOME/Library/Application Support/daedalus-gallery-backups"
+       chmod 700 "$HOME/Library/Application Support/daedalus-gallery-backups"
+       cp Deploy/launchd/com.orcapafea.daedalus.gallery-backup.plist "$HOME/Library/LaunchAgents/"
+       launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.orcapafea.daedalus.gallery-backup.plist"
+     Run once now: launchctl kickstart gui/$(id -u)/com.orcapafea.daedalus.gallery-backup -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.orcapafea.daedalus.gallery-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/brisa/Library/Application Support/daedalus-gallery/bin/gallery</string>
+    <string>backup</string>
+    <string>--data</string>
+    <string>/Users/brisa/Library/Application Support/daedalus-gallery</string>
+    <string>--to</string>
+    <string>/Users/brisa/Library/Application Support/daedalus-gallery-backups</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/brisa/Library/Logs/daedalus-gallery/backup.log</string>
+</dict>
+</plist>

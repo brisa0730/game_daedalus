@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.14
+**Last updated:** v0.16
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -16,11 +16,16 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Runtime | Draft | The package's play-time part: reads the scene into the sim, runs it, drives sprites, camera, input and saves. |
 | Editor tools | Draft | Our additions to the Unity Editor: custom inspectors and gizmos, the daedalus window, play-from-here, validation, scene autosave. No gameplay logic. |
 | Daedalus window | Draft | The editor window holding the play-from-here ability checkboxes and the validation warnings. |
-| Shared build | Draft | A WebGL build of a student's game, uploaded to the class gallery and played in a browser. |
+| Shared build | Draft | A WebGL build of a student's game, uploaded to the class gallery as a Share zip and played in a browser. |
 | Class gallery | Draft | The website at `suwon.orcarin.com` where signed-in students upload their games and play each other's; our web app on the operator's Mac Mini. |
 | Games host | Draft | `suwon-play.orcarin.com`: the class gallery's second hostname, which serves the shared builds into a sandboxed frame so a game can't use the gallery's login. |
 | Play grant | Draft | The signed, short-lived token the class gallery puts in a game frame's address; the games host trades it for a per-game cookie. Carries the game, not the user. |
-| Share my game | Draft | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title, a nickname and a screenshot, ready to upload. |
+| Share my game | Draft | The editor menu item (Daedalus → Share my game) that makes a WebGL build and zips it with a title and a screenshot as a Share zip, ready to upload. |
+| Share zip | Draft | The one file Share my game makes and the class gallery accepts: `daedalus.json`, `screenshot.png` and the four Brotli build files (platforms.md § Share zip). |
+| Display name | Draft | A student's name as the teacher typed it in the class gallery; shown on their game cards and in the gallery's header. |
+| Account slip | Draft | The printable slip the class gallery shows once when the teacher creates or resets an account: address, ID, password. |
+| Player page | Draft | The games host's own page that loads a shared build; the zip's `index.html` is never used. |
+| Game address | Draft | A shared game's address on the games host, `/g/<id>/`, fixed for life; re-uploads replace the game there, so saves survive. |
 | Play-from-here | Draft | Entering Play mode at the Scene-view cursor with a chosen ability set; leaving Play mode returns to the same view. |
 | Play from start | Draft | Unity's Play button: starting at the Player start with only the starting abilities, the real experience. |
 | Live tuning | Draft | Changing component settings in the Inspector during Play mode to try them out. As everywhere in Unity, the changes are thrown away when Play mode ends; Copy / Paste Component Values keeps a result. |

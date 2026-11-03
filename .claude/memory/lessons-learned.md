@@ -61,3 +61,6 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 
 ## Tooling / environment
 - **Never put a PowerShell here-string (`@'…'@`) in a Bash tool call.** Bash parses it as a literal `@` + quoted string + `@`, silently corrupting the argument. For a multi-line commit message in Bash use `git commit -F <file>` or a POSIX heredoc; keep `@'…'@` for the PowerShell tool.
+- **A security fix needs its own adversarial re-read: closing one lockout (hashing unknown IDs) opened two more (a free throttle flush, a burst of simultaneous attempts).** Each fold of the gallery's sign-in design was caught by the next reviewer, not by the author (handshake rounds 1–2, code review, 2026-11-03).
+- **The screenshot check finds what tests can't.** 121 green tests passed a "reopen" page whose black text sat on the black game frame; only looking at the Chrome screenshot showed a student would see an empty box (Phase 5 Step 22).
+

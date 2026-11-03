@@ -1,7 +1,9 @@
 # Class gallery — named tunnel config (Milestone 3 `class-gallery`).
 # suwon.orcarin.com (the gallery) and suwon-play.orcarin.com (the games) → the gallery server on :8470
 # (loopback-bound origin). TLS terminates at the Cloudflare edge. Credentials stay in ~/.cloudflared/.
-# Run: cloudflared tunnel --config Deploy/cloudflared/suwon.yml run suwon
+# Run in the foreground: cloudflared tunnel --config Deploy/cloudflared/suwon.yml run suwon
+# Live: the launchd job Deploy/launchd/com.orcapafea.daedalus.gallery-tunnel.plist reads a COPY installed at
+# ~/.cloudflared/suwon.yml (a launchd job may not read ~/Documents; a git pull must not change the live tunnel).
 tunnel: suwon
 
 ingress:
