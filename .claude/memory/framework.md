@@ -65,6 +65,10 @@ type: reference
 - `cloudflared tunnel route dns <name> <host>` with no `--config` takes the tunnel from `~/.cloudflared/config.yml` (octopus on the Mac Mini), **not** the name given: the record silently points at the wrong tunnel. Always pass `--config Deploy/cloudflared/suwon.yml` (and `--overwrite-dns` to repoint), and check the `tunnelID=` in the output.
 - The tunnel keeps the public `Host`; a request with `Host: 127.0.0.1` can only come from the machine itself.
 - Through the tunnel, `Content-Encoding: br` / `gzip` from the origin reach Chrome unchanged (HTTP/3), and an uncompressed `.wasm` is not compressed on the way, with `Cache-Control: no-transform`.
+- Tunnel throughput on the Mac Mini swings widely and is not the line's (TCP speed test ~36 MB/s up): a 7.3 MB file took 2–162 s (2026-11-03/04); Orcarin's tunnel hits the same ~160 KB/s at times. `protocol: http2` didn't help (4 alternating rounds: median 29.2 s vs QUIC 18.1 s), so the tunnel stays on QUIC. A test from the same LAN (the office PC) shares the uplink and skews timings. curl without `Accept-Encoding: br` gets the file decompressed by Cloudflare (38 MB for a 7.3 MB `.wasm.br`).
+
+## Unity WebGL loader
+- `createUnityInstance`'s progress callback counts unpacked bytes against the Brotli `Content-Length`, so with `.br` files it hits 0.9 early (~35 s of an ~80 s throttled load) and parks there. The gallery's player uses an indeterminate bar instead.
 
 ## WebGL (6000.6.7f1, Chrome)
 - **A missing scene in Build Settings blanks every WebGL build (URP 17.6, ISS-001, fixed v0.15).** `Light2DPrefilteringAnalysis.AnalyzeBuildScenes` opens every enabled Build Settings scene (not `BuildPlayerOptions.scenes`) and throws on a missing one. That empties URP's feature list, and URP then strips every shader variant: the player logs `Cannot create required material because shader is null` each frame. An empty list strips every `Hidden/Light2D` variant instead. Our dev builds use `BuildScenes.Use`. URP 17.0 (6000.0) doesn't have the analysis. A native macOS player drew despite the same exception (unexplained).

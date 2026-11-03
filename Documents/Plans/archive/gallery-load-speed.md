@@ -1,6 +1,6 @@
 # Plan: Gallery Load Speed
 
-**Date:** 2026-11-03 | **Status:** approved (handshake round 1, 2026-11-03; critic-reviewed) — not yet executed
+**Date:** 2026-11-03 | **Status:** complete 2026-11-04 (one criterion pending: the other-network load)
 
 ## Overview
 
@@ -196,3 +196,10 @@ I would build this as written. The code side is small and its wire is tested at 
 is fair (alternating rounds, log-confirmed protocol, both hosts checked, revert path). F3 is the only one that can
 change the outcome of the experiment; F1, F2, F4 and F5 are wording and check hygiene. No blocking findings, so
 approved in round 1; fold F1–F5 on close.
+
+---
+
+**Approval:** User confirmed 2026-11-04 ("let's execute"); handshake approved round 1.
+**Execution:** COMPLETE 2026-11-04, except the other-network load (Completion Criteria), which waits for the operator; it is ISS-002's first next step.
+**Verification:** Step 2: 4 alternating rounds (a first attempt was discarded because the operator's office PC was loading on the same network): code-file medians QUIC 15.5 / 52.5 s, HTTP/2 38.3 / 20.1 s; HTTP/2 lost the first pair, overall 29.2 s vs 18.1 s, so QUIC was kept (repo file unchanged, live copy has no `protocol` line, log shows `protocol=quic`, both hosts answer). Chrome started Unity in 10–14 s in every round. `cargo test` 146 and clippy clean. Live Chrome look check at 1366 × 768 and 390 × 844, throttled (confirmed to reach the frame) and not: label + animating bar centered with no overflow, then the game with the box gone; no new console errors. Code review: PASS, 4 LOW, all folded (`.then(started).catch(fail)` and two-hides asserts, `aria-labelledby`, comment wording, this trailer).
+**Version note:** shipped as v0.22. **Deviation:** Step 3's progress-driven bar was replaced by an indeterminate one under Step 5's fallback: throttled, Unity's progress reached 0.9 at ~35 s of an ~80 s load and stayed there (it counts unpacked bytes against the Brotli size). So `player.js` has no progress callback and no `loading-bar` lookup, and the script test asserts the hiding instead. The File Manifest and Step 3 above describe the first design.

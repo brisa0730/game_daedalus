@@ -8,6 +8,15 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.22 — Gallery load speed (2026-11-04) · **a loading box instead of a black frame; the tunnel stays on QUIC after HTTP/2 measured no faster**
+
+- **Landed.** Per the critic-reviewed, handshake-approved (1 round) [plan](../Plans/archive/gallery-load-speed.md): the games host's player page shows 게임을 불러오는 중… over a moving striped bar (an indeterminate `<progress>`) until Unity starts, then hides it; on a load failure it hides before the error line. Operator report: an uploaded game showed only a black frame. It was loading, through a tunnel that delivered the 7.3 MB code file in 2–162 s. `cargo test` 146, clippy clean.
+- **Key surfaces.** [play.rs](../../Deploy/gallery/src/play.rs) `player_page` (`#loading` box, inline styles incl. `#loading[hidden]{display:none}` and a reduced-motion rule), [player.js](../../Deploy/gallery/static/player.js) (`started()` / `fail()` hide the box), [strings.rs](../../Deploy/gallery/src/strings.rs) `PLAYER_LOADING`; [tests/play.rs](../../Deploy/gallery/tests/play.rs) asserts the page's box and the script's lookup.
+- **Design.** The plan's first choice was a bar driven by Unity's progress callback. Live, throttled to ~1 Mbps, it hit 90 % at ~35 s of an ~80 s load and parked there (the loader counts unpacked bytes against the Brotli size), so the plan's fallback, an indeterminate bar, shipped instead.
+- **Tunnel experiment.** QUIC → HTTP/2 → QUIC → HTTP/2, back to back (a first attempt was discarded: the operator's office PC was loading on the same network). Code-file medians 15.5 / 38.3 / 52.5 / 20.1 s; HTTP/2 lost the first pair, overall 29.2 s vs 18.1 s, so the keep rule failed and the tunnel went back to QUIC (`Deploy/cloudflared/suwon.yml` unchanged). Chrome started Unity in 10–14 s in every round. ISS-002 stays open, rediagnosed.
+- **Verified.** Live Chrome (fresh profile) at 1366 × 768 and 390 × 844, throttled (the throttle confirmed to reach the frame: no start in 40 s vs 7.8 s unthrottled) and not: label and bar centered in the frame with no overflow, the bar animating, the game with the box gone. No new console errors.
+- **GDD deltas.** GDD v0.21 → v0.22: [systems.md](../GDD/systems.md) § Share (Play). Issues: ISS-002 rewritten. Commit: `v0.22: gallery load speed — a loading box instead of a black frame; tunnel stays on QUIC`.
+
 ## v0.21 — Gallery trims (2026-11-03) · **fewer words on the play and sign-in pages; the update list shows only when updating**
 
 - **Landed.** These are operator requests after v0.20 went public:

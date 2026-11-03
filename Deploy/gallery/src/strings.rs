@@ -78,6 +78,7 @@ pub const BACK_TO_GAMES: &str = "← 게임 목록";
 pub const FULLSCREEN: &str = "전체 화면";
 
 pub const REOPEN_FROM_GALLERY: &str = "갤러리에서 게임을 다시 열어 주세요.";
+pub const PLAYER_LOADING: &str = "게임을 불러오는 중…";
 pub const PLAYER_LOAD_FAILED: &str = "게임을 불러오지 못했어요. 갤러리에서 다시 열어 주세요.";
 
 // Upload page

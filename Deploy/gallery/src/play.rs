@@ -104,13 +104,14 @@ pub async fn player_page(State(state): State<AppState>, Path(id): Path<String>, 
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 title { (game.title) }
-                style { "html,body{margin:0;height:100%;background:#0b0f1c;overflow:hidden}#unity-canvas{width:100%;height:100%;display:block;outline:none}#error{position:fixed;top:1em;left:1em;color:#fff;font:16px sans-serif}" }
+                style { "html,body{margin:0;height:100%;background:#0b0f1c;overflow:hidden}#unity-canvas{width:100%;height:100%;display:block;outline:none}#error{position:fixed;top:1em;left:1em;color:#fff;font:16px sans-serif}#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#c9d0e8;font:16px sans-serif;pointer-events:none}#loading[hidden]{display:none}#loading p{margin:0}#loading-bar{width:240px;max-width:80vw;height:16px;appearance:none;border:3px solid #34406b;border-radius:4px;background:#0b0f1c}#loading-bar::-webkit-progress-bar{background:transparent}#loading-bar:indeterminate{background:repeating-linear-gradient(90deg,#4cc26a 0 12px,#0b0f1c 12px 24px);animation:loading 0.8s linear infinite}@keyframes loading{to{background-position:24px 0}}@media (prefers-reduced-motion:reduce){#loading-bar:indeterminate{animation:none}}" }
             }
             body {
                 canvas #unity-canvas tabindex="-1"
                     data-loader={ "Build/" (loader) } data-data={ "Build/" (data) }
                     data-framework={ "Build/" (framework) } data-code={ "Build/" (code) }
                     data-error=(s::PLAYER_LOAD_FAILED) {}
+                div #loading { p #loading-label { (s::PLAYER_LOADING) } progress #loading-bar aria-labelledby="loading-label" {} }
                 p #error hidden {}
                 script src="player.js" {}
             }

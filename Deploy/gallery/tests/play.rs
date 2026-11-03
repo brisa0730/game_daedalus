@@ -101,6 +101,19 @@ async fn the_player_page_names_exactly_the_stored_files() {
     }
     assert!(!html.contains("student page"), "the zip's index.html is never used");
     assert!(html.contains("background:#0b0f1c"), "the frame's background matches the gallery's theater while loading");
+    assert!(html.contains(r#"<div id="loading">"#), "the loading box shows from the start");
+    assert!(html.contains(r#"<progress id="loading-bar" aria-labelledby="loading-label">"#), "indeterminate: no value, so it animates");
+    assert!(html.contains(r#"<p id="loading-label">"#));
+    assert!(html.contains(s::PLAYER_LOADING));
+    assert!(html.contains("#loading[hidden]{display:none}"), "hiding the box beats its own display:flex");
+}
+
+#[test]
+fn the_player_script_hides_the_pages_loading_box() {
+    let script = include_str!("../static/player.js");
+    assert!(script.contains(r#"getElementById("loading")"#));
+    assert!(script.contains(".then(started).catch(fail)"), "success and failure both go through a hiding function");
+    assert_eq!(script.matches("loading.hidden = true").count(), 2, "started() and fail() each hide the box");
 }
 
 #[tokio::test]
