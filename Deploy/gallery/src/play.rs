@@ -36,8 +36,8 @@ fn reopen_page() -> Response {
             head {
                 meta charset="utf-8";
                 title { (s::REOPEN_FROM_GALLERY) }
-                // Shown inside the gallery's black frame: light text, or the student sees an empty black box.
-                style { "body{margin:0;padding:2em;background:#111;color:#fff;font:18px sans-serif}" }
+                // Shown inside the gallery's dark frame: light text, or the student sees an empty black box.
+                style { "body{margin:0;padding:2em;background:#0b0f1c;color:#fff;font:18px sans-serif}" }
             }
             body { p { (s::REOPEN_FROM_GALLERY) } }
         }
@@ -102,7 +102,7 @@ pub async fn player_page(State(state): State<AppState>, Path(id): Path<String>, 
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 title { (game.title) }
-                style { "html,body{margin:0;height:100%;background:#000;overflow:hidden}#unity-canvas{width:100%;height:100%;display:block;outline:none}#error{position:fixed;top:1em;left:1em;color:#fff;font:16px sans-serif}" }
+                style { "html,body{margin:0;height:100%;background:#0b0f1c;overflow:hidden}#unity-canvas{width:100%;height:100%;display:block;outline:none}#error{position:fixed;top:1em;left:1em;color:#fff;font:16px sans-serif}" }
             }
             body {
                 canvas #unity-canvas tabindex="-1"

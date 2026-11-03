@@ -61,6 +61,9 @@ pub struct Game {
     pub title: String,
     pub build_name: String,
     pub version: i64,
+    /// Unix seconds: first upload (an update leaves it) and latest upload.
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 impl Game {
@@ -72,6 +75,8 @@ impl Game {
             title: row.get("title"),
             build_name: row.get("build_name"),
             version: row.get("version"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }
     }
 }
@@ -96,7 +101,7 @@ pub struct NewGame<'a> {
 }
 
 const GAME_COLUMNS: &str =
-    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version FROM games g LEFT JOIN users u ON u.id = g.owner_id";
+    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, g.created_at, g.updated_at FROM games g LEFT JOIN users u ON u.id = g.owner_id";
 
 #[derive(Clone)]
 pub struct Db {

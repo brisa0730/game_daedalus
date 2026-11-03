@@ -83,6 +83,7 @@
 # Fonts
 *.otf                   lfs
 *.ttf                   lfs
+*.woff2                 lfs
 
 # Executable/Installer
 *.apk                   lfs

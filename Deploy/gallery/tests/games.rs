@@ -21,6 +21,9 @@ async fn cards_show_the_zip_title_and_the_account_name() {
     assert!(html.contains("Floor Is Lava") && html.contains("이서연"));
     let mine = &html[html.find(s::MY_GAMES).unwrap()..html.find(s::ALL_GAMES).unwrap()];
     assert!(mine.contains("Spike Hell") && !mine.contains("Floor Is Lava"), "My games shows only mine");
+    let all = &html[html.find(s::ALL_GAMES).unwrap()..];
+    assert!(all.contains(r#"<span class="owner">김민수</span>"#), "the card itself carries the account name");
+    assert!(all.contains(r#"<span class="owner">이서연</span>"#));
     assert!(html.contains(r#"loading="lazy""#) && html.contains(r#"width="320""#) && html.contains(r#"height="180""#));
 }
 

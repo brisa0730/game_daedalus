@@ -1,5 +1,5 @@
 # Platforms
-**Last updated:** v0.14
+**Last updated:** v0.19
 
 ## Engine & Targets
 
@@ -35,7 +35,7 @@
 ## External Services
 
 - None in the package: the editor and the runtime never go online. Share my game only writes a zip; the student uploads it in the browser.
-- **Class gallery** at `suwon.orcarin.com` (live since v0.16): our web app on the operator's Mac Mini, reachable only through a Cloudflare Tunnel. Server files live in `Deploy/`.
+- **Class gallery** at `suwon.orcarin.com` (live since v0.16): our web app on the operator's Mac Mini, reachable only through a Cloudflare Tunnel. Server files live in `Deploy/`. Its pages load only their own files (CSP `'self'`): the heading font, Galmuri11 Bold (SIL OFL 1.1, license beside it), is built into the binary and served with a long-lived cache under a path that carries its release.
   - **Server:** one Rust binary, [Deploy/gallery/](../../Deploy/gallery/) (Axum, SQLite in one file): `gallery serve` on `127.0.0.1:8470`, routing by `Host` (only the two public hostnames; anything else is an empty 404). `gallery teacher create|reset` (operator only, in Terminal) and `gallery backup`.
   - **Data folder:** `~/Library/Application Support/daedalus-gallery/` (`gallery.db`, `games/<id>/v<n>/`, `staging/`). An upload unpacks into a new version folder, then one database update switches the game to it; game ids are random and never reused.
   - **launchd:** three user LaunchAgents in [Deploy/launchd/](../../Deploy/launchd/): the server, the `suwon` tunnel, and a 03:30 backup (`VACUUM INTO`, 7 copies, plus a games mirror that keeps gone folders 7 days, in `~/Library/Application Support/daedalus-gallery-backups/`; proposal). The backup restores any of the last 7 nights (steps in `backup.rs`) but sits on the same disk.

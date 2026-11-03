@@ -9,23 +9,45 @@ use maud::{Markup, html};
 use crate::app::AppState;
 use crate::config::unix_now;
 use crate::db::{Game, Role, User};
-use crate::pages;
+use crate::pages::{self, Nav};
 use crate::play_token::{ENTER_TTL_SECS, Purpose};
 use crate::session::CurrentUser;
 use crate::strings as s;
 use crate::upload::{screenshot_url, valid_game_id};
 
-fn card(game: &Game, user: &User) -> Markup {
-    let can_remove = game.owner_id == Some(user.id) || user.role == Role::Teacher;
+/// A game counts as new for its first week; an update doesn't make it new again.
+const NEW_FOR_SECS: i64 = 7 * 24 * 60 * 60;
+/// Korea's offset from UTC, so "today" and "yesterday" follow the class's calendar.
+const KST_SECS: i64 = 9 * 60 * 60;
+
+/// New for its first week after the first upload.
+fn is_new(created_at: i64, now: i64) -> bool {
+    now - created_at < NEW_FOR_SECS
+}
+
+/// Whole Korean calendar days from `then` to `now` (never negative).
+fn days_ago(then: i64, now: i64) -> i64 {
+    ((now + KST_SECS).div_euclid(86_400) - (then + KST_SECS).div_euclid(86_400)).max(0)
+}
+
+/// A game card. In "My games" (`mine`) it shows when the game was last uploaded instead of the owner's name.
+fn card(game: &Game, user: &User, mine: bool, now: i64) -> Markup {
+    let can_remove = may_remove(game, user);
     html! {
         li.card {
             a href={ "/play/" (game.id) } {
-                img src=(screenshot_url(game)) alt="" width="320" height="180" loading="lazy";
+                span.thumb {
+                    img src=(screenshot_url(game)) alt="" width="320" height="180" loading="lazy";
+                    @if is_new(game.created_at, now) { span.badge { (s::NEW_BADGE) } }
+                }
                 span.title { (game.title) }
-                span.owner { (game.owner_name.as_deref().unwrap_or("")) }
+                @if !mine { span.owner { (game.owner_name.as_deref().unwrap_or("")) } }
             }
-            @if can_remove {
-                a.remove href={ "/games/" (game.id) "/remove" } { (s::REMOVE) }
+            @if mine || can_remove {
+                div.card-foot {
+                    @if mine { span.when { (s::uploaded_ago(days_ago(game.updated_at, now))) } }
+                    @if can_remove { a.remove href={ "/games/" (game.id) "/remove" } { (s::REMOVE) } }
+                }
             }
         }
     }
@@ -35,25 +57,42 @@ pub async fn list(State(state): State<AppState>, Extension(CurrentUser(user)): E
     let (Ok(mine), Ok(all)) = (state.db.live_games_of(user.id).await, state.db.live_games().await) else {
         return pages::message(StatusCode::INTERNAL_SERVER_ERROR, Some(&user), s::SERVER_BUSY);
     };
+    let now = unix_now() as i64;
+    let at_limit = mine.len() as i64 >= state.config.games_per_account;
     let body = html! {
         section.mine {
             h2 { (s::MY_GAMES) }
-            @if mine.is_empty() {
-                p { (s::MY_GAMES_EMPTY) " " a href="/upload" { (s::UPLOAD_FIRST) } }
-            } @else {
-                ul.cards { @for game in &mine { (card(game, &user)) } }
+            ul.cards {
+                @for game in &mine { (card(game, &user, true, now)) }
+                li.add-slot {
+                    @if at_limit {
+                        p.limit { (s::too_many_games(state.config.games_per_account)) }
+                    } @else {
+                        a.add-card href="/upload" {
+                            svg viewBox="0 0 7 7" width="28" height="28" shape-rendering="crispEdges" aria-hidden="true" {
+                                rect x="3" width="1" height="7" fill="currentColor" {}
+                                rect y="3" width="7" height="1" fill="currentColor" {}
+                            }
+                            @if mine.is_empty() { span.empty { (s::MY_GAMES_EMPTY) } }
+                            span { (s::UPLOAD_FIRST) }
+                        }
+                    }
+                }
             }
         }
         section.all {
-            h2 { (s::ALL_GAMES) }
+            div.section-head {
+                h2 { (s::ALL_GAMES) }
+                @if !all.is_empty() { span.count { (s::game_count(all.len())) } }
+            }
             @if all.is_empty() {
                 p { (s::NO_GAMES) }
             } @else {
-                ul.cards { @for game in &all { (card(game, &user)) } }
+                ul.cards { @for game in &all { (card(game, &user, false, now)) } }
             }
         }
     };
-    pages::page(StatusCode::OK, s::NAV_GAMES, Some(&user), body)
+    pages::page(StatusCode::OK, s::NAV_GAMES, Some(&user), Some(Nav::Games), body)
 }
 
 /// `GET /shots/<id>.png?v=<version>`: the live game's screenshot, always as `image/png` (never a type from the
@@ -86,17 +125,29 @@ pub async fn play_view(
     let grant = state.key.sign(Purpose::Enter, &game.id, unix_now() + ENTER_TTL_SECS);
     let src = format!("{}/enter/{}?grant={}", state.config.games_origin, game.id, grant);
     let body = html! {
-        div.playbar {
-            a href="/" { (s::BACK_TO_GAMES) }
-            span.title { (game.title) }
-            span.owner { (game.owner_name.as_deref().unwrap_or("")) }
-            button #fullscreen type="button" { (s::FULLSCREEN) }
-            span.note { (s::NEEDS_KEYBOARD) }
+        div.theater {
+            div.playbar {
+                a.back href="/" { (s::BACK_TO_GAMES) }
+                div.play-title {
+                    h1 { (game.title) }
+                    span.owner { (s::made_by(game.owner_name.as_deref().unwrap_or(""))) }
+                }
+                span.note { (s::NEEDS_KEYBOARD) }
+                button #fullscreen type="button" {
+                    svg viewBox="0 0 7 7" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true" {
+                        path d="M0 0h3v1H1v2H0zM4 0h3v3H6V1H4zM0 4h1v2h2v1H0zM6 4h1v3H4V6h2z" fill="currentColor" {}
+                    }
+                    (s::FULLSCREEN)
+                }
+            }
+            // The box keeps the game at 16:9 on the page, and is what goes full screen (letterboxed).
+            div #frame.frame {
+                iframe #game src=(src) sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+                    allow="fullscreen; gamepad; autoplay" title=(game.title) {}
+            }
         }
-        iframe #game src=(src) sandbox="allow-scripts allow-same-origin allow-pointer-lock"
-            allow="fullscreen; gamepad; autoplay" title=(game.title) {}
     };
-    pages::page(StatusCode::OK, &game.title, Some(&user), body)
+    pages::page(StatusCode::OK, &game.title, Some(&user), None, body)
 }
 
 async fn live(state: &AppState, id: &str) -> Option<Game> {
@@ -125,7 +176,7 @@ pub async fn remove_confirm(
             " " a href="/" { (s::CANCEL) }
         }
     };
-    pages::page(StatusCode::OK, s::REMOVE, Some(&user), body)
+    pages::page(StatusCode::OK, s::REMOVE, Some(&user), None, body)
 }
 
 pub async fn remove(
@@ -151,4 +202,30 @@ pub async fn remove_game(state: &AppState, id: &str) -> Result<(), sqlx::Error> 
     state.db.tombstone_game(id, unix_now() as i64).await?;
     let _ = tokio::fs::remove_dir_all(state.config.games_dir().join(id)).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn days_follow_the_korean_calendar() {
+        // 2026-11-03 00:30 KST is 2026-11-02 15:30 UTC.
+        let just_after_midnight = 1_793_633_400;
+        assert_eq!(days_ago(just_after_midnight - 60 * 60, just_after_midnight), 1, "23:30 the evening before");
+        assert_eq!(days_ago(just_after_midnight, just_after_midnight + 23 * 60 * 60), 0);
+        assert_eq!(days_ago(just_after_midnight - 2 * 86_400, just_after_midnight), 2);
+        assert_eq!(days_ago(just_after_midnight + 10, just_after_midnight), 0, "a clock step back is today");
+        assert_eq!(s::uploaded_ago(0), "오늘 올림");
+        assert_eq!(s::uploaded_ago(1), "어제 올림");
+        assert_eq!(s::uploaded_ago(30), "30일 전에 올림");
+    }
+
+    #[test]
+    fn a_game_is_new_for_exactly_a_week() {
+        let now = 1_793_633_400;
+        assert!(is_new(now, now));
+        assert!(is_new(now - NEW_FOR_SECS + 1, now));
+        assert!(!is_new(now - NEW_FOR_SECS, now));
+    }
 }

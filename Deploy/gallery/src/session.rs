@@ -176,15 +176,38 @@ pub async fn login_page(State(state): State<AppState>, headers: HeaderMap) -> Re
 
 fn login_form(status: StatusCode, login: &str, error: Option<&str>) -> Response {
     let body = html! {
-        h1 { (s::LOGIN_TITLE) }
-        form.login method="post" action="/login" {
-            @if let Some(error) = error { p.error role="alert" { (error) } }
-            label { (s::LOGIN_ID) input name="login" value=(login) autocomplete="username" autocapitalize="none" required; }
-            label { (s::LOGIN_PASSWORD) input name="password" type="password" autocomplete="current-password" required; }
-            button type="submit" { (s::LOGIN_BUTTON) }
+        div.login-page {
+            div.login-hero {
+                h1.logo-big { span.logo-en { (s::LOGO_EN) } " " span.logo-ko { (s::LOGO_KO) } }
+                p.welcome { (s::LOGIN_WELCOME) }
+            }
+            form.login method="post" action="/login" {
+                h2 { (s::LOGIN_TITLE) }
+                @if let Some(error) = error { p.error role="alert" { (error) } }
+                label { (s::LOGIN_ID) input name="login" value=(login) autocomplete="username" autocapitalize="none" required; }
+                label { (s::LOGIN_PASSWORD) input name="password" type="password" autocomplete="current-password" required; }
+                button type="submit" { (s::LOGIN_BUTTON) }
+                p.hint { (s::LOGIN_HINT) }
+            }
+            // A little level: the player, a row of spikes and the goal flag on the ground.
+            div.scene aria-hidden="true" {
+                svg.scene-player viewBox="0 0 8 12" width="40" height="60" shape-rendering="crispEdges" {
+                    rect width="8" height="12" fill="#eef1fa" {}
+                    rect x="5" y="2" width="1" height="1" fill="#141a2e" {}
+                    rect y="5" width="8" height="1" fill="#ffd23f" {}
+                }
+                svg.scene-spikes viewBox="0 0 8 4" width="64" height="32" shape-rendering="crispEdges" {
+                    polygon points="0,4 1,0 2,4 3,0 4,4 5,0 6,4 7,0 8,4" fill="#e5484d" {}
+                }
+                svg.scene-flag viewBox="0 0 6 14" width="30" height="70" shape-rendering="crispEdges" {
+                    rect width="1" height="14" fill="#c9d0e8" {}
+                    rect x="1" width="5" height="4" fill="#ffd23f" {}
+                }
+                (pages::ground())
+            }
         }
     };
-    pages::page(status, s::LOGIN_TITLE, None, body)
+    pages::page(status, s::LOGIN_TITLE, None, None, body)
 }
 
 #[derive(Deserialize)]
@@ -281,7 +304,7 @@ fn password_form(status: StatusCode, user: &User, error: Option<&str>, done: Opt
             button type="submit" { (s::PASSWORD_BUTTON) }
         }
     };
-    let mut response = pages::page(status, s::PASSWORD_TITLE, Some(user), body);
+    let mut response = pages::page(status, s::PASSWORD_TITLE, Some(user), None, body);
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
 }

@@ -15,7 +15,7 @@ use crate::app::AppState;
 use crate::config::{GALLERY_HOST, unix_now};
 use crate::db::{Role, User};
 use crate::gallery::remove_game;
-use crate::pages;
+use crate::pages::{self, Nav};
 use crate::session::CurrentUser;
 use crate::strings as s;
 use crate::text::{clean_label, normalize_login};
@@ -127,7 +127,7 @@ pub async fn page(State(state): State<AppState>, Extension(CurrentUser(user)): E
             }
         }
     };
-    pages::page(StatusCode::OK, s::TEACHER_TITLE, Some(&user), body)
+    pages::page(StatusCode::OK, s::TEACHER_TITLE, Some(&user), Some(Nav::Teacher), body)
 }
 
 #[derive(Deserialize)]
@@ -185,7 +185,7 @@ fn preview_page(user: &User, text: &str, lines: &[Line], note: Option<&str>) -> 
         p { a href="/teacher" { (s::BACK_TO_TEACHER) } }
     };
     let status = if all_ok || lines.is_empty() { StatusCode::OK } else { StatusCode::UNPROCESSABLE_ENTITY };
-    pages::page(status, s::PREVIEW, Some(user), body)
+    pages::page(status, s::PREVIEW, Some(user), Some(Nav::Teacher), body)
 }
 
 pub async fn preview(
@@ -252,7 +252,7 @@ fn slips_page(user: &User, title: &str, slips: &[(String, String, String)]) -> R
         p.no-print { button #print type="button" { (s::PRINT) } " " a href="/teacher" { (s::BACK_TO_TEACHER) } }
         div.slips { @for (login, name, password) in slips { (slip(login, name, password)) } }
     };
-    let mut response = pages::page(StatusCode::OK, title, Some(user), body);
+    let mut response = pages::page(StatusCode::OK, title, Some(user), Some(Nav::Teacher), body);
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
 }
@@ -294,7 +294,7 @@ pub async fn remove_confirm(
             " " a href="/teacher" { (s::CANCEL) }
         }
     };
-    pages::page(StatusCode::OK, s::REMOVE_ACCOUNT, Some(&user), body)
+    pages::page(StatusCode::OK, s::REMOVE_ACCOUNT, Some(&user), Some(Nav::Teacher), body)
 }
 
 /// Removes a student and all their games. Waits for nothing: if any of their games is uploading, it refuses.

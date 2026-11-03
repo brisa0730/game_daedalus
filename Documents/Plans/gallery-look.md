@@ -1,6 +1,6 @@
 # Plan: Gallery Look
 
-**Date:** 2026-11-03 | **Status:** draft — handshake-approved (2 rounds), awaiting operator approval
+**Date:** 2026-11-03 | **Status:** executing — approved 2026-11-03; deployed; signed-in live check and operator look-check pending
 
 ## Overview
 
@@ -126,6 +126,8 @@
 
 ## Notes to Spec / Open Risks
 
+- **Execution deviation (font weight):** Galmuri11 regular is 505 KB (over Step 1's 400 KB cap); **Galmuri11 Bold** is 166 KB with all 11,172 Hangul syllables (fonttools count) and suits the headings, so Bold shipped unchanged as `Galmuri11-Bold-v2.40.4.woff2`; no subset, no `SUBSET.txt`. The OFL names no Reserved Font Name.
+- **Execution deviation (upload steps):** a student with no games yet sees two steps (make the zip, pick it): there is nothing to choose between new and update, and the script sends a new game when no choice is checked. With games, three steps as planned.
 - **Mockup deviations (deliberate):** one font instead of three (Galmuri for headings/logo; system Korean font for text); the play page keeps the existing keyboard note instead of drawn key caps (keys depend on the student's game); the sign-in button stays 로그인.
 - **GDD:** systems.md § Share "Play" bullet: cards add a NEW badge (first 7 days) and, on your own cards, when you last uploaded; platforms.md: the font and its license. Glossary: none.
 - **Risk:** Galmuri's size on school Wi-Fi: once per browser thanks to the immutable cache; capped by Step 1's 400 KB rule.

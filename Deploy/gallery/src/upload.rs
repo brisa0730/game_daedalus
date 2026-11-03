@@ -18,7 +18,7 @@ use tokio::io::AsyncWriteExt;
 use crate::app::AppState;
 use crate::config::{Config, unix_now};
 use crate::db::{Game, NewGame};
-use crate::pages;
+use crate::pages::{self, Nav};
 use crate::session::CurrentUser;
 use crate::share_zip::{self, Limits};
 use crate::strings as s;
@@ -56,28 +56,55 @@ pub async fn upload_page(State(state): State<AppState>, Extension(CurrentUser(us
             data-msg-network=(s::UPLOAD_NETWORK_ERROR)
             data-msg-uploading=(s::UPLOADING)
             data-msg-login=(s::LOGIN_AGAIN) {
-            fieldset {
+            // Numbered by the stylesheet; with no games yet there is nothing to pick, so that step is left out (the script
+            // sends a new game when no choice is checked).
+            ol.steps {
+                li {
+                    h2 { (s::STEP_MAKE) }
+                    p { (s::STEP_MAKE_HOW) }
+                }
                 @if !games.is_empty() {
-                    label.choice { input type="radio" name="target" value="update"; " " (s::UPDATE_MY_GAME) }
-                    ul.pick {
-                        @for game in &games {
-                            li { label {
-                                input type="radio" name="game" value=(game.id);
-                                img src=(screenshot_url(game)) alt="" width="128" height="72" loading="lazy";
-                                " " (game.title)
-                            } }
+                    li {
+                        h2 { (s::STEP_PICK) }
+                        fieldset {
+                            label.choice { input type="radio" name="target" value="new"; " " (s::NEW_GAME) }
+                            label.choice { input type="radio" name="target" value="update"; " " (s::UPDATE_MY_GAME) }
+                            ul.pick {
+                                @for game in &games {
+                                    li { label {
+                                        input type="radio" name="game" value=(game.id);
+                                        img src=(screenshot_url(game)) alt="" width="128" height="72" loading="lazy";
+                                        " " (game.title)
+                                    } }
+                                }
+                            }
                         }
                     }
                 }
-                label.choice { input type="radio" name="target" value="new" checked[games.is_empty()]; " " (s::NEW_GAME) }
+                li {
+                    h2 { (s::STEP_FILE) }
+                    // The file input covers the whole box, so clicking or dropping a file uses the browser's own input.
+                    label.drop {
+                        input #zip type="file" accept=".zip";
+                        svg viewBox="0 0 10 12" width="40" height="48" shape-rendering="crispEdges" aria-hidden="true" {
+                            path d="M0 0h7v3h3v9H0z" fill="#c9d0e8" {}
+                            path d="M7 0h1v3H7z" fill="#8a91a3" {}
+                            path d="M3 1h1v1H3zM3 3h1v1H3zM3 5h1v1H3zM2 7h3v3H2z" fill="#141a2e" {}
+                        }
+                        span #zip-name.drop-name { (s::CHOOSE_FILE) }
+                        span.drop-hint { (s::DROP_HINT) }
+                    }
+                    div.send {
+                        button #upload-button type="submit" { (s::UPLOAD_BUTTON) }
+                        progress #progress max="100" value="0" hidden {}
+                        span #progress-pct aria-hidden="true" {}
+                    }
+                    p #upload-message role="status" {}
+                }
             }
-            label { (s::CHOOSE_FILE) input #zip type="file" accept=".zip"; }
-            progress #progress max="100" value="0" hidden {}
-            p #upload-message role="status" {}
-            button #upload-button type="submit" { (s::UPLOAD_BUTTON) }
         }
     };
-    pages::page(StatusCode::OK, s::UPLOAD_TITLE, Some(&user), body)
+    pages::page(StatusCode::OK, s::UPLOAD_TITLE, Some(&user), Some(Nav::Upload), body)
 }
 
 pub fn screenshot_url(game: &Game) -> String {

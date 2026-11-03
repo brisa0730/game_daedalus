@@ -100,6 +100,7 @@ async fn the_player_page_names_exactly_the_stored_files() {
         assert!(html.contains(attr), "{attr}");
     }
     assert!(!html.contains("student page"), "the zip's index.html is never used");
+    assert!(html.contains("background:#0b0f1c"), "the frame's background matches the gallery's theater while loading");
 }
 
 #[tokio::test]

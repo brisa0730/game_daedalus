@@ -3,6 +3,8 @@
 //! from here. Unity menu names stay as Unity shows them. (The operator's command line in `cli.rs` stays English.)
 
 pub const SITE_NAME: &str = "Daedalus 갤러리";
+pub const LOGO_EN: &str = "DAEDALUS";
+pub const LOGO_KO: &str = "갤러리";
 pub const NAV_GAMES: &str = "게임 목록";
 pub const NAV_UPLOAD: &str = "업로드";
 pub const NAV_TEACHER: &str = "선생님";
@@ -36,6 +38,8 @@ pub const LOGIN_PASSWORD: &str = "비밀번호";
 pub const LOGIN_BUTTON: &str = "로그인";
 pub const LOGIN_WRONG: &str = "아이디나 비밀번호가 틀려요.";
 pub const LOGIN_BUSY: &str = "잠시 후 다시 해 보세요.";
+pub const LOGIN_WELCOME: &str = "우리 반 친구들이 만든 게임을 하러 오세요";
+pub const LOGIN_HINT: &str = "아이디와 비밀번호는 선생님께 받아요.";
 
 pub fn wait_seconds(seconds: u64) -> String {
     format!("{seconds}초 뒤에 다시 해 보세요.")
@@ -47,6 +51,20 @@ pub const MY_GAMES_EMPTY: &str = "아직 올린 게임이 없어요.";
 pub const UPLOAD_FIRST: &str = "게임 올리기";
 pub const ALL_GAMES: &str = "모든 게임";
 pub const NO_GAMES: &str = "아직 게임이 없어요.";
+pub const NEW_BADGE: &str = "NEW";
+
+pub fn game_count(n: usize) -> String {
+    format!("게임 {n}개")
+}
+
+/// When a game was last uploaded, in whole Korean calendar days before today.
+pub fn uploaded_ago(days: i64) -> String {
+    match days {
+        ..=0 => "오늘 올림".to_string(),
+        1 => "어제 올림".to_string(),
+        n => format!("{n}일 전에 올림"),
+    }
+}
 pub const REMOVE: &str = "삭제";
 pub const REMOVE_BUTTON: &str = "삭제하기";
 pub const CANCEL: &str = "취소";
@@ -59,6 +77,10 @@ pub fn remove_game_confirm(title: &str) -> String {
 pub const BACK_TO_GAMES: &str = "← 게임 목록";
 pub const FULLSCREEN: &str = "전체 화면";
 pub const NEEDS_KEYBOARD: &str = "키보드나 게임패드가 필요해요.";
+
+pub fn made_by(name: &str) -> String {
+    format!("{name} 만듦")
+}
 pub const REOPEN_FROM_GALLERY: &str = "갤러리에서 게임을 다시 열어 주세요.";
 pub const PLAYER_LOAD_FAILED: &str = "게임을 불러오지 못했어요. 갤러리에서 다시 열어 주세요.";
 
@@ -68,6 +90,11 @@ pub const UPDATE_MY_GAME: &str = "내 게임 업데이트하기";
 pub const NEW_GAME: &str = "새 게임";
 pub const CHOOSE_FILE: &str = "Daedalus → Share my game 으로 만든 zip 파일";
 pub const UPLOAD_BUTTON: &str = "올리기";
+pub const STEP_MAKE: &str = "Unity에서 zip 만들기";
+pub const STEP_MAKE_HOW: &str = "메뉴에서 Daedalus → Share my game 을 누르면 zip 파일이 생겨요.";
+pub const STEP_PICK: &str = "새 게임이에요, 아니면 업데이트예요?";
+pub const STEP_FILE: &str = "zip 파일 고르기";
+pub const DROP_HINT: &str = "누르거나 여기로 끌어 오세요";
 pub const UPLOADING: &str = "올리는 중…";
 pub const PICK_ZIP: &str = "zip 파일을 골라 주세요.";
 pub const PICK_GAME: &str = "업데이트할 게임을 골라 주세요.";

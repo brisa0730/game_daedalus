@@ -101,6 +101,7 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
     vec![
         route(Method::GET, "/static/gallery.css", Public, get(pages::gallery_css)),
         route(Method::GET, "/static/gallery.js", Public, get(pages::gallery_js)),
+        route(Method::GET, pages::FONT_PATH, Public, get(pages::font)),
         route(Method::GET, "/login", Public, get(session::login_page)),
         route(Method::POST, "/login", Public, post(session::post_login)),
         route(Method::POST, "/logout", Page, post(session::post_logout)),

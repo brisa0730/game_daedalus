@@ -1,13 +1,15 @@
 // The gallery's only script: the upload form, the play view's focus and fullscreen, and the slips' print button.
+// Full screen takes the game's box (#frame), not the iframe, so the game stays 16:9 (letterboxed) on any screen.
 // Messages come from data attributes rendered from strings.rs. It never listens for messages from games.
 (function () {
   var game = document.getElementById("game");
   if (game) {
     game.addEventListener("load", function () { game.focus(); });
     game.focus();
+    var box = document.getElementById("frame");
     var fs = document.getElementById("fullscreen");
-    if (fs) fs.addEventListener("click", function () {
-      if (game.requestFullscreen) game.requestFullscreen();
+    if (fs && box) fs.addEventListener("click", function () {
+      if (box.requestFullscreen) box.requestFullscreen();
       game.focus();
     });
   }
@@ -23,6 +25,20 @@
   var bar = document.getElementById("progress");
   var message = document.getElementById("upload-message");
   var button = document.getElementById("upload-button");
+  var pct = document.getElementById("progress-pct");
+  var zipName = document.getElementById("zip-name");
+  var noFile = zipName.textContent;
+
+  input.addEventListener("change", function () {
+    var file = input.files && input.files[0];
+    zipName.textContent = file ? file.name : noFile;
+  });
+
+  function done() {
+    button.disabled = false;
+    bar.hidden = true;
+    pct.textContent = "";
+  }
 
   function say(text, loginLink) {
     message.textContent = text;
@@ -50,19 +66,19 @@
     xhr.open("POST", "/upload?game=" + encodeURIComponent(gameId));
     xhr.setRequestHeader("Content-Type", "application/zip");
     xhr.upload.onprogress = function (e) {
-      if (e.lengthComputable) bar.value = Math.round((e.loaded / e.total) * 100);
+      if (!e.lengthComputable) return;
+      bar.value = Math.round((e.loaded / e.total) * 100);
+      pct.textContent = bar.value + "%";
     };
     xhr.onload = function () {
-      button.disabled = false;
-      bar.hidden = true;
+      done();
       var answer = null;
       try { answer = JSON.parse(xhr.responseText); } catch (e) { answer = null; }
       if (answer && answer.ok && answer.play) { window.location.href = answer.play; return; }
       say(answer && answer.message ? answer.message : d.msgNetwork, answer && answer.login);
     };
     xhr.onerror = function () {
-      button.disabled = false;
-      bar.hidden = true;
+      done();
       say(d.msgNetwork);
     };
     button.disabled = true;

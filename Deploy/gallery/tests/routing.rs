@@ -127,6 +127,17 @@ async fn gallery_headers_are_on_every_kind_of_response() {
 }
 
 #[tokio::test]
+async fn the_font_is_public_and_cached_for_good() {
+    let app = TestApp::new().await;
+    let font = app.get(GALLERY, gallery::pages::FONT_PATH, None).await;
+    assert_eq!(font.status, StatusCode::OK);
+    assert_eq!(font.header("content-type"), Some("font/woff2"));
+    assert_eq!(font.header("cache-control"), Some("public, max-age=31536000, immutable"));
+    assert_eq!(font.header("x-content-type-options"), Some("nosniff"));
+    assert!(font.body.starts_with(b"wOF2"), "real woff2 bytes, not a Git LFS pointer");
+}
+
+#[tokio::test]
 async fn the_games_host_only_serves() {
     let app = TestApp::new().await;
     for method in [Method::POST, Method::PUT, Method::DELETE] {
