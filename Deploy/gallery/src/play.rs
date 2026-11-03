@@ -14,6 +14,7 @@ use crate::files;
 use crate::play_token::{GATE_TTL_SECS, Purpose};
 use crate::session::cookie;
 use crate::share_zip::build_files;
+use crate::storage;
 use crate::strings as s;
 use crate::upload::valid_game_id;
 
@@ -90,13 +91,31 @@ async fn gated(state: &AppState, id: &str, headers: &HeaderMap) -> Result<Game, 
     Ok(game)
 }
 
-/// `GET /g/<id>/`: the server's own player page; the zip's `index.html` is never used.
-pub async fn player_page(State(state): State<AppState>, Path(id): Path<String>, headers: HeaderMap) -> Response {
+#[derive(Deserialize)]
+pub struct PlayerQuery {
+    local: Option<String>,
+}
+
+/// `GET /g/<id>/[?local=1]`: the server's own player page; the zip's `index.html` is never used. A published game
+/// loads its four files from the bucket, with `data-fallback` so a failed load reloads once with `?local=1`, which
+/// names the Mac's copies.
+pub async fn player_page(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<PlayerQuery>,
+    headers: HeaderMap,
+) -> Response {
     let game = match gated(&state, &id, &headers).await {
         Ok(game) => game,
         Err(response) => return response,
     };
-    let [loader, data, framework, code] = build_files(&game.build_name);
+    let from_bucket = state.storage.as_ref().and(state.config.storage.as_ref()).filter(|_| {
+        game.published_version == Some(game.version) && query.local.as_deref() != Some("1")
+    });
+    let [loader, data, framework, code] = match from_bucket {
+        Some(config) => storage::build_urls(config, &game),
+        None => build_files(&game.build_name).map(|f| format!("Build/{f}")),
+    };
     let markup = html! {
         (DOCTYPE)
         html lang="ko" {
@@ -108,8 +127,8 @@ pub async fn player_page(State(state): State<AppState>, Path(id): Path<String>, 
             }
             body {
                 canvas #unity-canvas tabindex="-1"
-                    data-loader={ "Build/" (loader) } data-data={ "Build/" (data) }
-                    data-framework={ "Build/" (framework) } data-code={ "Build/" (code) }
+                    data-loader=(loader) data-data=(data) data-framework=(framework) data-code=(code)
+                    data-fallback=[from_bucket.map(|_| "1")]
                     data-error=(s::PLAYER_LOAD_FAILED) {}
                 div #loading { p #loading-label { (s::PLAYER_LOADING) } progress #loading-bar aria-labelledby="loading-label" {} }
                 p #error hidden {}

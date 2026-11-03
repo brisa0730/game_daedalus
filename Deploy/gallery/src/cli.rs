@@ -1,5 +1,5 @@
-//! The command line: `serve`, `teacher create|reset` (the teacher's account is made only here, never on the web)
-//! and `backup`. Its output is for the operator, in English; a password is printed once to stdout, never logged.
+//! The command line: `serve`, `teacher create|reset` (the teacher's account is made only here, never on the web),
+//! `backup` and `storage check`. Its output is for the operator, in English; a password is printed once to stdout, never logged.
 
 use std::path::PathBuf;
 
@@ -12,7 +12,8 @@ pub const USAGE: &str = "usage:
   gallery [serve] --data <dir>
   gallery teacher create <id> <display name> --data <dir>
   gallery teacher reset <id> --data <dir>
-  gallery backup --data <dir> --to <dir>";
+  gallery backup --data <dir> --to <dir>
+  gallery storage check --data <dir>";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
@@ -20,6 +21,7 @@ pub enum Command {
     TeacherCreate { data: PathBuf, id: String, name: String },
     TeacherReset { data: PathBuf, id: String },
     Backup { data: PathBuf, to: PathBuf },
+    StorageCheck { data: PathBuf },
 }
 
 /// Parses the arguments after the program name.
@@ -43,6 +45,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         (["teacher", "create", id, name], None) => Ok(Command::TeacherCreate { data, id: id.to_string(), name: name.to_string() }),
         (["teacher", "reset", id], None) => Ok(Command::TeacherReset { data, id: id.to_string() }),
         (["backup"], Some(to)) => Ok(Command::Backup { data, to }),
+        (["storage", "check"], None) => Ok(Command::StorageCheck { data }),
         _ => Err("unrecognized command".into()),
     }
 }
@@ -94,6 +97,7 @@ mod tests {
             Ok(Command::TeacherCreate { data: d.clone(), id: "kim".into(), name: "김선생".into() })
         );
         assert_eq!(parse(&args("teacher reset kim --data /d")), Ok(Command::TeacherReset { data: d.clone(), id: "kim".into() }));
+        assert_eq!(parse(&args("storage check --data /d")), Ok(Command::StorageCheck { data: d.clone() }));
         assert_eq!(parse(&args("backup --data /d --to /b")), Ok(Command::Backup { data: d, to: "/b".into() }));
     }
 

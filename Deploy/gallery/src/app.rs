@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use axum::Router;
 use axum::extract::{Request, State};
 use axum::http::{Method, StatusCode, header};
-use axum::middleware::{from_fn, from_fn_with_state};
+use axum::middleware::from_fn_with_state;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{MethodRouter, get, post};
 use tokio::sync::Semaphore;
@@ -18,6 +18,7 @@ use crate::config::{Config, GALLERY_HOST, GAMES_HOST};
 use crate::db::Db;
 use crate::play_token::Key;
 use crate::session::Throttle;
+use crate::storage::{NaverStorage, Storage};
 use crate::{gallery, guard, pages, play, session, teacher, upload};
 
 #[derive(Clone)]
@@ -31,11 +32,24 @@ pub struct AppState {
     pub unpack: Arc<Semaphore>,
     /// Games being uploaded to or removed right now.
     pub busy: Arc<Mutex<HashSet<String>>>,
+    /// The bucket, when `config.storage` is set.
+    pub storage: Option<Arc<dyn Storage>>,
+    /// The games host's CSP, built once: with storage, it lets the player load from the bucket.
+    pub play_csp: Arc<str>,
 }
 
 impl AppState {
     pub fn new(config: Config, db: Db) -> AppState {
+        let storage = config.storage.clone().map(|c| Arc::new(NaverStorage::new(c)) as Arc<dyn Storage>);
+        Self::with_storage(config, db, storage)
+    }
+
+    /// `new` with the bucket given (the tests pass an in-memory one).
+    pub fn with_storage(config: Config, db: Db, storage: Option<Arc<dyn Storage>>) -> AppState {
+        let origin = storage.as_ref().and(config.storage.as_ref()).map(|c| c.public_origin());
         AppState {
+            play_csp: guard::play_csp(origin.as_deref()).into(),
+            storage,
             hasher: Arc::new(Hasher::new(&config)),
             unpack: Arc::new(Semaphore::new(config.unpack_permits)),
             config: Arc::new(config),
@@ -149,7 +163,7 @@ fn games_router(state: &AppState) -> Router {
         .route("/g/{id}/Build/{file}", get(play::build_file))
         .fallback(|| async { StatusCode::NOT_FOUND })
         .with_state(state.clone())
-        .layer(from_fn(guard::games_layer))
+        .layer(from_fn_with_state(state.play_csp.clone(), guard::games_layer))
 }
 
 #[derive(Clone)]

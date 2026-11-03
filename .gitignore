@@ -39,3 +39,6 @@ desktop.ini
 
 # Rust build output (Deploy/gallery)
 /Deploy/gallery/target/
+
+# Python bytecode (Tools/, Deploy/naver/)
+__pycache__/

@@ -68,6 +68,8 @@ pub struct Game {
     /// Unix seconds: first upload (an update leaves it) and latest upload.
     pub created_at: i64,
     pub updated_at: i64,
+    /// The version whose build files are on the Naver bucket (storage.rs); `None` until a publish finishes.
+    pub published_version: Option<i64>,
 }
 
 impl Game {
@@ -81,6 +83,7 @@ impl Game {
             version: row.get("version"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
+            published_version: row.get("published_version"),
         }
     }
 }
@@ -106,7 +109,7 @@ pub struct NewGame<'a> {
 }
 
 const GAME_COLUMNS: &str =
-    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, g.created_at, g.updated_at FROM games g LEFT JOIN users u ON u.id = g.owner_id";
+    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, g.created_at, g.updated_at, g.published_version FROM games g LEFT JOIN users u ON u.id = g.owner_id";
 
 #[derive(Clone)]
 pub struct Db {
@@ -464,6 +467,28 @@ impl Db {
         .execute(&self.pool)
         .await?;
         Ok(done.rows_affected() == 1)
+    }
+
+    /// Marks `version` as published, only while it is still the game's live version: a publish that finishes after
+    /// a removal or a newer upload records nothing.
+    pub async fn set_published(&self, id: &str, version: i64) -> Result<bool> {
+        let done = sqlx::query("UPDATE games SET published_version = ? WHERE id = ? AND version = ? AND removed_at IS NULL")
+            .bind(version)
+            .bind(id)
+            .bind(version)
+            .execute(&self.pool)
+            .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    /// Unmarks a game whose bucket copy is missing, with the same condition as `set_published`.
+    pub async fn clear_published(&self, id: &str, version: i64) -> Result<()> {
+        sqlx::query("UPDATE games SET published_version = NULL WHERE id = ? AND version = ? AND removed_at IS NULL")
+            .bind(id)
+            .bind(version)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn tombstone_game(&self, id: &str, now: i64) -> Result<()> {

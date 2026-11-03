@@ -8,6 +8,7 @@ use gallery::app::{AppState, router};
 use gallery::cli::{self, Command};
 use gallery::config::{BIND, Config, unix_now};
 use gallery::db::Db;
+use gallery::storage::{self, NaverStorage, StorageConfig};
 use gallery::{backup, upload};
 
 #[tokio::main]
@@ -46,6 +47,7 @@ async fn main() -> ExitCode {
             }
             Err(error) => Err(format!("backup failed: {error}")),
         },
+        Command::StorageCheck { data } => storage_check(&data).await,
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -82,7 +84,12 @@ fn prepare_folders(data: &Path) -> Result<(), String> {
 async fn serve(data: &Path) -> Result<(), String> {
     tracing_subscriber::fmt().with_writer(std::io::stderr).with_ansi(false).init();
     prepare_folders(data)?;
-    let config = Config::new(data);
+    let mut config = Config::new(data);
+    // A bad storage.json must not keep the gallery down either: say what is wrong and serve every game from the Mac.
+    match StorageConfig::load(data) {
+        Ok(storage) => config.storage = storage,
+        Err(problem) => tracing::error!(%problem, "storage.json ignored; games play from the Mac"),
+    }
     let db = Db::open(&config.db_path()).await.map_err(|e| format!("open database: {e}"))?;
     let now = unix_now() as i64;
     db.prune_sessions(now - config.session_idle_secs as i64, now - config.session_max_secs as i64)
@@ -94,12 +101,26 @@ async fn serve(data: &Path) -> Result<(), String> {
         tracing::warn!(%error, "startup sweep of game folders failed");
     }
     let state = AppState::new(config, db.clone());
+    if state.storage.is_some() {
+        let state = state.clone();
+        tokio::spawn(async move { storage::reconcile(&state).await });
+    }
     let listener = tokio::net::TcpListener::bind(BIND).await.map_err(|e| format!("bind {BIND}: {e}"))?;
     tracing::info!(address = %BIND, data = %data.display(), "gallery listening");
     let served = axum::serve(listener, router(state)).with_graceful_shutdown(shutdown()).await;
     db.close().await;
     tracing::info!("gallery stopped");
     served.map_err(|e| format!("serve: {e}"))
+}
+
+/// `gallery storage check`: put, a public GET and a delete of a probe object. Prints the failing step and its
+/// status only, never a setting.
+async fn storage_check(data: &Path) -> Result<(), String> {
+    let config = StorageConfig::load(data)?.ok_or("no storage.json in the data folder")?;
+    let bucket = config.bucket.clone();
+    NaverStorage::new(config).check().await.map_err(|e| format!("storage check failed: {e}"))?;
+    println!("storage check OK (bucket {bucket})");
+    Ok(())
 }
 
 /// SIGTERM (launchd) or Ctrl-C: stop taking requests and close the database cleanly.

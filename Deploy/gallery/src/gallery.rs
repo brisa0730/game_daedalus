@@ -213,10 +213,20 @@ pub async fn remove(
     pages::see_other("/")
 }
 
-/// Tombstones the game (its id stays taken) and deletes its files. The caller holds the game's busy lock.
+/// Tombstones the game (its id stays taken) and deletes its files. The caller holds the game's busy lock. The
+/// bucket copy is deleted in the background, off the lock (ids are never reused, so nothing can race it); a failed
+/// delete is retried by the next start's reconcile.
 pub async fn remove_game(state: &AppState, id: &str) -> Result<(), sqlx::Error> {
     state.db.tombstone_game(id, unix_now() as i64).await?;
     let _ = tokio::fs::remove_dir_all(state.config.games_dir().join(id)).await;
+    if let Some(bucket) = state.storage.clone() {
+        let id = id.to_string();
+        tokio::spawn(async move {
+            if let Err(error) = bucket.delete_prefix(&crate::storage::game_prefix(&id)).await {
+                tracing::warn!(game = %id, %error, "deleting a removed game from the bucket failed");
+            }
+        });
+    }
     Ok(())
 }
 

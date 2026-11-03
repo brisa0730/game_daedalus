@@ -68,7 +68,13 @@ type: reference
 - **Our zone is served from LAX, not Seoul,** on the Mac's KT line: `curl https://<host>/cdn-cgi/trace` shows `colo=LAX` (~258 ms) for every orcarin.com host, while cloudflare.com is `colo=ICN` (~3 ms). The tunnel itself registers at ICN, so visitors' traffic crosses the Pacific twice. Check `colo=` first when the tunnel is slow.
 - Tunnel throughput on the Mac Mini swings widely and is not the line's (TCP speed test ~36 MB/s up): a 7.3 MB file took 2–162 s (2026-11-03/04); Orcarin's tunnel hits the same ~160 KB/s at times. `protocol: http2` didn't help (4 alternating rounds: median 29.2 s vs QUIC 18.1 s), so the tunnel stays on QUIC. A test from the same LAN (the office PC) shares the uplink and skews timings. curl without `Accept-Encoding: br` gets the file decompressed by Cloudflare (38 MB for a 7.3 MB `.wasm.br`).
 
+## Naver Object Storage (S3 API, kr-standard)
+- Virtual-host URLs (`https://<bucket>.kr.object.ncloudstorage.com/<key>`) work with TLS; bucket names need no dots. SigV4 with region `kr-standard`, service `s3`. Objects keep the `Content-Type`, `Content-Encoding: br` and `Cache-Control` given at PUT and serve them back; `x-amz-acl: public-read` per object makes it public while the bucket stays private. `Range` gets 206.
+- PutBucketCORS needs `Content-MD5`; with CORS set, responses carry `Access-Control-Allow-Origin` for listed origins only and `Vary: Origin`.
+- The console's main 인증키 covers the whole account: use a Sub Account with `NCP_OBJECT_STORAGE_MANAGER` and API access (its key tab appears only once API access is on).
+
 ## Unity WebGL loader
+- A framework `<script>` that fails to load or parse, and a data file without its `Content-Encoding`, are reported only through `showBanner(…, "error")` (`console.error` without one); `createUnityInstance`'s promise never settles. Pass `showBanner` to detect them (6000.0 and 6000.6 loaders alike).
 - `createUnityInstance`'s progress callback counts unpacked bytes against the Brotli `Content-Length`, so with `.br` files it hits 0.9 early (~35 s of an ~80 s throttled load) and parks there. The gallery's player uses an indeterminate bar instead.
 
 ## WebGL (6000.6.7f1, Chrome)

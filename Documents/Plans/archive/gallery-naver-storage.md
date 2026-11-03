@@ -1,6 +1,6 @@
 # Plan: Gallery Naver Storage
 
-**Date:** 2026-11-04 | **Status:** approved (handshake round 2, 2026-11-04; critic-reviewed) — not yet executed
+**Date:** 2026-11-04 | **Status:** complete 2026-11-04 (one criterion pending: the school load)
 
 ## Overview
 
@@ -69,6 +69,7 @@ Live, outside the repo: the Naver account, bucket, sub-account and key; `~/Libra
 - **If `Content-Encoding` is not served:** stop and report (the fallback, Unity's decompression fallback in Share my game, changes the editor and is a separate decision).
 
 ### Step 2: School gate (hand-off: the operator at school)
+- **Amended 2026-11-04 (operator):** the operator can't reach school for a week, so the gate is a phone on mobile data (LTE/5G, Wi-Fi off), a second carrier path; the school load stays as the final Completion Criteria item (Step 9). Reason: the slowness was Cloudflare's LAX detour, which a Korean host doesn't have; a school filter blocking the bucket would only send games to the local fallback.
 - The operator opens the test page from school in Chrome and reads the time until the level shows (or `game.wasm.br`'s Time in DevTools → Network).
 - **Gate:** Unity starts within **15 s**. Otherwise stop: record the numbers in ISS-002, `remove-test`, and the plan ends here.
 
@@ -160,6 +161,13 @@ After code review passes:
 
 ## Workflow
 Execute steps sequentially. Proceed to the next step without waiting for user approval, except at the operator hand-offs (Steps 1, 2 and the end of 9). Only stop if blocked. If blocked, stop and report: what step, what was attempted, what failed.
+
+---
+
+**Approval:** User confirmed 2026-11-04 ("let's do naver Object Storage"); handshake approved round 2.
+**Execution:** COMPLETE 2026-11-04, except the final school load (Completion Criteria), which waits for the operator (~2026-11-11); ISS-002 stays open for it.
+**Verification:** Steps 1–3 gates passed (br served; 0.5–0.6 s Mac, ~2 s phone on mobile data; sandboxed cross-origin load 0.5 s, `Vary: Origin`; `Range` → 206; puts 0.04–0.38 s). Fallback per file with 6000.6 and 6000.0 loaders. `cargo test` 171, clippy clean. Live: reconcile published the one live game; Chrome 2.5–4 s from the bucket; upload/remove round trip; storage off and a bad `storage.json` play from the Mac. Code review: PASS, MED fixed (45 s publish deadline), LOWs fixed.
+**Version note:** shipped as v0.23. **Deviations:** Step 2's gate amended (phone on mobile data; see Step 2). Reconcile re-lists each game under its lock (stricter than planned). The upload deletes the previous prefix only after a successful publish (reconcile otherwise). Added after code review: a 45 s overall publish deadline (`Config::publish_deadline`) so a slow bucket can't outlast Cloudflare's ~100 s request limit; a missed publish waits for the next start (Deferred.md). Bucket cleanup (test files, temporary CORS origin) waited until after Step 5's fallback checks.
 
 ## Review round 1
 

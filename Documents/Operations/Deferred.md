@@ -22,6 +22,12 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### A game published to the bucket mid-run stays local until the next start
+- **Severity:** LOW · **Source:** gallery Naver storage plan (v0.23; code review MED)
+- **Description:** an upload whose bucket copy fails or passes the 45 s publish deadline ([upload.rs](../../Deploy/gallery/src/upload.rs) `publish_upload`) plays from the Mac, over Cloudflare's slow route, until the server next starts and [storage.rs](../../Deploy/gallery/src/storage.rs) `reconcile` copies it. Removals that fail their bucket delete wait the same way.
+- **Why deferred:** a publish took under 0.4 s per file from the Mac Mini; the game still plays, only slower; restarts happen at each redeploy.
+- **Trigger to act:** a `publishing took too long` or `publishing to the bucket failed` warning in `gallery.log`, or a student's game seen loading from `suwon-play` (`Tools/gallery_load.py`). Fix shape: run `reconcile` on a timer (e.g. hourly) as well as at start.
+
 ### Share my game's operator editor check isn't done
 - **Severity:** MED · **Source:** Phase 6 (`share-my-game`, v0.17; Step 12)
 - **Description:** the menu flow was verified by EditMode tests, the batch build (`Tools/share_check.py`) and a real upload, but nobody has clicked through it in the Editor: the title window (focus, Enter, the cleaned-title line), the save dialog's Desktop / last-folder start, the done dialog's three buttons, the stop dialogs in Play mode and during a reload, Unity's save dialog for a new scene, and above all **a Korean title typed with the IME on a Windows school laptop with 6000.0** and **one timed first share** there (it decides whether "several minutes" needs a number). Also unchecked: a Build Profile with a Player Settings override (Gzip) — Share should either still produce `.br` files or fail with the build-failed text.

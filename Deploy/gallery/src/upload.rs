@@ -21,6 +21,7 @@ use crate::db::{Game, NewGame};
 use crate::pages::{self, Nav};
 use crate::session::CurrentUser;
 use crate::share_zip::{self, Limits};
+use crate::storage;
 use crate::strings as s;
 
 /// Game ids: 10 characters from an alphabet without look-alikes; random, never a title slug, never reused.
@@ -251,6 +252,7 @@ async fn receive_and_place(
                 }
             }
             tracing::info!(game = game_id, version = 1, bytes, "upload accepted (new game)");
+            publish_upload(state, game_id, None).await;
         }
         Target::Update(game) => {
             let version_dir = config.version_dir(game_id, game.version + 1);
@@ -271,9 +273,56 @@ async fn receive_and_place(
                 }
             }
             tracing::info!(game = game_id, version = game.version + 1, bytes, "upload accepted (update)");
+            publish_upload(state, game_id, Some(game)).await;
         }
     }
     json_answer(StatusCode::OK, serde_json::json!({"ok": true, "play": format!("/play/{game_id}")}))
+}
+
+/// After the version switch, still inside the request and its busy locks: copies the new version to the bucket,
+/// records it (only if it is still the live version), then deletes the previous upload's copy, named from the
+/// pre-update row. A storage failure, or the request going away mid-publish, leaves the game unpublished: it plays
+/// from the Mac until the next start's reconcile.
+async fn publish_upload(state: &AppState, game_id: &str, previous: Option<&Game>) {
+    let Some(bucket) = state.storage.clone() else { return };
+    let deadline = state.config.publish_deadline;
+    if tokio::time::timeout(deadline, publish_and_record(state, bucket.as_ref(), game_id, previous)).await.is_err() {
+        tracing::warn!(game = game_id, secs = deadline.as_secs(), "publishing took too long; the game plays from the Mac");
+    }
+}
+
+async fn publish_and_record(state: &AppState, bucket: &dyn storage::Storage, game_id: &str, previous: Option<&Game>) {
+    let game = match state.db.live_game(game_id).await {
+        Ok(Some(game)) => game,
+        Ok(None) => {
+            tracing::warn!(game = game_id, "the game vanished under its busy lock; not published");
+            return;
+        }
+        Err(error) => {
+            tracing::warn!(game = game_id, %error, "reading the game to publish failed");
+            return;
+        }
+    };
+    if let Err(error) = storage::publish(bucket, &state.config, &game).await {
+        tracing::warn!(game = game_id, %error, "publishing to the bucket failed; the game plays from the Mac");
+        return;
+    }
+    match state.db.set_published(game_id, game.version).await {
+        Ok(true) => {}
+        Ok(false) => {
+            tracing::warn!(game = game_id, "the game changed under its busy lock; publish not recorded");
+            return;
+        }
+        Err(error) => {
+            tracing::warn!(game = game_id, %error, "recording the publish failed");
+            return;
+        }
+    }
+    if let Some(previous) = previous
+        && let Err(error) = bucket.delete_prefix(&storage::upload_prefix(previous)).await
+    {
+        tracing::warn!(game = game_id, %error, "deleting the previous upload from the bucket failed");
+    }
 }
 
 /// Streams the body into a new file, counting bytes. `Ok(false)`: past `max` (a chunked body may not say its size).

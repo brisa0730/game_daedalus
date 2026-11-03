@@ -20,3 +20,6 @@ Verdict `approved`, 0 blocking, 0 non-blocking, 0 recommendations. F1–F8 close
 
 ## Closed 2026-11-04T01:17:51+09:00
 Plan approved. Nothing was built: Steps 1–2 (Naver setup, school gate) come first; the operator has created the sub-account (Object Storage only, console access dropped) and is writing `storage.json`.
+
+## Post-approval amendment (2026-11-04, Author; operator decision)
+Step 2's gate changed from "school within 15 s" to "a phone on mobile data within 15 s" because the operator can't reach school for a week; the school load stays as the final Completion Criteria item. Results: Step 1 (Mac, office KT line): `content-encoding: br` and `application/wasm` served on the virtual-host origin, `Range` → 206, puts 0.04–0.38 s each, Unity started in 0.6 s and 0.5 s. Step 2 (operator's phone, mobile data): ~2 s. Gate met.

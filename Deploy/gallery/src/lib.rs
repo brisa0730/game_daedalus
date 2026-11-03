@@ -16,6 +16,7 @@ pub mod play;
 pub mod play_token;
 pub mod session;
 pub mod share_zip;
+pub mod storage;
 pub mod strings;
 pub mod teacher;
 pub mod text;

@@ -28,6 +28,17 @@ pub const PLAY_CSP: &str = "default-src 'none'; script-src 'self' blob: 'wasm-un
      media-src 'self' blob: data:; form-action 'none'; base-uri 'none'; object-src 'none'; \
      frame-ancestors https://suwon.orcarin.com";
 
+/// `PLAY_CSP` as served: unchanged without storage; with it, the bucket's own origin (not all of Naver) may serve
+/// the loader and framework (`script-src`) and the data and wasm (`connect-src`).
+pub fn play_csp(storage_origin: Option<&str>) -> String {
+    match storage_origin {
+        None => PLAY_CSP.to_string(),
+        Some(origin) => PLAY_CSP
+            .replace("'wasm-unsafe-eval';", &format!("'wasm-unsafe-eval' {origin};"))
+            .replace("connect-src 'self' blob: data:;", &format!("connect-src 'self' blob: data: {origin};")),
+    }
+}
+
 /// On every games-host HTML page, so a page opened outside the gallery's frame is sandboxed exactly like the frame
 /// (no top navigation, no popups, no forms); `allow-same-origin` keeps the game's own saves working.
 pub const PLAY_SANDBOX_CSP: &str = "sandbox allow-scripts allow-same-origin allow-pointer-lock";
@@ -61,7 +72,7 @@ pub async fn gallery_layer(State(origin): State<String>, request: Request, next:
 
 /// The games host's layer: it only ever serves (anything but GET/HEAD is 405), and every response carries the
 /// play CSP; HTML also carries the sandbox.
-pub async fn games_layer(request: Request, next: Next) -> Response {
+pub async fn games_layer(State(csp): State<std::sync::Arc<str>>, request: Request, next: Next) -> Response {
     let method = request.method().clone();
     let mut response = if method == Method::GET || method == Method::HEAD {
         next.run(request).await
@@ -74,7 +85,7 @@ pub async fn games_layer(request: Request, next: Next) -> Response {
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v.starts_with("text/html"));
     let headers = response.headers_mut();
-    headers.append(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(PLAY_CSP));
+    headers.append(header::CONTENT_SECURITY_POLICY, HeaderValue::from_str(&csp).expect("the play CSP is ASCII"));
     if is_html {
         headers.append(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(PLAY_SANDBOX_CSP));
     }
@@ -96,6 +107,16 @@ mod tests {
             map.insert(*name, value.parse().unwrap());
         }
         map
+    }
+
+    #[test]
+    fn the_play_csp_adds_only_the_bucket() {
+        assert_eq!(play_csp(None), PLAY_CSP);
+        let b = "https://daedalus.kr.object.ncloudstorage.com";
+        let csp = play_csp(Some(b));
+        assert!(csp.contains(&format!("script-src 'self' blob: 'wasm-unsafe-eval' {b};")));
+        assert!(csp.contains(&format!("connect-src 'self' blob: data: {b};")));
+        assert_eq!(csp.matches(b).count(), 2, "only script-src and connect-src: {csp}");
     }
 
     #[test]

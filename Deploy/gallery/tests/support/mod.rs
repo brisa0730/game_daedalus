@@ -2,7 +2,10 @@
 //! committed: every zip is built here, in memory.
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::io::{Cursor, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use axum::Router;
 use axum::body::Body;
@@ -15,6 +18,7 @@ use zip::{CompressionMethod, ZipWriter};
 use gallery::app::{AppState, router};
 use gallery::config::{Config, GALLERY_HOST, GAMES_HOST, unix_now};
 use gallery::db::{Db, Role};
+use gallery::storage::{BoxFuture, ObjectHeaders, Storage, StorageConfig, StorageError};
 
 pub const GALLERY: &str = GALLERY_HOST;
 pub const GAMES: &str = GAMES_HOST;
@@ -24,6 +28,92 @@ pub struct TestApp {
     pub dir: tempfile::TempDir,
     pub state: AppState,
     pub router: Router,
+    /// The in-memory bucket, for apps made `with_bucket`.
+    pub bucket: Option<Arc<FakeBucket>>,
+}
+
+/// The settings a bucket test runs with (never contacted: the bucket is `FakeBucket`).
+pub fn test_storage_config() -> StorageConfig {
+    StorageConfig {
+        endpoint: "https://kr.object.ncloudstorage.com".into(),
+        region: "kr-standard".into(),
+        bucket: "test-bucket".into(),
+        access_key: "access".into(),
+        secret_key: "secret".into(),
+    }
+}
+
+/// An in-memory bucket with switches for the failure orders the storage tests need.
+#[derive(Default)]
+pub struct FakeBucket {
+    pub objects: Mutex<BTreeMap<String, (Vec<u8>, ObjectHeaders)>>,
+    /// Every put fails.
+    pub fail_puts: AtomicBool,
+    /// Every put never finishes (a request dropped mid-publish).
+    pub hang_puts: AtomicBool,
+    /// Deletes wait while this is set.
+    pub hold_deletes: AtomicBool,
+    /// The next listing of `games/` signals `listed` and waits for `resume`.
+    pub pause_listing: AtomicBool,
+    pub listed: tokio::sync::Notify,
+    pub resume: tokio::sync::Notify,
+}
+
+impl FakeBucket {
+    pub fn keys(&self, prefix: &str) -> Vec<String> {
+        self.objects.lock().unwrap().keys().filter(|k| k.starts_with(prefix)).cloned().collect()
+    }
+
+    pub fn object(&self, key: &str) -> Option<(Vec<u8>, ObjectHeaders)> {
+        self.objects.lock().unwrap().get(key).cloned()
+    }
+
+    pub fn insert(&self, key: &str) {
+        let headers = ObjectHeaders { content_type: "application/octet-stream", content_encoding: None };
+        self.objects.lock().unwrap().insert(key.to_string(), (b"x".to_vec(), headers));
+    }
+
+    pub fn remove(&self, prefix: &str) {
+        self.objects.lock().unwrap().retain(|k, _| !k.starts_with(prefix));
+    }
+}
+
+impl Storage for FakeBucket {
+    fn put<'a>(&'a self, key: &'a str, body: Vec<u8>, headers: ObjectHeaders) -> BoxFuture<'a, Result<(), StorageError>> {
+        Box::pin(async move {
+            if self.hang_puts.load(Ordering::SeqCst) {
+                std::future::pending::<()>().await;
+            }
+            if self.fail_puts.load(Ordering::SeqCst) {
+                return Err(StorageError("put failed (fake)".into()));
+            }
+            self.objects.lock().unwrap().insert(key.to_string(), (body, headers));
+            Ok(())
+        })
+    }
+
+    fn list_prefix<'a>(&'a self, prefix: &'a str) -> BoxFuture<'a, Result<Vec<String>, StorageError>> {
+        Box::pin(async move {
+            if prefix == "games/" && self.pause_listing.swap(false, Ordering::SeqCst) {
+                let keys = self.keys(prefix);
+                self.listed.notify_one();
+                self.resume.notified().await;
+                return Ok(keys);
+            }
+            Ok(self.keys(prefix))
+        })
+    }
+
+    fn delete_prefix<'a>(&'a self, prefix: &'a str) -> BoxFuture<'a, Result<usize, StorageError>> {
+        Box::pin(async move {
+            while self.hold_deletes.load(Ordering::SeqCst) {
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+            let n = self.keys(prefix).len();
+            self.remove(prefix);
+            Ok(n)
+        })
+    }
 }
 
 pub struct Answer {
@@ -96,16 +186,40 @@ impl TestApp {
         let db = Db::open(&config.db_path()).await.unwrap();
         let state = AppState::new(config, db);
         let router = router(state.clone());
-        TestApp { dir, state, router }
+        TestApp { dir, state, router, bucket: None }
+    }
+
+    /// An app whose games are published to an in-memory bucket.
+    pub async fn with_bucket() -> TestApp {
+        TestApp::with_bucket_and(|_| {}).await
+    }
+
+    pub async fn with_bucket_and(tweak: impl FnOnce(&mut Config)) -> TestApp {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = test_config(dir.path());
+        config.storage = Some(test_storage_config());
+        tweak(&mut config);
+        for sub in ["games", "staging"] {
+            std::fs::create_dir_all(dir.path().join(sub)).unwrap();
+        }
+        let db = Db::open(&config.db_path()).await.unwrap();
+        let bucket = Arc::new(FakeBucket::default());
+        let state = AppState::with_storage(config, db, Some(bucket.clone() as Arc<dyn Storage>));
+        let router = router(state.clone());
+        TestApp { dir, state, router, bucket: Some(bucket) }
+    }
+
+    pub fn bucket(&self) -> &FakeBucket {
+        self.bucket.as_deref().expect("an app made with_bucket")
     }
 
     /// A fresh app state over the same data folder: what a restart looks like.
     pub async fn restart(&self) -> TestApp {
         let config = (*self.state.config).clone();
         let db = Db::open(&config.db_path()).await.unwrap();
-        let state = AppState::new(config, db);
+        let state = AppState::with_storage(config, db, self.state.storage.clone());
         let router = router(state.clone());
-        TestApp { dir: tempfile::tempdir().unwrap(), state, router }
+        TestApp { dir: tempfile::tempdir().unwrap(), state, router, bucket: self.bucket.clone() }
     }
 
     pub async fn send(&self, request: Request<Body>) -> Answer {

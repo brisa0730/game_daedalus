@@ -4,6 +4,8 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::storage::StorageConfig;
+
 /// The only address the server ever listens on: loopback, behind the `suwon` tunnel (Deploy/cloudflared/suwon.yml).
 pub const BIND: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8470));
 
@@ -46,6 +48,11 @@ pub struct Config {
     pub games_per_account: i64,
     pub disk_cap_bytes: u64,
     pub unpack_permits: usize,
+    /// The most an upload waits for its bucket copy before answering: Cloudflare drops a request at about 100 s,
+    /// and the zip has already crossed the tunnel. Past it the game plays from the Mac until the next start.
+    pub publish_deadline: Duration,
+    /// The Naver bucket for build files (`<data>/storage.json`, read by `main`); `None` serves every game from the Mac.
+    pub storage: Option<StorageConfig>,
 }
 
 impl Config {
@@ -78,6 +85,8 @@ impl Config {
             games_per_account: 10,
             disk_cap_bytes: 20_000_000_000,
             unpack_permits: 3,
+            publish_deadline: Duration::from_secs(45),
+            storage: None,
         }
     }
 
