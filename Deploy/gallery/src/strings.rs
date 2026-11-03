@@ -10,6 +10,7 @@ pub const NAV_UPLOAD: &str = "업로드";
 pub const NAV_TEACHER: &str = "선생님";
 pub const SIGN_OUT: &str = "로그아웃";
 pub const NAV_PASSWORD: &str = "비밀번호 변경";
+pub const NAV_LOGIN: &str = "로그인";
 pub const SHARED_LAPTOP_NOTE: &str = "같이 쓰는 컴퓨터라면 끝날 때 꼭 로그아웃하세요.";
 
 pub fn signed_in_as(name: &str) -> String {
@@ -38,7 +39,7 @@ pub const LOGIN_PASSWORD: &str = "비밀번호";
 pub const LOGIN_BUTTON: &str = "로그인";
 pub const LOGIN_WRONG: &str = "아이디나 비밀번호가 틀려요.";
 pub const LOGIN_BUSY: &str = "잠시 후 다시 해 보세요.";
-pub const LOGIN_WELCOME: &str = "우리 반 친구들이 만든 게임을 하러 오세요";
+pub const LOGIN_WELCOME: &str = "게임을 올리려면 로그인하세요";
 pub const LOGIN_HINT: &str = "아이디와 비밀번호는 선생님께 받아요.";
 
 pub fn wait_seconds(seconds: u64) -> String {
@@ -77,6 +78,10 @@ pub fn remove_game_confirm(title: &str) -> String {
 pub const BACK_TO_GAMES: &str = "← 게임 목록";
 pub const FULLSCREEN: &str = "전체 화면";
 pub const NEEDS_KEYBOARD: &str = "키보드나 게임패드가 필요해요.";
+pub const COPY_LINK: &str = "링크 복사";
+pub const LINK_COPIED: &str = "복사했어요!";
+pub const LINK_SELECTED: &str = "링크를 선택했어요. 복사해서 보내 주세요.";
+pub const SHARE_LINK_LABEL: &str = "이 게임의 링크";
 
 pub fn made_by(name: &str) -> String {
     format!("{name} 만듦")
@@ -139,18 +144,22 @@ pub const STUDENTS: &str = "학생";
 pub const NO_STUDENTS: &str = "아직 학생이 없어요.";
 pub const COL_ID: &str = "아이디";
 pub const COL_NAME: &str = "이름";
+pub const COL_NICKNAME: &str = "별명";
+pub const NAMES_HINT: &str = "별명은 갤러리에서 누구나 볼 수 있어요. 이름은 선생님만 봐요.";
+pub const RENAME: &str = "바꾸기";
 pub const COL_GAMES: &str = "게임 수";
 pub const COL_STATUS: &str = "상태";
 pub const RESET_PASSWORD: &str = "비밀번호 재설정";
 pub const REMOVE_ACCOUNT: &str = "계정 삭제";
 pub const ADD_ONE: &str = "학생 한 명 추가";
 pub const PASTE_MANY: &str = "여러 명 붙여넣기";
-pub const PASTE_HINT: &str = "한 줄에 한 명: 아이디, 이름";
+pub const PASTE_HINT: &str = "한 줄에 한 명: 아이디, 이름, 별명";
 pub const PREVIEW: &str = "미리 보기";
 pub const CREATE: &str = "만들기";
 pub const LINE_OK: &str = "좋아요";
 pub const LINE_BAD_ID: &str = "아이디가 올바르지 않아요 (영문 소문자·숫자·-·_ 3–20자)";
 pub const LINE_NO_NAME: &str = "이름이 없어요";
+pub const LINE_NO_NICKNAME: &str = "별명이 없어요";
 pub const LINE_DUPLICATE: &str = "붙여넣은 목록에 같은 아이디가 있어요";
 pub const LINE_TAKEN: &str = "이미 있는 아이디예요";
 pub const NOTHING_TO_ADD: &str = "추가할 학생이 없어요.";
@@ -164,8 +173,8 @@ pub const SLIP_PASSWORD: &str = "비밀번호";
 pub const NEW_PASSWORD_TITLE: &str = "새 비밀번호";
 pub const BACK_TO_TEACHER: &str = "← 선생님 페이지";
 
-pub fn remove_account_confirm(name: &str, games: i64) -> String {
-    format!("'{name}' 계정과 게임 {games}개를 삭제할까요? 되돌릴 수 없어요.")
+pub fn remove_account_confirm(real_name: &str, nickname: &str, games: i64) -> String {
+    format!("'{real_name}' ({nickname}) 계정과 게임 {games}개를 삭제할까요? 되돌릴 수 없어요.")
 }
 
 // Errors

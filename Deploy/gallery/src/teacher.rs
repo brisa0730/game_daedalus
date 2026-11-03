@@ -1,5 +1,5 @@
-//! The teacher page: the students list, adding students one at a time or by pasting a list (with a preview), the
-//! printable slips, password resets and removing an account. Every route here is teacher-only (route table).
+//! The teacher page: the students list (real name and public nickname, both editable), adding students one at
+//! a time or by pasting a list (with a preview), the printable slips, password resets and removing an account. Every route here is teacher-only (route table).
 
 use std::collections::HashSet;
 
@@ -26,6 +26,7 @@ pub enum LineStatus {
     Ok,
     BadId,
     NoName,
+    NoNickname,
     Duplicate,
     Taken,
 }
@@ -36,6 +37,7 @@ impl LineStatus {
             LineStatus::Ok => s::LINE_OK,
             LineStatus::BadId => s::LINE_BAD_ID,
             LineStatus::NoName => s::LINE_NO_NAME,
+            LineStatus::NoNickname => s::LINE_NO_NICKNAME,
             LineStatus::Duplicate => s::LINE_DUPLICATE,
             LineStatus::Taken => s::LINE_TAKEN,
         }
@@ -46,30 +48,43 @@ impl LineStatus {
 pub struct Line {
     pub raw_id: String,
     pub raw_name: String,
+    pub raw_nickname: String,
     pub login: Option<String>,
     pub name: Option<String>,
+    pub nickname: Option<String>,
     pub status: LineStatus,
 }
 
-/// One student per line, `ID, name` (split at the first comma or tab). Blank lines are skipped.
+/// Splits at the first comma or tab: the part before it, and the (trimmed) rest.
+fn split_field(text: &str) -> (&str, &str) {
+    match text.find([',', '\t']) {
+        Some(at) => (text[..at].trim(), text[at + 1..].trim()),
+        None => (text.trim(), ""),
+    }
+}
+
+/// One student per line, `ID, real name, nickname` (split at the first two commas or tabs, so a nickname may contain
+/// commas and a real name may not). Both names are required: a missing nickname never falls back to the real name,
+/// which would publish it. Blank lines are skipped.
 pub fn parse_lines(text: &str, name_max: usize) -> Vec<Line> {
     let mut seen = HashSet::new();
     text.lines()
         .filter(|l| !l.trim().is_empty())
         .map(|l| {
-            let (raw_id, raw_name) = match l.find([',', '\t']) {
-                Some(at) => (l[..at].trim(), l[at + 1..].trim()),
-                None => (l.trim(), ""),
-            };
+            let (raw_id, rest) = split_field(l);
+            let (raw_name, raw_nickname) = split_field(rest);
             let login = normalize_login(raw_id);
             let name = clean_label(raw_name, name_max);
-            let status = match (&login, &name) {
-                (None, _) => LineStatus::BadId,
-                (_, None) => LineStatus::NoName,
-                (Some(id), _) if !seen.insert(id.clone()) => LineStatus::Duplicate,
+            let nickname = clean_label(raw_nickname, name_max);
+            let status = match (&login, &name, &nickname) {
+                (None, _, _) => LineStatus::BadId,
+                (_, None, _) => LineStatus::NoName,
+                (_, _, None) => LineStatus::NoNickname,
+                (Some(id), _, _) if !seen.insert(id.clone()) => LineStatus::Duplicate,
                 _ => LineStatus::Ok,
             };
-            Line { raw_id: raw_id.into(), raw_name: raw_name.into(), login, name, status }
+            let (raw_id, raw_name, raw_nickname) = (raw_id.into(), raw_name.into(), raw_nickname.into());
+            Line { raw_id, raw_name, raw_nickname, login, name, nickname, status }
         })
         .collect()
 }
@@ -95,12 +110,25 @@ pub async fn page(State(state): State<AppState>, Extension(CurrentUser(user)): E
             @if students.is_empty() {
                 p { (s::NO_STUDENTS) }
             } @else {
+                p.note { (s::NAMES_HINT) }
                 table.students {
-                    thead { tr { th { (s::COL_ID) } th { (s::COL_NAME) } th { (s::COL_GAMES) } th {} th {} } }
+                    thead {
+                        tr { th { (s::COL_ID) } th { (s::COL_NAME) " · " (s::COL_NICKNAME) } th { (s::COL_GAMES) } th {} th {} }
+                    }
                     tbody {
                         @for st in &students {
                             tr {
-                                td { (st.login) } td { (st.display_name) } td { (st.live_games) }
+                                td { (st.login) }
+                                td {
+                                    form.rename method="post" action={ "/teacher/students/" (st.id) "/rename" } {
+                                        input name="real_name" value=(st.real_name) placeholder=(s::COL_NAME) aria-label=(s::COL_NAME)
+                                            autocomplete="off" required;
+                                        input name="nickname" value=(st.display_name) placeholder=(s::COL_NICKNAME)
+                                            aria-label=(s::COL_NICKNAME) autocomplete="off" required;
+                                        button type="submit" { (s::RENAME) }
+                                    }
+                                }
+                                td { (st.live_games) }
                                 td { form method="post" action={ "/teacher/students/" (st.id) "/reset" } {
                                     button type="submit" { (s::RESET_PASSWORD) }
                                 } }
@@ -115,7 +143,9 @@ pub async fn page(State(state): State<AppState>, Extension(CurrentUser(user)): E
             h2 { (s::ADD_ONE) }
             form.add method="post" action="/teacher/students/preview" {
                 label { (s::COL_ID) input name="id" autocapitalize="none"; }
-                label { (s::COL_NAME) input name="name"; }
+                // Autofill off: a remembered real name must never be offered in a nickname box.
+                label { (s::COL_NAME) input name="name" autocomplete="off"; }
+                label { (s::COL_NICKNAME) input name="nickname" autocomplete="off"; }
                 button type="submit" { (s::PREVIEW) }
             }
         }
@@ -138,13 +168,16 @@ pub struct StudentsForm {
     id: String,
     #[serde(default)]
     name: String,
+    #[serde(default)]
+    nickname: String,
 }
 
 impl StudentsForm {
-    /// The add-one form's two fields become one line.
+    /// The add-one form's three fields become one line.
     fn text(&self) -> String {
-        if self.text.trim().is_empty() && !(self.id.trim().is_empty() && self.name.trim().is_empty()) {
-            format!("{}, {}", self.id.trim(), self.name.trim())
+        let fields = [self.id.trim(), self.name.trim(), self.nickname.trim()];
+        if self.text.trim().is_empty() && fields.iter().any(|f| !f.is_empty()) {
+            fields.join(", ")
         } else {
             self.text.clone()
         }
@@ -160,11 +193,11 @@ fn preview_page(user: &User, text: &str, lines: &[Line], note: Option<&str>) -> 
             p { (s::NOTHING_TO_ADD) }
         } @else {
             table.preview {
-                thead { tr { th { (s::COL_ID) } th { (s::COL_NAME) } th { (s::COL_STATUS) } } }
+                thead { tr { th { (s::COL_ID) } th { (s::COL_NAME) } th { (s::COL_NICKNAME) } th { (s::COL_STATUS) } } }
                 tbody {
                     @for line in lines {
                         tr class=(if line.status == LineStatus::Ok { "ok" } else { "bad" }) {
-                            td { (line.raw_id) } td { (line.raw_name) } td { (line.status.text()) }
+                            td { (line.raw_id) } td { (line.raw_name) } td { (line.raw_nickname) } td { (line.status.text()) }
                         }
                     }
                 }
@@ -212,7 +245,11 @@ pub async fn create(
     let mut rows = Vec::new();
     let mut slips = Vec::new();
     for line in &lines {
-        let (Some(login), Some(name)) = (line.login.clone(), line.name.clone()) else { continue };
+        let (Some(login), Some(name), Some(nickname)) =
+            (line.login.clone(), line.name.clone(), line.nickname.clone())
+        else {
+            continue;
+        };
         let password = generate_password();
         let hash = match state.hasher.hash(password.clone()).await {
             Ok(hash) => hash,
@@ -220,8 +257,8 @@ pub async fn create(
                 return pages::message(StatusCode::SERVICE_UNAVAILABLE, Some(&user), s::SERVER_BUSY);
             }
         };
-        rows.push((login.clone(), name.clone(), hash));
-        slips.push((login, name, password));
+        rows.push((login.clone(), name.clone(), nickname.clone(), hash));
+        slips.push(Slip { login, real_name: name, nickname, password });
     }
     if state.db.create_students(&rows, unix_now() as i64).await.is_err() {
         // Someone took an ID meanwhile: nothing was created.
@@ -232,25 +269,33 @@ pub async fn create(
     slips_page(&user, s::SLIPS_TITLE, &slips)
 }
 
-fn slip(login: &str, name: &str, password: &str) -> Markup {
+/// One printed account slip: the real name (so it reaches the right student) with the nickname beside it.
+struct Slip {
+    login: String,
+    real_name: String,
+    nickname: String,
+    password: String,
+}
+
+fn slip(slip: &Slip) -> Markup {
     html! {
         div.slip {
-            p.slip-name { (name) }
+            p.slip-name { (slip.real_name) " " span.slip-nickname { "(" (slip.nickname) ")" } }
             dl {
                 dt { (s::SLIP_ADDRESS) } dd { "https://" (GALLERY_HOST) }
-                dt { (s::SLIP_ID) } dd.big { (login) }
-                dt { (s::SLIP_PASSWORD) } dd.big { (password) }
+                dt { (s::SLIP_ID) } dd.big { (slip.login) }
+                dt { (s::SLIP_PASSWORD) } dd.big { (slip.password) }
             }
         }
     }
 }
 
-fn slips_page(user: &User, title: &str, slips: &[(String, String, String)]) -> Response {
+fn slips_page(user: &User, title: &str, slips: &[Slip]) -> Response {
     let body = html! {
         h1 { (title) }
         p.note.no-print { (s::SLIPS_NOTE) }
         p.no-print { button #print type="button" { (s::PRINT) } " " a href="/teacher" { (s::BACK_TO_TEACHER) } }
-        div.slips { @for (login, name, password) in slips { (slip(login, name, password)) } }
+        div.slips { @for one in slips { (slip(one)) } }
     };
     let mut response = pages::page(StatusCode::OK, title, Some(user), Some(Nav::Teacher), body);
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
@@ -277,7 +322,38 @@ pub async fn reset(
     }
     state.throttle.lock().expect("throttle lock").clear(target.id);
     tracing::info!(student = %target.login, by = %user.login, "password reset");
-    slips_page(&user, s::NEW_PASSWORD_TITLE, &[(target.login, target.display_name, password)])
+    let one = Slip { login: target.login, real_name: target.real_name, nickname: target.display_name, password };
+    slips_page(&user, s::NEW_PASSWORD_TITLE, &[one])
+}
+
+#[derive(Deserialize)]
+pub struct RenameForm {
+    #[serde(default)]
+    real_name: String,
+    #[serde(default)]
+    nickname: String,
+}
+
+/// `POST /teacher/students/<id>/rename`: sets both names. Both are required; an empty one changes nothing.
+pub async fn rename(
+    State(state): State<AppState>,
+    Extension(CurrentUser(user)): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    Form(form): Form<RenameForm>,
+) -> Response {
+    let Some(target) = student(&state, &id).await else { return pages::not_found(Some(&user)) };
+    let max = state.config.name_max_chars;
+    let Some(real_name) = clean_label(&form.real_name, max) else {
+        return pages::message(StatusCode::BAD_REQUEST, Some(&user), s::LINE_NO_NAME);
+    };
+    let Some(nickname) = clean_label(&form.nickname, max) else {
+        return pages::message(StatusCode::BAD_REQUEST, Some(&user), s::LINE_NO_NICKNAME);
+    };
+    if state.db.set_names(target.id, &real_name, &nickname).await.is_err() {
+        return pages::message(StatusCode::INTERNAL_SERVER_ERROR, Some(&user), s::SERVER_BUSY);
+    }
+    tracing::info!(student = %target.login, by = %user.login, "student renamed");
+    pages::see_other("/teacher")
 }
 
 pub async fn remove_confirm(
@@ -288,7 +364,7 @@ pub async fn remove_confirm(
     let Some(target) = student(&state, &id).await else { return pages::not_found(Some(&user)) };
     let games = state.db.live_game_count(target.id).await.unwrap_or(0);
     let body = html! {
-        p.message { (s::remove_account_confirm(&target.display_name, games)) }
+        p.message { (s::remove_account_confirm(&target.real_name, &target.display_name, games)) }
         form method="post" action={ "/teacher/students/" (target.id) "/remove" } {
             button.danger type="submit" { (s::REMOVE_BUTTON) }
             " " a href="/teacher" { (s::CANCEL) }
@@ -333,17 +409,19 @@ mod tests {
 
     #[test]
     fn pasted_lines_are_checked() {
-        let lines = parse_lines("kim, 김민수\n\nlee\t이서연\nbad id, 박\nkim, 다른 김\npark,\n", 20);
+        let text = "kim, 김민수, 별빛\n\nlee\t이서연\t구름\nbad id, 박, 박\nkim, 다른 김, 김\npark,\nchoi, 최민준\n";
+        let lines = parse_lines(text, 20);
         let statuses: Vec<LineStatus> = lines.iter().map(|l| l.status).collect();
         use LineStatus::*;
-        assert_eq!(statuses, [Ok, Ok, BadId, Duplicate, NoName]);
-        assert_eq!(lines[0].name.as_deref(), Some("김민수"));
+        assert_eq!(statuses, [Ok, Ok, BadId, Duplicate, NoName, NoNickname]);
+        assert_eq!((lines[0].name.as_deref(), lines[0].nickname.as_deref()), (Some("김민수"), Some("별빛")));
         assert_eq!(lines[1].login.as_deref(), Some("lee"));
+        assert_eq!(lines[1].nickname.as_deref(), Some("구름"));
     }
 
     #[test]
-    fn a_name_may_contain_commas() {
-        let lines = parse_lines("kim, 김, 민수", 20);
-        assert_eq!(lines[0].name.as_deref(), Some("김, 민수"));
+    fn a_nickname_may_contain_commas() {
+        let lines = parse_lines("kim, 김민수, 별, 빛", 20);
+        assert_eq!((lines[0].name.as_deref(), lines[0].nickname.as_deref()), (Some("김민수"), Some("별, 빛")));
     }
 }

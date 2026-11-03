@@ -75,6 +75,8 @@ impl Drop for BusyGuard {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
     Public,
+    /// Anyone; a session, if there is one, is attached so the page can show who is signed in.
+    Open,
     /// Signed in; without a session the browser is sent to `/login`.
     Page,
     /// Signed in; without a session the answer is a 401 in the upload API's JSON shape.
@@ -107,9 +109,9 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
         route(Method::POST, "/logout", Page, post(session::post_logout)),
         route(Method::GET, "/password", Page, get(session::password_page)),
         route(Method::POST, "/password", Page, post(session::post_password)),
-        route(Method::GET, "/", Page, get(gallery::list)),
-        route(Method::GET, "/shots/{file}", Page, get(gallery::screenshot)),
-        route(Method::GET, "/play/{id}", Page, get(gallery::play_view)),
+        route(Method::GET, "/", Open, get(gallery::list)),
+        route(Method::GET, "/shots/{file}", Open, get(gallery::screenshot)),
+        route(Method::GET, "/play/{id}", Open, get(gallery::play_view)),
         route(Method::GET, "/games/{id}/remove", Page, get(gallery::remove_confirm)),
         route(Method::POST, "/games/{id}/remove", Page, post(gallery::remove)),
         route(Method::GET, "/upload", Page, get(upload::upload_page)),
@@ -118,6 +120,7 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
         route(Method::POST, "/teacher/students/preview", Teacher, post(teacher::preview)),
         route(Method::POST, "/teacher/students/create", Teacher, post(teacher::create)),
         route(Method::POST, "/teacher/students/{id}/reset", Teacher, post(teacher::reset)),
+        route(Method::POST, "/teacher/students/{id}/rename", Teacher, post(teacher::rename)),
         route(Method::GET, "/teacher/students/{id}/remove", Teacher, get(teacher::remove_confirm)),
         route(Method::POST, "/teacher/students/{id}/remove", Teacher, post(teacher::remove)),
     ]
@@ -133,7 +136,7 @@ fn gallery_router(state: &AppState) -> Router {
         router = router.route(spec.path, handler);
     }
     router
-        .fallback(|| async { pages::not_found(None) })
+        .fallback(session::not_found_page)
         .with_state(state.clone())
         .layer(from_fn_with_state(state.config.gallery_origin.clone(), guard::gallery_layer))
 }

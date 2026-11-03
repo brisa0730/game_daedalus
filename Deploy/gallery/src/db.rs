@@ -27,7 +27,10 @@ impl Role {
 pub struct User {
     pub id: i64,
     pub login: String,
+    /// The public nickname: on cards, the play view and the header.
     pub display_name: String,
+    /// The name the teacher knows the student by; only the teacher's pages show it (empty for the teacher).
+    pub real_name: String,
     pub role: Role,
     pub password_hash: String,
 }
@@ -39,6 +42,7 @@ impl User {
             id: row.get("id"),
             login: row.get("login"),
             display_name: row.get("display_name"),
+            real_name: row.get("real_name"),
             role: if role == "teacher" { Role::Teacher } else { Role::Student },
             password_hash: row.get("password_hash"),
         }
@@ -56,7 +60,7 @@ pub struct Session {
 pub struct Game {
     pub id: String,
     pub owner_id: Option<i64>,
-    /// The owner's display name, as the teacher typed it; `None` once the owner's account is gone.
+    /// The owner's nickname (never the real name); `None` once the owner's account is gone.
     pub owner_name: Option<String>,
     pub title: String,
     pub build_name: String,
@@ -87,6 +91,7 @@ pub struct StudentRow {
     pub id: i64,
     pub login: String,
     pub display_name: String,
+    pub real_name: String,
     pub live_games: i64,
 }
 
@@ -165,21 +170,33 @@ impl Db {
         Ok(row.get(0))
     }
 
-    /// Creates every student in one transaction: all or none.
-    pub async fn create_students(&self, students: &[(String, String, String)], now: i64) -> Result<()> {
+    /// Creates every student in one transaction: all or none. Each is `(login, real name, nickname, hash)`.
+    pub async fn create_students(&self, students: &[(String, String, String, String)], now: i64) -> Result<()> {
         let mut tx = self.pool.begin().await?;
-        for (login, name, hash) in students {
+        for (login, real_name, nickname, hash) in students {
             sqlx::query(
-                "INSERT INTO users (login, display_name, role, password_hash, created_at) VALUES (?, ?, 'student', ?, ?)",
+                "INSERT INTO users (login, real_name, display_name, role, password_hash, created_at) \
+                 VALUES (?, ?, ?, 'student', ?, ?)",
             )
             .bind(login)
-            .bind(name)
+            .bind(real_name)
+            .bind(nickname)
             .bind(hash)
             .bind(now)
             .execute(&mut *tx)
             .await?;
         }
         tx.commit().await
+    }
+
+    pub async fn set_names(&self, user_id: i64, real_name: &str, nickname: &str) -> Result<()> {
+        sqlx::query("UPDATE users SET real_name = ?, display_name = ? WHERE id = ?")
+            .bind(real_name)
+            .bind(nickname)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     /// New password; every session and known browser of the user is forgotten.
@@ -256,7 +273,7 @@ impl Db {
 
     pub async fn students(&self) -> Result<Vec<StudentRow>> {
         let rows = sqlx::query(
-            "SELECT u.id, u.login, u.display_name, \
+            "SELECT u.id, u.login, u.display_name, u.real_name, \
              (SELECT COUNT(*) FROM games g WHERE g.owner_id = u.id AND g.removed_at IS NULL) AS live_games \
              FROM users u WHERE u.role = 'student' ORDER BY u.login",
         )
@@ -268,6 +285,7 @@ impl Db {
                 id: r.get("id"),
                 login: r.get("login"),
                 display_name: r.get("display_name"),
+                real_name: r.get("real_name"),
                 live_games: r.get("live_games"),
             })
             .collect())
@@ -489,6 +507,33 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let db = Db::open(&dir.path().join("gallery.db")).await.unwrap();
         (dir, db)
+    }
+
+    /// A database made before v0.20 (only the first migration) keeps each student's name as the real name.
+    #[tokio::test]
+    async fn the_real_name_migration_keeps_todays_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("gallery.db");
+        let options = SqliteConnectOptions::new().filename(&path).create_if_missing(true);
+        let pool = SqlitePool::connect_with(options).await.unwrap();
+        let mut first = sqlx::migrate!("./migrations");
+        first.migrations = first.migrations[..1].to_vec().into();
+        first.run(&pool).await.unwrap();
+        for (login, name, role) in [("kim", "김민수", "student"), ("teach", "선생님", "teacher")] {
+            sqlx::query("INSERT INTO users (login, display_name, role, password_hash, created_at) VALUES (?, ?, ?, 'h', 1)")
+                .bind(login)
+                .bind(name)
+                .bind(role)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        pool.close().await;
+        let db = Db::open_existing(&path).await.unwrap();
+        let kim = db.user_by_login("kim").await.unwrap().unwrap();
+        assert_eq!((kim.real_name.as_str(), kim.display_name.as_str()), ("김민수", "김민수"));
+        let teacher = db.user_by_login("teach").await.unwrap().unwrap();
+        assert_eq!((teacher.real_name.as_str(), teacher.display_name.as_str()), ("", "선생님"));
     }
 
     #[tokio::test]

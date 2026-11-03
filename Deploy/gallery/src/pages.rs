@@ -13,6 +13,7 @@ pub enum Nav {
     Games,
     Upload,
     Teacher,
+    Login,
 }
 
 /// The served path of the heading font (Galmuri11 Bold, v2.40.4, SIL OFL 1.1; `static/fonts/OFL.txt`). The
@@ -37,8 +38,9 @@ pub fn ground() -> Markup {
     html! { div.ground aria-hidden="true" {} }
 }
 
-/// A full gallery page: Korean, UTF-8, the stylesheet and script, and (when signed in) the header with the logo,
-/// the navigation (`nav` marks the current item), the signed-in name and the Sign out button.
+/// A full gallery page: Korean, UTF-8, the stylesheet and script, and the header with the logo and the navigation
+/// (`nav` marks the current item): signed in, the name and the Sign out button; signed out (anyone may browse and
+/// play), only the game list and Sign in.
 pub fn shell(title: &str, user: Option<&User>, nav: Option<Nav>, body: Markup) -> Markup {
     let current = |item: Nav| (nav == Some(item)).then_some("page");
     html! {
@@ -53,29 +55,33 @@ pub fn shell(title: &str, user: Option<&User>, nav: Option<Nav>, body: Markup) -
                 script src="/static/gallery.js" defer {}
             }
             body {
-                @if let Some(user) = user {
-                    header.top {
-                        div.top-in {
-                            a.brand href="/" { (logo()) }
-                            nav {
-                                a href="/" aria-current=[current(Nav::Games)] { (s::NAV_GAMES) }
+                header.top {
+                    div.top-in {
+                        a.brand href="/" { (logo()) }
+                        nav {
+                            a href="/" aria-current=[current(Nav::Games)] { (s::NAV_GAMES) }
+                            @if let Some(user) = user {
                                 a href="/upload" aria-current=[current(Nav::Upload)] { (s::NAV_UPLOAD) }
                                 @if user.role == Role::Teacher {
                                     a href="/teacher" aria-current=[current(Nav::Teacher)] { (s::NAV_TEACHER) }
                                 }
                             }
-                            div.who {
+                        }
+                        div.who {
+                            @if let Some(user) = user {
                                 span.signed-in { (s::signed_in_as(&user.display_name)) }
                                 a href="/password" { (s::NAV_PASSWORD) }
                                 form method="post" action="/logout" {
                                     button type="submit" { (s::SIGN_OUT) }
                                 }
+                            } @else {
+                                a.sign-in href="/login" aria-current=[current(Nav::Login)] { (s::NAV_LOGIN) }
                             }
                         }
-                        (ground())
                     }
-                    p.shared-note { (s::SHARED_LAPTOP_NOTE) }
+                    (ground())
                 }
+                @if user.is_some() { p.shared-note { (s::SHARED_LAPTOP_NOTE) } }
                 main { (body) }
             }
         }
@@ -127,7 +133,14 @@ mod tests {
     use super::*;
 
     fn user(name: &str) -> User {
-        User { id: 1, login: "kim".into(), display_name: name.into(), role: Role::Student, password_hash: String::new() }
+        User {
+            id: 1,
+            login: "kim".into(),
+            display_name: name.into(),
+            real_name: String::new(),
+            role: Role::Student,
+            password_hash: String::new(),
+        }
     }
 
     #[test]

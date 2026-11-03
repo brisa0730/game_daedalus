@@ -99,4 +99,51 @@ async fn the_play_view_frames_the_game_with_a_fresh_grant() {
     assert!(app.state.key.verify(Purpose::Enter, &id, grant, unix_now()));
     assert!(!app.state.key.verify(Purpose::Enter, "aaaaaaaaaa", grant, unix_now()));
     assert_eq!(app.get(GALLERY, "/play/zzzzzzzzzz", Some(&kim)).await.status, StatusCode::NOT_FOUND);
+    // The copy-link control carries the gallery's own play address (the one link that works for anyone).
+    assert!(html.contains(r#"id="copy-link""#) && html.contains(s::COPY_LINK));
+    assert!(html.contains(&format!(r#"id="share-url" type="text" readonly value="https://suwon.orcarin.com/play/{id}""#)));
+}
+
+#[tokio::test]
+async fn anyone_browses_and_plays_without_signing_in() {
+    let app = TestApp::new().await;
+    let kim = app.student("kim", "김민수").await;
+    let lee = app.student("lee", "이서연").await;
+    let id = app.new_game(&kim, "Spike Hell").await;
+    app.new_game(&lee, "Floor Is Lava").await;
+
+    let list = app.get(GALLERY, "/", None).await;
+    assert_eq!(list.status, StatusCode::OK);
+    let html = list.text();
+    for text in ["Spike Hell", "김민수", "Floor Is Lava", "이서연", s::ALL_GAMES, r#"href="/login""#] {
+        assert!(html.contains(text), "{text}");
+    }
+    for text in [s::MY_GAMES, r#"href="/upload""#, "/remove", s::SIGN_OUT, s::SHARED_LAPTOP_NOTE] {
+        assert!(!html.contains(text), "{text}");
+    }
+
+    let shot = app.get(GALLERY, &format!("/shots/{id}.png?v=1"), None).await;
+    assert_eq!(shot.status, StatusCode::OK);
+    assert_eq!(shot.header("content-type"), Some("image/png"));
+
+    let play = app.get(GALLERY, &format!("/play/{id}"), None).await;
+    assert_eq!(play.status, StatusCode::OK);
+    let play_html = play.text();
+    assert!(play_html.contains(r#"href="/login""#) && play_html.contains(r#"id="copy-link""#));
+    let src = frame_src(&play_html);
+    let grant = src.split_once("?grant=").unwrap().1.to_string();
+    assert!(app.state.key.verify(Purpose::Enter, &id, &grant, unix_now()));
+    let entered = app.enter(&format!("/enter/{id}?grant={grant}"), "iframe", Some("same-site")).await;
+    assert_eq!(entered.status, StatusCode::FOUND, "a signed-out visitor's grant opens the game in the frame");
+    assert!(entered.cookie(&format!("__Host-g_{id}")).is_some());
+    let alone = app.enter(&format!("/enter/{id}?grant={grant}"), "document", Some("same-site")).await;
+    assert_eq!(alone.status, StatusCode::FORBIDDEN, "still only inside the gallery's frame");
+
+    for path in ["/upload", "/password", &format!("/games/{id}/remove"), "/teacher"] {
+        let answer = app.get(GALLERY, path, None).await;
+        assert_eq!(answer.status, StatusCode::SEE_OTHER, "{path}");
+        assert_eq!(answer.header("location"), Some("/login"), "{path}");
+    }
+    let upload = app.post_form("/upload", None, "").await;
+    assert_eq!(upload.status, StatusCode::UNAUTHORIZED);
 }

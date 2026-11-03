@@ -50,8 +50,10 @@ pub struct EnterQuery {
     grant: String,
 }
 
-/// `GET /enter/<id>?grant=…`: only as the gallery's frame (`Sec-Fetch-Dest: iframe`, same-site), so a copied link
-/// opened in a tab or sent outside the class doesn't get in.
+/// `GET /enter/<id>?grant=…`: only as the gallery's frame (`Sec-Fetch-Dest: iframe`, same-site), so a games-host
+/// link opened in a tab doesn't get in. This keeps games inside the gallery's sandboxed frame; it is not access
+/// control (anyone may open the play view, and a client can forge the header): the gallery's play link is the one
+/// to share.
 pub async fn enter(
     State(state): State<AppState>,
     Path(id): Path<String>,

@@ -1,6 +1,6 @@
 # Plan: Public Gallery
 
-**Date:** 2026-11-03 | **Status:** approved (handshake, 3 rounds; awaiting operator approval to execute)
+**Date:** 2026-11-03 | **Status:** complete
 
 ## Overview
 
@@ -175,6 +175,11 @@ Operator decision (2026-11-03): **the gallery keeps each student's real name, fo
 ---
 
 ## Notes to GDD / Open Risks
+
+**Deviations found during execution (2026-11-03):**
+- **Copy-link message:** it shows in a small note that floats under the link box for 4 s (`#copy-note`, `data-msg-copied` / `data-msg-selected`), not in the button for 2 s with `data-msg-failed`. The fallback message is too long for the button, and an in-line note pushed 전체 화면 onto a new row, which moved the 16:9 frame. The Step 6 check reads the note.
+- **Nickname field name:** both the rename form and the add-one form call the nickname field `nickname`, and every name input has autofill off. Before the code review, the rename form used `name`, which the add-one form uses for the real name, so autofill could have offered a real name in the nickname box (code review MED).
+- **More probes moved to `/upload`:** besides the six "session is gone" probes, the "still signed in" probes on `GET /` (`password.rs` 128 and 133, `sign_in.rs` 127) moved to `/upload` too. `/` answers 200 for everyone now, so they would have passed without a session.
 
 **GDD (Post-Plan Cleanup, version v0.20):**
 - `GDD.md`: a new **Decided (v0.20)** line saying the gallery is public to browse and play, sign-in only to upload and manage, students appear by nickname, and pages are noindex. It replaces v0.12's "only signed-in users can see or play anything" and v0.16's "display name, set by the teacher".
@@ -377,3 +382,22 @@ I asked myself whether "what do you think?" would get anything from me that isn'
 ## Reviewer's view
 
 I would build this plan as written. Every blocking finding is closed: F1 (the review now runs before the public deploy) and F6 (a real name can be fixed without deleting games). F9 is a quoting fix to fold in at close.
+
+---
+
+**Approval:** User confirmed 2026-11-03 ("commit first, execute after").
+**Execution:** COMPLETE 2026-11-03.
+**Verification:**
+- `cargo test` 145 green (141 before) and clippy clean.
+- Look check: 46 checks pass in headless Chrome, plus a real-click copy-link check of both paths.
+- Code review: no HIGH; the one MED (nickname field name and autofill) fixed.
+- Deploy 1: backup, migration 2, 11 real names kept.
+- The operator renamed every student; the teacher's name was set to `brisa0730` in the database.
+- Deploy 2: public. A scan of 12 names found none on public pages. A live signed-out Chrome walk passed (list, play, copy link, a cookie-less replay of the copied link, games host 403 without a gate cookie, upload goes to sign-in, no CSP errors).
+
+**Version note:**
+- Shipped as v0.20.
+- Live student upload and remove were not repeated (unchanged code, covered by tests).
+- The teacher's display name has no UI, so it was set with a one-off SQL update.
+- Execution deviations are recorded in Notes (copy note, the nickname field name, three more probes moved).
+

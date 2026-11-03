@@ -1,4 +1,5 @@
-// The gallery's only script: the upload form, the play view's focus and fullscreen, and the slips' print button.
+// The gallery's only script: the upload form, the play view's focus, fullscreen and copy-link button, and the
+// slips' print button.
 // Full screen takes the game's box (#frame), not the iframe, so the game stays 16:9 (letterboxed) on any screen.
 // Messages come from data attributes rendered from strings.rs. It never listens for messages from games.
 (function () {
@@ -12,6 +13,29 @@
       if (box.requestFullscreen) box.requestFullscreen();
       game.focus();
     });
+  }
+
+  // Copy link: the play view's own address. If the clipboard says no (or isn't there), the link is selected instead.
+  var copy = document.getElementById("copy-link");
+  var shareUrl = document.getElementById("share-url");
+  var copyNote = document.getElementById("copy-note");
+  if (copy && shareUrl && copyNote) {
+    var timer = 0;
+    var shown = function (text) {
+      copyNote.textContent = text;
+      clearTimeout(timer);
+      timer = setTimeout(function () { copyNote.textContent = ""; }, 4000);
+    };
+    var selected = function () {
+      shareUrl.focus();
+      shareUrl.select();
+      shown(copy.dataset.msgSelected);
+    };
+    copy.addEventListener("click", function () {
+      if (!navigator.clipboard) { selected(); return; }
+      navigator.clipboard.writeText(shareUrl.value).then(function () { shown(copy.dataset.msgCopied); }, selected);
+    });
+    shareUrl.addEventListener("focus", function () { shareUrl.select(); });
   }
 
   var print = document.getElementById("print");

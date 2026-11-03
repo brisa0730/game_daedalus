@@ -124,11 +124,11 @@ async fn sessions_time_out_idle_and_absolute() {
         }
     };
     set(now - 2 * 3600, now - 10 * 60).await;
-    assert_eq!(app.get(GALLERY, "/", Some(&cookie)).await.status, StatusCode::OK, "2 h old, active 10 min ago");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&cookie)).await.status, StatusCode::OK, "2 h old, active 10 min ago");
     set(now - 2 * 3600, now - 3600 - 60).await;
-    assert_eq!(app.get(GALLERY, "/", Some(&cookie)).await.header("location"), Some("/login"), "idle 1 h 1 min");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&cookie)).await.header("location"), Some("/login"), "idle 1 h 1 min");
     set(now - 12 * 3600 - 60, now - 60).await;
-    assert_eq!(app.get(GALLERY, "/", Some(&cookie)).await.header("location"), Some("/login"), "12 h 1 min old");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&cookie)).await.header("location"), Some("/login"), "12 h 1 min old");
 }
 
 #[tokio::test]
@@ -137,8 +137,9 @@ async fn sign_out_ends_the_session() {
     let cookie = app.student("kim", "김민수").await;
     let out = app.post_form("/logout", Some(&cookie), "").await;
     assert_eq!(out.status, StatusCode::SEE_OTHER);
+    assert_eq!(out.header("location"), Some("/"), "signing out lands on the public gallery");
     assert!(out.all("set-cookie").iter().any(|c| c.starts_with("__Host-gallery_session=;") && c.contains("Max-Age=0")));
-    assert_eq!(app.get(GALLERY, "/", Some(&cookie)).await.header("location"), Some("/login"));
+    assert_eq!(app.get(GALLERY, "/upload", Some(&cookie)).await.header("location"), Some("/login"));
     assert_eq!(app.get(GALLERY, "/logout", Some(&cookie)).await.status, StatusCode::METHOD_NOT_ALLOWED);
 }
 

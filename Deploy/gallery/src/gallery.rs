@@ -1,4 +1,5 @@
-//! The game list (with "My games" on top), screenshots, the play view and removing a game.
+//! The game list (with "My games" on top when signed in), screenshots, the play view and removing a game. The
+//! list, screenshots and play view are open to anyone (v0.20); removing needs the owner or the teacher.
 
 use axum::Extension;
 use axum::extract::{Path, State};
@@ -31,8 +32,8 @@ fn days_ago(then: i64, now: i64) -> i64 {
 }
 
 /// A game card. In "My games" (`mine`) it shows when the game was last uploaded instead of the owner's name.
-fn card(game: &Game, user: &User, mine: bool, now: i64) -> Markup {
-    let can_remove = may_remove(game, user);
+fn card(game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
+    let can_remove = user.is_some_and(|user| may_remove(game, user));
     html! {
         li.card {
             a href={ "/play/" (game.id) } {
@@ -53,17 +54,42 @@ fn card(game: &Game, user: &User, mine: bool, now: i64) -> Markup {
     }
 }
 
-pub async fn list(State(state): State<AppState>, Extension(CurrentUser(user)): Extension<CurrentUser>) -> Response {
-    let (Ok(mine), Ok(all)) = (state.db.live_games_of(user.id).await, state.db.live_games().await) else {
-        return pages::message(StatusCode::INTERNAL_SERVER_ERROR, Some(&user), s::SERVER_BUSY);
+/// The list: anyone sees every game; signed in, "My games" comes first.
+pub async fn list(State(state): State<AppState>, user: Option<Extension<CurrentUser>>) -> Response {
+    let user = user.map(|Extension(CurrentUser(user))| user);
+    let mine = match &user {
+        Some(user) => state.db.live_games_of(user.id).await.map(Some),
+        None => Ok(None),
+    };
+    let (Ok(mine), Ok(all)) = (mine, state.db.live_games().await) else {
+        return pages::message(StatusCode::INTERNAL_SERVER_ERROR, user.as_ref(), s::SERVER_BUSY);
     };
     let now = unix_now() as i64;
-    let at_limit = mine.len() as i64 >= state.config.games_per_account;
     let body = html! {
+        @if let Some(mine) = &mine { (my_games(&state, mine, user.as_ref(), now)) }
+        section.all {
+            div.section-head {
+                h2 { (s::ALL_GAMES) }
+                @if !all.is_empty() { span.count { (s::game_count(all.len())) } }
+            }
+            @if all.is_empty() {
+                p { (s::NO_GAMES) }
+            } @else {
+                ul.cards { @for game in &all { (card(game, user.as_ref(), false, now)) } }
+            }
+        }
+    };
+    pages::page(StatusCode::OK, s::NAV_GAMES, user.as_ref(), Some(Nav::Games), body)
+}
+
+/// The signed-in user's own games, ending with the add card (or the limit message).
+fn my_games(state: &AppState, mine: &[Game], user: Option<&User>, now: i64) -> Markup {
+    let at_limit = mine.len() as i64 >= state.config.games_per_account;
+    html! {
         section.mine {
             h2 { (s::MY_GAMES) }
             ul.cards {
-                @for game in &mine { (card(game, &user, true, now)) }
+                @for game in mine { (card(game, user, true, now)) }
                 li.add-slot {
                     @if at_limit {
                         p.limit { (s::too_many_games(state.config.games_per_account)) }
@@ -80,19 +106,7 @@ pub async fn list(State(state): State<AppState>, Extension(CurrentUser(user)): E
                 }
             }
         }
-        section.all {
-            div.section-head {
-                h2 { (s::ALL_GAMES) }
-                @if !all.is_empty() { span.count { (s::game_count(all.len())) } }
-            }
-            @if all.is_empty() {
-                p { (s::NO_GAMES) }
-            } @else {
-                ul.cards { @for game in &all { (card(game, &user, false, now)) } }
-            }
-        }
-    };
-    pages::page(StatusCode::OK, s::NAV_GAMES, Some(&user), Some(Nav::Games), body)
+    }
 }
 
 /// `GET /shots/<id>.png?v=<version>`: the live game's screenshot, always as `image/png` (never a type from the
@@ -115,15 +129,19 @@ pub async fn screenshot(State(state): State<AppState>, Path(file): Path<String>)
     response
 }
 
-/// The play view: the game full-page in the games host's sandboxed frame, entered with a fresh 60 s grant.
+/// The play view: the game full-page in the games host's sandboxed frame, entered with a fresh 60 s grant. Open to
+/// anyone: the frame keeps the game away from the gallery, not people away from the game. The copy-link control
+/// gives this page's address for sharing.
 pub async fn play_view(
     State(state): State<AppState>,
-    Extension(CurrentUser(user)): Extension<CurrentUser>,
+    user: Option<Extension<CurrentUser>>,
     Path(id): Path<String>,
 ) -> Response {
-    let Some(game) = live(&state, &id).await else { return pages::not_found(Some(&user)) };
+    let user = user.map(|Extension(CurrentUser(user))| user);
+    let Some(game) = live(&state, &id).await else { return pages::not_found(user.as_ref()) };
     let grant = state.key.sign(Purpose::Enter, &game.id, unix_now() + ENTER_TTL_SECS);
     let src = format!("{}/enter/{}?grant={}", state.config.games_origin, game.id, grant);
+    let share_url = format!("{}/play/{}", state.config.gallery_origin, game.id);
     let body = html! {
         div.theater {
             div.playbar {
@@ -133,6 +151,13 @@ pub async fn play_view(
                     span.owner { (s::made_by(game.owner_name.as_deref().unwrap_or(""))) }
                 }
                 span.note { (s::NEEDS_KEYBOARD) }
+                div.share {
+                    input #share-url type="text" readonly value=(share_url) aria-label=(s::SHARE_LINK_LABEL);
+                    button #copy-link type="button" data-msg-copied=(s::LINK_COPIED) data-msg-selected=(s::LINK_SELECTED) {
+                        (s::COPY_LINK)
+                    }
+                    span #copy-note.copy-note role="status" {}
+                }
                 button #fullscreen type="button" {
                     svg viewBox="0 0 7 7" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true" {
                         path d="M0 0h3v1H1v2H0zM4 0h3v3H6V1H4zM0 4h1v2h2v1H0zM6 4h1v3H4V6h2z" fill="currentColor" {}
@@ -147,7 +172,7 @@ pub async fn play_view(
             }
         }
     };
-    pages::page(StatusCode::OK, &game.title, Some(&user), None, body)
+    pages::page(StatusCode::OK, &game.title, user.as_ref(), None, body)
 }
 
 async fn live(state: &AppState, id: &str) -> Option<Game> {

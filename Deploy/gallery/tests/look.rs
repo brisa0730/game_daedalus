@@ -84,15 +84,18 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     keep("list-mine", app.get(GALLERY, "/", Some(&kim)).await);
     keep("list-teacher", app.get(GALLERY, "/", Some(&teacher)).await);
     keep("play", app.get(GALLERY, &format!("/play/{traps}"), Some(&lee)).await);
+    keep("list-public", app.get(GALLERY, "/", None).await);
+    keep("play-public", app.get(GALLERY, &format!("/play/{traps}"), None).await);
+    keep("not-found-public", app.get(GALLERY, "/nothing-here", None).await);
     keep("upload", app.get(GALLERY, "/upload", Some(&kim)).await);
     keep("upload-first", app.get(GALLERY, "/upload", Some(&fresh)).await);
     keep("password", app.get(GALLERY, "/password", Some(&kim)).await);
     keep("remove-game", app.get(GALLERY, &format!("/games/{old}/remove"), Some(&kim)).await);
     keep("not-found", app.get(GALLERY, "/nothing-here", Some(&kim)).await);
     keep("teacher", app.get(GALLERY, "/teacher", Some(&teacher)).await);
-    let bad = format!("text={}", url_encode("ok-one, 정하은\nBAD ID, 오시우\nkim, 김하늘"));
+    let bad = format!("text={}", url_encode("ok-one, 정하은, 하늘빛\nBAD ID, 오시우, 시우\nkim, 김하늘, 하늘\nno-nick, 한예린"));
     keep("preview", app.post_form("/teacher/students/preview", Some(&teacher), &bad).await);
-    let good = format!("text={}", url_encode("jung, 정하은\noh-siu, 오시우\nhan, 한예린"));
+    let good = format!("text={}", url_encode("jung, 정하은, 하늘빛\noh-siu, 오시우, 번개\nhan, 한예린, 별사탕"));
     keep("slips", app.post_form("/teacher/students/create", Some(&teacher), &good).await);
     let kim_id = app.state.db.students().await.unwrap().into_iter().find(|st| st.login == "kim").unwrap().id;
     keep("remove-account", app.get(GALLERY, &format!("/teacher/students/{kim_id}/remove"), Some(&teacher)).await);
@@ -100,9 +103,24 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     let page = |name: &str| pages.iter().find(|(n, _)| *n == name).map(|(_, h)| h.as_str()).unwrap();
 
     // The script's wires: every id and data attribute gallery.js reads is still rendered.
-    for id in ["game", "frame", "fullscreen"] {
-        assert!(page("play").contains(&format!(r#"id="{id}""#)), "play: #{id}");
+    for play in ["play", "play-public"] {
+        for id in ["game", "frame", "fullscreen", "copy-link", "share-url", "copy-note"] {
+            assert!(page(play).contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
+        }
+        for data in ["msg-copied", "msg-selected"] {
+            assert!(page(play).contains(&format!("data-{data}=")), "{play}: data-{data}");
+        }
     }
+    // The teacher's list edits both names per student, under the hint that the nickname is public.
+    assert!(page("teacher").contains(s::NAMES_HINT));
+    // Each student row and the add-one form: the nickname box is always named `nickname`, never `name` (which the
+    // add-one form uses for the real name), with autofill off, so a remembered real name is never offered there.
+    let teacher_html = page("teacher");
+    let rows = teacher_html.matches(r#"/rename""#).count();
+    assert_eq!(rows, 4, "one rename form per student");
+    assert_eq!(teacher_html.matches(r#"name="real_name""#).count(), rows);
+    assert_eq!(teacher_html.matches(r#"name="nickname""#).count(), rows + 1);
+    assert_eq!(teacher_html.matches(r#"autocomplete="off""#).count(), 2 * rows + 2);
     for upload in ["upload", "upload-first"] {
         let html = page(upload);
         for id in ["upload", "zip", "zip-name", "progress", "progress-pct", "upload-message", "upload-button"] {

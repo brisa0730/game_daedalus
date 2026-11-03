@@ -32,6 +32,11 @@ pub const PLAY_CSP: &str = "default-src 'none'; script-src 'self' blob: 'wasm-un
 /// (no top navigation, no popups, no forms); `allow-same-origin` keeps the game's own saves working.
 pub const PLAY_SANDBOX_CSP: &str = "sandbox allow-scripts allow-same-origin allow-pointer-lock";
 
+/// The gallery is public (v0.20) but asks search engines not to list it, on both hosts. A header, not `robots.txt`:
+/// a crawler kept out by `robots.txt` never sees the noindex.
+const ROBOTS_TAG: header::HeaderName = header::HeaderName::from_static("x-robots-tag");
+const NOINDEX: &str = "noindex, nofollow";
+
 /// The gallery host's layer: refuses any state change from anywhere but the gallery's own pages (fails closed),
 /// then adds the gallery's headers. A handler's own CSP is kept (both apply) and its `Cache-Control` is left alone.
 pub async fn gallery_layer(State(origin): State<String>, request: Request, next: Next) -> Response {
@@ -47,6 +52,7 @@ pub async fn gallery_layer(State(origin): State<String>, request: Request, next:
     headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("SAMEORIGIN"));
     headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
     headers.insert(header::REFERRER_POLICY, HeaderValue::from_static("same-origin"));
+    headers.insert(ROBOTS_TAG, HeaderValue::from_static(NOINDEX));
     if !headers.contains_key(header::CACHE_CONTROL) {
         headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
@@ -74,6 +80,7 @@ pub async fn games_layer(request: Request, next: Next) -> Response {
     }
     headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
     headers.insert(header::REFERRER_POLICY, HeaderValue::from_static("no-referrer"));
+    headers.insert(ROBOTS_TAG, HeaderValue::from_static(NOINDEX));
     response
 }
 

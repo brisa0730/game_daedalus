@@ -125,12 +125,12 @@ async fn a_change_rotates_this_session_and_ends_every_other() {
     let rotated = answer.cookie("__Host-gallery_session").expect("a new session cookie");
     assert_ne!(rotated, a_session);
 
-    assert_eq!(app.get(GALLERY, "/", Some(&rotated)).await.status, StatusCode::OK, "this browser stays signed in");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&rotated)).await.status, StatusCode::OK, "this browser stays signed in");
     let done = app.get(GALLERY, "/password?changed=1", Some(&rotated)).await;
     assert!(done.text().contains(s::PASSWORD_CHANGED));
-    assert_eq!(app.get(GALLERY, "/", Some(&a_session)).await.header("location"), Some("/login"), "a copy of the old cookie is out");
-    assert_eq!(app.get(GALLERY, "/", Some(&b_session)).await.header("location"), Some("/login"), "the other browser is out");
-    assert_eq!(app.get(GALLERY, "/", Some(&lee)).await.status, StatusCode::OK, "other users are untouched");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&a_session)).await.header("location"), Some("/login"), "a copy of the old cookie is out");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&b_session)).await.header("location"), Some("/login"), "the other browser is out");
+    assert_eq!(app.get(GALLERY, "/upload", Some(&lee)).await.status, StatusCode::OK, "other users are untouched");
 
     assert!(app.state.db.browser_known(&hash_of(&a_known), id, 0).await.unwrap(), "this browser stays known");
     assert!(!app.state.db.browser_known(&hash_of(&b_known), id, 0).await.unwrap(), "the other browser is forgotten");

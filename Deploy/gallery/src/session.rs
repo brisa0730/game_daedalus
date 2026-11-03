@@ -1,5 +1,5 @@
-//! Signing in and out, the session cookie, the sign-in delay, known browsers, and the layer that keeps every
-//! non-public gallery route behind a session.
+//! Signing in and out, the session cookie, the sign-in delay, known browsers, and the layer that keeps the
+//! signed-in gallery routes behind a session (and tells open routes who, if anyone, is signed in).
 
 use std::collections::HashMap;
 
@@ -15,7 +15,7 @@ use crate::accounts::HashError;
 use crate::app::{Access, AppState};
 use crate::config::{Config, unix_now};
 use crate::db::{Role, User};
-use crate::pages;
+use crate::pages::{self, Nav};
 use crate::strings as s;
 use crate::text::{PasswordProblem, check_new_password};
 use crate::upload::json_answer;
@@ -23,7 +23,8 @@ use crate::upload::json_answer;
 pub const SESSION_COOKIE: &str = "__Host-gallery_session";
 pub const KNOWN_COOKIE: &str = "__Host-gallery_known";
 
-/// The signed-in user of a request, put there by [`require_access`].
+/// The signed-in user of a request, put there by [`require_access`] (always on a signed-in route, when there is a
+/// session on an open one).
 #[derive(Clone)]
 pub struct CurrentUser(pub User);
 
@@ -73,7 +74,8 @@ pub async fn current_user(state: &AppState, headers: &HeaderMap) -> Option<(User
 }
 
 /// Every route that isn't public passes through here (wired from the route table in `app.rs`). A missing session
-/// sends a page to `/login`; the upload API answers 401 in its JSON shape; a student on a teacher route gets 403.
+/// lets an open route through without a user, sends a page to `/login`, and makes the upload API answer 401 in its
+/// JSON shape; a student on a teacher route gets 403.
 pub async fn require_access(
     State((state, access)): State<(AppState, Access)>,
     mut request: Request,
@@ -81,6 +83,7 @@ pub async fn require_access(
 ) -> Response {
     let Some((user, hash)) = current_user(&state, request.headers()).await else {
         return match access {
+            Access::Open => next.run(request).await,
             Access::Api => {
                 json_answer(StatusCode::UNAUTHORIZED, serde_json::json!({"ok": false, "message": s::SESSION_ENDED, "login": true}))
             }
@@ -167,6 +170,12 @@ pub fn delay_after(failures: u32, config: &Config) -> u64 {
     doubled.min(config.throttle_cap_secs)
 }
 
+/// The gallery's 404 for any unknown address, with the header of whoever is asking.
+pub async fn not_found_page(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let user = current_user(&state, &headers).await.map(|(user, _)| user);
+    pages::not_found(user.as_ref())
+}
+
 pub async fn login_page(State(state): State<AppState>, headers: HeaderMap) -> Response {
     if current_user(&state, &headers).await.is_some() {
         return pages::see_other("/");
@@ -207,7 +216,7 @@ fn login_form(status: StatusCode, login: &str, error: Option<&str>) -> Response 
             }
         }
     };
-    pages::page(status, s::LOGIN_TITLE, None, None, body)
+    pages::page(status, s::LOGIN_TITLE, None, Some(Nav::Login), body)
 }
 
 #[derive(Deserialize)]
@@ -384,7 +393,7 @@ pub async fn post_logout(
     axum::Extension(SessionHash(hash)): axum::Extension<SessionHash>,
 ) -> Response {
     let _ = state.db.delete_session(&hash).await;
-    let mut response = pages::see_other("/login");
+    let mut response = pages::see_other("/");
     response.headers_mut().append(
         header::SET_COOKIE,
         HeaderValue::from_static("__Host-gallery_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"),

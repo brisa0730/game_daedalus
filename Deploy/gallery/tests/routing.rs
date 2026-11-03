@@ -67,6 +67,12 @@ async fn every_non_public_route_needs_a_session() {
         };
         match route.access {
             Access::Public => assert!(answer.status != StatusCode::UNAUTHORIZED, "{path}"),
+            // Open: anyone gets the page itself (a made-up game is a 404), never a sign-in redirect.
+            Access::Open => {
+                let expected = if path == "/" { StatusCode::OK } else { StatusCode::NOT_FOUND };
+                assert_eq!(answer.status, expected, "{path}");
+                assert_eq!(answer.header("location"), None, "{path}");
+            }
             Access::Api => {
                 assert_eq!(answer.status, StatusCode::UNAUTHORIZED, "{path}");
                 assert_eq!(answer.json()["message"], s::SESSION_ENDED);
@@ -108,11 +114,17 @@ async fn gallery_headers_are_on_every_kind_of_response() {
     let app = TestApp::new().await;
     let cookie = app.student("kim", "김민수").await;
     let ok = app.get(GALLERY, "/", Some(&cookie)).await;
-    let redirect = app.get(GALLERY, "/", None).await;
+    let redirect = app.get(GALLERY, "/upload", None).await;
     let forbidden = app.send(
         Request::builder().method(Method::POST).uri("/logout").header("host", GALLERY).body(Body::empty()).unwrap(),
     ).await;
     let missing = app.get(GALLERY, "/nothing-here", Some(&cookie)).await;
+    // A mistyped address keeps the asker's own header: signed in, the name and Sign out; signed out, Sign in.
+    let missing_html = missing.text();
+    assert!(missing_html.contains(&s::signed_in_as("김민수")) && missing_html.contains(s::SIGN_OUT));
+    assert!(!missing_html.contains(r#"href="/login""#));
+    let missing_signed_out = app.get(GALLERY, "/nothing-here", None).await.text();
+    assert!(missing_signed_out.contains(r#"href="/login""#) && !missing_signed_out.contains(s::SIGN_OUT));
     for (answer, status) in [(ok, 200), (redirect, 303), (forbidden, 403), (missing, 404)] {
         assert_eq!(answer.status.as_u16(), status);
         let csp = answer.all("content-security-policy").join(" | ");
@@ -121,6 +133,7 @@ async fn gallery_headers_are_on_every_kind_of_response() {
         assert_eq!(answer.header("x-content-type-options"), Some("nosniff"));
         assert_eq!(answer.header("referrer-policy"), Some("same-origin"));
         assert_eq!(answer.header("cache-control"), Some("no-store"));
+        assert_eq!(answer.header("x-robots-tag"), Some("noindex, nofollow"), "{status}");
     }
     let css = app.get(GALLERY, "/static/gallery.css", None).await;
     assert_eq!(css.header("cache-control"), Some("no-cache"), "a handler's Cache-Control survives the layer");
@@ -151,6 +164,7 @@ async fn the_games_host_only_serves() {
     assert_eq!(missing.status, StatusCode::NOT_FOUND);
     assert!(missing.all("content-security-policy").iter().any(|c| c.contains("form-action 'none'")));
     assert_eq!(missing.header("referrer-policy"), Some("no-referrer"));
+    assert_eq!(missing.header("x-robots-tag"), Some("noindex, nofollow"));
 }
 
 #[test]

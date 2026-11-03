@@ -28,4 +28,4 @@ The Unity Editor's own accessibility is Unity's. To be set during `editor-tools`
 
 ## Student Content
 
-Students share games on the class gallery (systems.md § Share), which only the teacher and the students can enter. The teacher removes any game or account; that is the takedown path (pre-launch gate, Roadmap §2).
+Students share games on the class gallery (systems.md § Share). Since v0.20 anyone with the address can view and play every game, while only the class (students and the teacher) signs in and uploads. The teacher removes any game or account; that is the takedown path (pre-launch gate, Roadmap §2), now for public content.
