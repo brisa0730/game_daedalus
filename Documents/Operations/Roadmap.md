@@ -24,14 +24,19 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 Each milestone ends with something playable.
 
+### Milestone 7a — `first-release` (next; runs ahead of Milestone 4)
+Carved out of `assets-and-sharing` so students can try what exists now: MIT license on the package folder, first tag `0.1.0`, the OpenUPM listing, a starter sample (open-and-play troll level, trap prefabs, CC0 art), Korean install steps, a clean-project install test on both editors and the first fixture project. Share my game's operator editor check runs before students try it.
+
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
+**Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.
+
 The attack, HP, damage, i-frames, knockback, hit-stop (HP 0 respawns at the checkpoint); the Enemy component with all movement types and the Shoots Projectiles add-on. Hazards, death and respawn land in `traps`.
 
 ### Milestone 5 — `world-systems` (days 20–22)
 Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`; checkpoints, the exit and traps in `traps`), active radius, camera smoothing and look-ahead (a minimal snap follow lands in `traps`), the in-game progress save at checkpoints, ability pickups, moving and crumbling platforms (on the `traps` moving-box core).
 
 ### Milestone 6 — `editor-tools` (days 23–31)
-Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, scene autosave, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs, opening with troll sections and five example traps: Drop Floor, Pop Spike, Falling Ceiling, Runaway Exit, Fake Floor). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make a floor that drops when the player gets close, make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
+Play-from-here with ability selection (build it first), the daedalus window, the Daedalus Add Component menu, custom inspectors (≤ ~8 settings, mode-specific settings hidden) and gizmos, validation warnings, terrain tiles with collision kinds (layouts per §4), and the starter sample (scene + example prefabs, opening with troll sections and five example traps: Drop Floor, Pop Spike, Falling Ceiling, Runaway Exit, Fake Floor). Much smaller than the browser plan's editor: Unity provides painting, navigation, Add Component, prefabs, undo and saving. **Mid-milestone student check:** put a student in front of the Unity Editor with the tools about halfway through, not at the classroom test. Time a few tasks (make a floor that drops when the player gets close, make an enemy that chases, put double jump behind a pickup) against the operator's experience of Corgi / Flare.
 
 ### Milestone 7 — `assets-and-sharing` (days 32–36)
 Default art pack (CC0, pre-mapped, with a seamless single-tile ground style so traps look like normal ground) in the starter, tileset setup templates, sprite-sheet animation sets with fallbacks, Share my game moved into the daedalus window, and the first OpenUPM release.
@@ -79,4 +84,3 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 | Decision | Options | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | Auto-tile layouts on Unity's Tilemap (reopens v0.02's "all three, dual-grid first") | Rule Tiles for blob + single only · plus a custom dual-grid tool (a display Tilemap offset half a tile, driven from the logical Collision Tilemap) | Blob + single on Rule Tiles first: they come with 2D Tilemap Extras and cover a CC0 pack. Build dual-grid only if the mid-`editor-tools` student check shows students drawing their own terrain need it | `editor-tools` |
-| License for the package | An OSI open-source license (e.g. MIT, Apache-2.0) · source-available without OpenUPM (git URL only) | Decide before `assets-and-sharing` (milestone 7): OpenUPM lists only open-source packages | `assets-and-sharing` (first OpenUPM release) |
