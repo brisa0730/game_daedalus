@@ -25,12 +25,18 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 Each milestone ends with something playable.
 
+### `stages` (next, ahead of Milestone 4)
+Troll games made of stages, one Unity scene per stage: an Exit's optional Next stage, a quick fade, one death total across the game, Share my game builds the whole chain. One-scene games stay as they are. The Ori-style big map stays one scene. Decided 2026-11-09 (`decisions.md`).
+
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
 **Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.
+**Inherited from `stages`:** HP carries between stages. Say what the stage change does to it, and test it across a real scene load.
 
 The attack, HP, damage, i-frames, knockback, hit-stop (HP 0 respawns at the checkpoint); the Enemy component with all movement types and the Shoots Projectiles add-on. Hazards, death and respawn land in `traps`.
 
 ### Milestone 5 — `world-systems` (days 20–22)
+**Inherited from `stages`:** abilities carry between stages, and the progress save resumes at the stage the player reached after the game is closed.
+
 Read the scene's placed elements into the sim (the Collision Tilemap read and ropes land in `movement-runtime`; checkpoints, the exit and traps in `traps`), active radius, camera smoothing and look-ahead (a minimal snap follow lands in `traps`), the in-game progress save at checkpoints, ability pickups, moving and crumbling platforms (on the `traps` moving-box core).
 
 ### Milestone 6 — `editor-tools` (days 23–31)
@@ -61,7 +67,8 @@ Out of scope for v1. Each trigger is "an operator decision after v1" unless stat
 - **Boss scripting, multi-phase patterns.**
 - **Trap chaining** (one trap triggering another), **repeating traps**, **gravity flip, reversed controls** and other rule-changing traps. v1 traps hold their own trigger and fire once per life; several traps fire together by sharing a zone.
 - **Event / scripting system for students, including C# scripting.** Against the design pillar "students use the tool, they don't read its code"; treat as the strongest scope-creep signal.
-- **Separate rooms with screen transitions.** v1 is one continuous map.
+- **Rooms the player can walk back and forth between,** with screen transitions (deferred 2026-11-09, when linear stages came in). The big map stays one continuous scene; troll games may be linear stages.
+- **Level select; stage cards or names** (deferred 2026-11-09). Stages are a linear chain with a quick fade between them.
 - **Dialogue, NPCs, shops, inventory.**
 - **Multiplayer, online leaderboards.**
 - **Mobile / touch controls.** Keyboard + gamepad only.
