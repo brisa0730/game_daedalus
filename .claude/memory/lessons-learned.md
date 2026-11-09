@@ -49,6 +49,8 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **A deferred manual play-check decays against the code it verifies, and nothing is watching.** The phase that churns a check's subject must re-run it or restate it.
 
 ## Planning & documents
+- **A sample's GUIDs protect references, not values.** A student's prefab instances inherit every setting they didn't override, so a released sample must be frozen by content too; a new behaviour is a new prefab under a new name (Phase 7, F2).
+- **Any Exit-like "win" object ends the level where it's placed: check a level's order against what ends it before writing the layout** (Phase 7's two-exit plan would have made the "your turn" stretch unreachable).
 - **Never assign an index (phase number) to work that has not started.**
 - **When a decision renames an identifier or moves a threshold, grep the WHOLE document for the old form before calling the edit done.** Stale copies survive in the checklists and Verify lines an executor actually works from.
 - **Rewriting a step does not rewrite its summaries,** and the Completion Criteria copy is the commit gate, so it ships the drift. Re-read the gate lines after every edit.

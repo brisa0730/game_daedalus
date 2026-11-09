@@ -28,7 +28,7 @@ Students can't try the tool yet. There is no install route and no example level.
   1. MIT license, on the package folder only.
   2. First tag `0.1.0`.
   3. OpenUPM listing.
-  4. A starter sample with a CC0 art pack.
+  4. A starter sample with plain generated art (no art pack).
   5. Scene autosave is cut entirely.
   6. Share my game's operator editor check moves up to before students try the release.
 
@@ -73,21 +73,8 @@ Markers: **[OPERATOR GATE]** blocks until the operator decides. **[NEEDS APPROVA
 - **Verify:** `[grep]` `grep -rni autosave .claude/CLAUDE.md Documents/GDD .claude/skills Documents/Operations/Roadmap.md` returns nothing. Changelog and archived phases may still match.
 - **Depends on:** none.
 
-### Step 2: Choose the starter art pack **[OPERATOR GATE]**
-- Shortlist 2 to 3 CC0 packs (candidates to check first, from memory and unverified: Kenney's Tiny Town, Tiny Dungeon and 1-bit packs). Measure each pack's tile size; never shortlist one that isn't 16 px and plan to rescale it (Kenney's Pixel Platformer may be 18 px).
-- For each, open the license at its source and quote the URL and the date checked in the message. Do not trust a mirror. Confirm CC0 and not "free for personal use".
-- Criteria:
-    - 16 px tiles.
-    - One ground tile that is seamless on all four sides (tile it 4 × 4 and look at the picture).
-    - A spike tile, a player-like character sprite, and something readable as a checkpoint and an exit.
-    - Full Rect-compatible sprites (no mesh-tight need).
-    - A license file we can ship beside the pack.
-- Show the operator a picture per candidate (ground tiled, spike, player, checkpoint, exit). Recommend one.
-- If no pack gives a seamless ground tile, say so and offer a fallback: the generator draws plain placeholder art per pixel, as the dev bench does. This is the operator's call.
-- Nothing from the chosen pack enters the repo until the operator approves.
-- **Tests:** none.
-- **Verify:** `[manual]` the operator approves a named pack in writing. Record the choice and license URL in Notes to GDD.
-- **Depends on:** none (Steps 3 to 5 can run in parallel).
+### Step 2: Starter art (settled)
+The operator chose on 2026-11-09 to ship no art pack: the Starter uses the plain art the generator draws (rectangles for ground and the player, simple spikes, a flag, a door). That art is ours, covered by the package's MIT license, so no third-party license file is needed. A default art pack stays in Milestone 7. Because Starter sprites are frozen once tagged, a later pack arrives as new pieces under new names.
 
 ### Step 3: Package metadata and license
 - **NEW** `Packages/com.orcapafea.daedalus/LICENSE.md`: the MIT text, "Copyright (c) 2026 orcapafea" (use the author name already in package.json). It covers the package folder only. Add one line saying the gallery server, docs and the development project are not covered. Add the `.meta` file Unity generates.
@@ -137,15 +124,12 @@ Markers: **[OPERATOR GATE]** blocks until the operator decides. **[NEEDS APPROVA
 - Author on 6000.0 only. The dev scenes generate on 6000.6, whose serialized format might not open on the minimum, so never commit a 6000.6-generated starter.
 - **Tests:** SelfCheck, described in Step 7.
 - **Verify:** `[manual]` running `Tools/build_starter.py` twice produces no `git diff` on the second run (idempotent, GUIDs stable).
-- **Depends on:** Step 2 for the final art. Start with generated placeholders and swap in the pack when approved.
+- **Depends on:** none.
 
-### Step 6: Import the approved art pack
-- Place only the art the scene uses, plus the pack's license file beside it (`Samples~/Starter/Art/LICENSE.txt`, verbatim). The source URL goes in a one-line `SOURCE.txt` beside it.
-- The generator sets the import settings (16 PPU, Point, Full Rect, no compression). Packs that ship sprite sheets are sliced in the generator, not by hand.
+### Step 6: Tiles
 - About three tiles in all: Ground, Spike (a `DaedalusTile` set to Hazard) and Fake Floor (a `DaedalusTile` set to None, drawn like ground). Plain tiles only; the open auto-tile decision (Roadmap §4) is not touched.
-- **Tests:** in Step 7's `StarterSampleTests`: the pack's license file exists beside the art; every PNG under `Samples~` sits in a folder with a license file.
-- **Verify:** `[automated]` as above, and `[manual]` look at the picture.
-- **Depends on:** Steps 2 and 5.
+- **Verify:** `[manual]` look at the picture.
+- **Depends on:** Step 5.
 
 ### Step 7: The starter scene and prefabs
 - **Scene** (`Samples~/Starter/Starter.unity`), built by the generator. Everything a play needs is already in it, so students need to add nothing before the first play:
@@ -156,10 +140,9 @@ Markers: **[OPERATOR GATE]** blocks until the operator decides. **[NEEDS APPROVA
 - **Level:** three short sections, clearable end to end in about 30 seconds. Each section opens at a Checkpoint and teaches one thing:
     1. Fake Floor (a None-kind tile painted on Collision) plus a Drop Floor.
     2. Pop Spike plus a Falling Ceiling (placed high, with the explicit zone below reaching the floor).
-    3. A Runaway Exit near the end.
-    - Then an unfinished "your turn" stretch containing one object with only a SpriteRenderer and no Trap, so **Add Component → Daedalus → Trap** happens on purpose.
-    - The stretch must be jumpable without touching that object, so the level stays clearable. The exact form is for the implementer to propose and show in the picture.
-    - A final Exit follows the stretch.
+    3. An unfinished "your turn" stretch containing one object with only a SpriteRenderer and no Trap, so **Add Component → Daedalus → Trap** happens on purpose, then the Runaway Exit, the level's only Exit.
+    - The stretch must be jumpable without touching that object, so the level stays clearable. It is a 3-wide pit with the object drawn as floor across it.
+    - One Exit only (changed during implementation): touching any Exit wins, so a Runaway Exit ahead of the stretch would end the level before it.
 - **Prefabs** (`Samples~/Starter/Prefabs/`): Drop Floor, Pop Spike, Falling Ceiling, Runaway Exit (an Exit carrying a Move trap, offset 6,0), Checkpoint, Exit. **No Player and no Rope prefab.**
     - Trap zones are stored relative to the object (`TrapLook.WorldZone`), so they survive being dragged to another spot. Do not copy the bench's world rects. Each prefab uses default values except what its recipe needs. The generator computes the zone after setting the trap's size and, for the Runaway Exit, after it is on the Exit (`TrapLook.DefaultZoneLocal(trap)`).
     - **The Falling Ceiling is the exception and needs its own zone.** A trap's default zone is its box grown one tile *upward* (`LevelRules.DefaultZone`), so a ceiling placed high would have a zone above itself that no player enters. The prefab ships an explicit local zone as wide as the trap, from its box down 9 tiles (the height it hangs above the floor in section 2, as on the bench, line 66). The zone moves with the object: placed at another height, it may stop short of the floor or poke through it. Short means the trap never fires. The student steps (Step 8) say so and show the fix.
@@ -238,7 +221,7 @@ Markers: **[OPERATOR GATE]** blocks until the operator decides. **[NEEDS APPROVA
     - Reword the trigger of "A Rope with no sprite is invisible in Play". It names the default art pack, but the starter ships no Rope. New trigger: when a Rope prefab or a rope look is added to a sample, or the `editor-tools` missing-piece hints land.
     - Gallery backups: apply the operator's answer to Open question 4 (keep the entry, reword its trigger, or fire it).
     - Add entries for any leftovers (each with a concrete trigger).
-- **MODIFY** `Documents/Operations/Roadmap.md`: delete the `first-release` milestone section (its work moves to §0's table). In Milestone 6, cut to what's left of "the starter sample" wording (the starter exists; `editor-tools` extends it, for example with new prefabs). In Milestone 7, remove "and the first OpenUPM release" and the default-art-pack wording that this phase delivers; leave the rest. In §2, delete the "Default art pack licensed" gate if the Step 6 test proves it.
+- **MODIFY** `Documents/Operations/Roadmap.md`: delete the `first-release` milestone section (its work moves to §0's table). In Milestone 6, cut to what's left of "the starter sample" wording (the starter exists; `editor-tools` extends it, for example with new prefabs). In Milestone 7, remove "and the first OpenUPM release"; the default art pack stays there, and so does its §2 gate.
 - **Verify:** `[grep]` nothing in the Roadmap or Deferred still describes work this phase did.
 - **Depends on:** Step 11.
 
@@ -293,7 +276,6 @@ Order: commit and push `main` → Git URL test → tag → submit → registry t
 - [ ] The starter opens and plays on both editors; each of three sections is reachable from a Checkpoint; the "your turn" object has no Trap; the level is clearable in about 30 seconds.
 - [ ] One Tilemap named Collision; MainCamera; Global Light 2D; Player with Respawn at checkpoint; no Player or Rope prefab.
 - [ ] Fake Floor ships as a None-kind tile on Collision; a test proves it draws, doesn't block and isn't safe ground.
-- [ ] The art pack's CC0 license was checked at the source, the operator approved the pack, and the license file sits beside the art.
 - [ ] `git lfs ls-files` shows nothing under `Packages/`.
 - [ ] README says what works and what doesn't; `install-ko.md` exists and the operator has followed it on a clean laptop.
 - [ ] The fixture project (`Tools/fixtures/0.1.0`) opens and plays on both editors; Share works from the student's copy on both editors.
@@ -311,7 +293,7 @@ Order: commit and push `main` → Git URL test → tag → submit → registry t
 1. MIT license, on the package folder only (not the gallery server, docs or dev project).
 2. The first tagged version is `0.1.0`.
 3. OpenUPM listing, so students install from the registry.
-4. A starter sample imported from Package Manager, with a CC0 art pack and its license file.
+4. A starter sample imported from Package Manager, with plain generated art; no art pack in this release (the default pack stays in Milestone 7).
 5. **Scene autosave is cut, not deferred.** Students work in the normal Unity Editor and save themselves. Update-safety rules stay.
 6. Share my game's operator editor check moves up to before students try the release; its Deferred entry is deleted when done.
 7. Not in this phase and stay in their milestones: animation sets, tileset templates, moving Share my game into the daedalus window, play-from-here, custom inspectors, the validation list.

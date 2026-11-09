@@ -34,7 +34,7 @@ PACKAGE_NAME = "com.orcapafea.daedalus"
 PACKAGE_DIR = REPO / "Packages" / PACKAGE_NAME
 INPUT_SYSTEM = "com.unity.inputsystem"
 RESULTS = REPO / "TestResults"
-EDITORS = {"6000.0": "6000.0.85f1", "6000.6": "6000.6.7f1"}
+EDITORS = {"6000.0": "6000.0.85f1", "6000.6": "6000.6.8f1"}
 PLATFORMS = {"editmode": "EditMode", "playmode": "PlayMode"}
 ASSEMBLIES = {
     "editmode": "Orcapafea.Daedalus.Tests.EditMode",
@@ -181,11 +181,11 @@ def force_our_compile(project):
             path.unlink()
 
 
-def run_unity(command, env):
+def run_unity(command, env, timeout=TIMEOUT_SECONDS):
     """Run Unity; on timeout kill it and its child processes (they would hold the project lock)."""
     process = subprocess.Popen(command, env=env, start_new_session=sys.platform != "win32")
     try:
-        return process.wait(timeout=TIMEOUT_SECONDS)
+        return process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         if sys.platform == "win32":
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)

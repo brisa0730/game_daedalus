@@ -1,7 +1,7 @@
 """Check Daedalus -> Share my game end to end: a batch Share build of the trap bench, judged by the gallery's own check.
 
 Usage:
-    python Tools/share_check.py [--editor 6000.0|6000.6|all] [--no-gallery-check] [--probe]
+    python Tools/share_check.py [--editor 6000.0|6000.6|all] [--no-gallery-check] [--probe] [--project PATH --scene PATH]
 
 Per editor it runs the menu's own build core (Orcapafea.Daedalus.Editor.ShareMyGame.BuildFromCommandLine) on
 Assets/Dev/TrapTest with a hostile title, then checks:
@@ -16,6 +16,8 @@ Assets/Dev/TrapTest with a hostile title, then checks:
 --probe instead proves the fail-closed wire: a build callback that logs an exception (the build still succeeds) is
 dropped into the project for one run; Share must refuse with its exception text and make no zip. Then it is removed.
 6000.6 uses the dev project; 6000.0 the compat project (Tools/compat/6000.0), with the trap bench copied in.
+--project PATH --scene PATH shares a student-shaped project instead (a scratch copy in Tools/compat/, pointed at today's
+package): the committed project is never opened, and the run fails if Tools/fixtures/0.1.0 changed.
 Writes TestResults/share-check/<editor>.zip and .log, and TestResults/<unity version>-share-check-screenshot.png.
 """
 
@@ -34,6 +36,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # importing unity_tests must not leave Tools/__pycache__ behind
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from unity_tests import EDITORS, REPO, RESULTS, editor_exe, ensure_compat_project, looks_locked  # noqa: E402
+from install_check import assert_fixture_untouched, copy_fixture  # noqa: E402
 
 OUT = RESULTS / "share-check"
 GALLERY = REPO / "Deploy" / "gallery"
@@ -110,7 +113,9 @@ def run_unity(command):
         raise Fail(f"Unity didn't finish within {BUILD_TIMEOUT_SECONDS // 60} minutes")
 
 
-def prepare(editor_key):
+def prepare(editor_key, other_project=None, other_scene=None):
+    if other_project:
+        return copy_fixture(Path(other_project).resolve(), f"share-{editor_key}"), other_scene
     if editor_key == "6000.6":
         return REPO, f"{BENCH}/TrapTest.unity"
     project = ensure_compat_project(editor_key)
@@ -199,10 +204,10 @@ def check_labels():
         raise Fail("strings.rs NAV_UPLOAD is no longer 업로드")
 
 
-def check_editor(editor_key, gallery, probe=False):
+def check_editor(editor_key, gallery, probe=False, other_project=None, other_scene=None):
     version = EDITORS[editor_key]
     exe = editor_exe(version)
-    project, scene = prepare(editor_key)
+    project, scene = prepare(editor_key, other_project, other_scene)
     probe_dir = project / "Assets" / "ShareCheckProbe"
     if probe:
         (probe_dir / "Editor").mkdir(parents=True, exist_ok=True)
@@ -269,11 +274,17 @@ def run_share(editor_key, version, exe, project, scene, gallery, probe):
 
 
 def main():
+    # The hostile title holds an emoji; a Korean Windows console (cp949) can't print it.
+    sys.stdout.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--editor", choices=["6000.0", "6000.6", "all"], default="6000.6")
     parser.add_argument("--no-gallery-check", action="store_true", help="skip the cargo check (a machine without cargo)")
     parser.add_argument("--probe", action="store_true", help="prove an exception during the build makes no zip")
+    parser.add_argument("--project", help="share a scratch copy of this project instead of the trap bench")
+    parser.add_argument("--scene", help="the scene to share in --project, relative to it")
     args = parser.parse_args()
+    if bool(args.project) != bool(args.scene):
+        parser.error("--project and --scene go together")
     editors = ["6000.6", "6000.0"] if args.editor == "all" else [args.editor]
 
     failed = False
@@ -285,10 +296,12 @@ def main():
         failed = True
     for editor_key in editors:
         try:
-            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe)}")
+            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe, args.project, args.scene)}")
         except Fail as error:
             print(f"FAIL  {EDITORS[editor_key]}: {error}")
             failed = True
+    if args.project:
+        assert_fixture_untouched()
     sys.exit(1 if failed else 0)
 
 

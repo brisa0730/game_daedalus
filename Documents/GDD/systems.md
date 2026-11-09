@@ -149,7 +149,7 @@ Students work in the Unity Editor, and its usability with our tools decides whet
 - **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route, trap zones, ghosts and end positions).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.
 - **Trap warnings (v0.10)**, in the Trap's inspector and once in the Console at play start: a trap over painted Collision tiles, a hazard tile on a decoration Tilemap (Console only), a trap off the grid, no Tile, a Tile that can't be drawn (Rule or animated), a sprite that isn't Full Rect (inspector only: an import setting), a scaled or rotated trap, a trap on an Exit or Checkpoint. The trap's story names an early zone (one reaching more than a tile ahead). The Checkpoint notes that it has no effect under Return to safe ground.
-- **Scene autosave:** Unity does not autosave scenes; the tools save the open scene on entering Play mode and on a timer.
+- **Saving:** students work in the normal Unity Editor and save their own scenes (Ctrl+S); the tools never save a scene for them, apart from Share my game, which saves the scene it shares.
 - No minimap: Scene-view zoom covers it.
 
 ## Tile System
@@ -187,7 +187,7 @@ No rule editing for students: they paint with preconfigured terrains. Fixed layo
 
 ## Asset Import
 
-- A **default art pack** (tiles, player, a few enemies, props) ships in the starter sample so students can build immediately.
+- A **default art pack** (tiles, player, a few enemies, props) ships in the starter sample so students can build immediately. (From `assets-and-sharing`; the 0.1.0 Starter uses plain generated art.)
 - **Tileset import:** a PNG, sliced in the Sprite Editor, then mapped to an auto-tile layout (§ Tile System → Tileset setup).
 - **Sprite-sheet import:** slice the sheet in the Sprite Editor, then assign frame ranges to animation states in an animation-set asset with a live preview; frame rate per state. Missing states fall back ([entities.md](entities.md) § Animation states).
 - Imported assets live in the student's Unity project.

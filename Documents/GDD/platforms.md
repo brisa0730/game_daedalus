@@ -3,7 +3,7 @@
 
 ## Engine & Targets
 
-- **Unity 6 package** `com.orcapafea.daedalus`, C#. Minimum editor **6000.0** (declared in the package's `package.json`); developed on **6000.6.7f1**; every test also runs on **6000.0.85f1**.
+- **Unity 6 package** `com.orcapafea.daedalus`, C#. Minimum editor **6000.0** (declared in the package's `package.json`); developed on **6000.6.8f1**; every test also runs on **6000.0.85f1**.
 - **Students** work in the Unity Editor on their school laptops (the operator confirmed the hardware). Each machine needs Unity Hub, a Unity 6 editor with **WebGL Build Support**, and a Unity account with a Personal or education license.
 - **Played games** are WebGL builds in desktop Chrome. No native builds, no store publishing in v1.
 
@@ -11,9 +11,9 @@
 
 - **Students:** install from **OpenUPM**: a scoped registry added once per project, then the package installs and updates from Package Manager (an Update button showing the version). No Git needed on student machines.
 - **Development:** the git URL `https://github.com/brisa0730/game_daedalus.git?path=/Packages/com.orcapafea.daedalus`.
-- **Releases** are semver git tags on the public GitHub repo; OpenUPM builds each tag.
+- **Releases** are semver git tags on the public GitHub repo; OpenUPM builds each tag. The package's semver and the GDD's vX.YY are separate number lines. Only class-ready versions are tagged: Package Manager offers every stable tag as an Update.
 - **Update safety:** an update must never break a saved student project (CLAUDE.md Architecture rule 4). Students update when the teacher says so, not mid-project on their own.
-- The **starter** (a scene, example prefabs, the default art pack) imports from Package Manager as a package sample.
+- The **starter** (a scene, example prefabs; plain generated art in 0.1.0) imports from Package Manager as a package sample. Its prefabs, tiles and sprites never change once tagged, because a student's saved level inherits from them; a new behaviour is a new piece under a new name.
 
 ## Input
 
@@ -29,7 +29,7 @@
 
 ## Storage
 
-- **Student work:** the Unity project folder, saved by Unity (Ctrl+S) plus the editor tools' scene autosave. Moving a project between machines means copying the folder without `Library/`; the classroom procedure is set in `classroom-test`.
+- **Student work:** the Unity project folder, saved by Unity (Ctrl+S). Moving a project between machines means copying the folder without `Library/`; the classroom procedure is set in `classroom-test`.
 - **Played game:** checkpoint progress (position, unlocked abilities, collected pickups) through `PlayerPrefs`, which a WebGL build keeps in the browser's IndexedDB under the page's address (`/idbfs/<hash of the URL up to its last />`): saves survive a reload, stay apart between games, and are lost if a game moves to a new address.
 
 ## External Services

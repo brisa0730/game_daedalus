@@ -61,6 +61,15 @@ type: reference
 - `UniversalRenderPipelineGlobalSettings.asset`'s `m_RuntimeSettings` list empties on the first editor save: URP clears it on every editor serialize and fills it only while building a player. The committed list is a stale build artifact; don't commit the emptied one either way without a reason.
 - A player's relative `-logFile` path resolves against the app bundle, not the shell; pass an absolute path.
 
+## Package samples (6000.0.85f1, 6000.6.8f1)
+- **Unity doesn't import `Samples~`,** so assets there get no `.meta` of their own: seed a scratch `Assets/` folder from the committed copy, build, and copy back, or every GUID changes.
+- **`Sample.Import`** lands in `Assets/Samples/<display name>/<version>/<sample>`. With a previous import and no `OverridePreviousImports` it returns false and changes nothing; with it, the old version folder is replaced. GUIDs carry over, so scenes saved elsewhere follow the new prefab values.
+- **Scenes and prefabs rebuilt from new GameObjects get new random object IDs,** so a rebuild diffs even with no real change, and a student's instance references would break: keep the old file when it matches after blanking the IDs (`build_starter.py`).
+- **`EditorSceneManager.NewScene(Single)` unloads assets loaded before it:** a tile held only in a C# variable then paints as nothing. Create the scene first.
+- **`[UnitySetUp]` runs before `[SetUp]`:** a Player started there never hears an `InputTestFixture` keyboard made in `[SetUp]`.
+- **Hub's template `com.unity.template.2d-cross-platform` is the one Hub shows as Universal 2D** on both editors.
+- **A Korean Windows console is cp949:** printing an emoji raises `UnicodeEncodeError`; reconfigure stdout with `errors="backslashreplace"`.
+
 ## Cloudflare Tunnel (cloudflared 2026.6.1)
 - `cloudflared tunnel route dns <name> <host>` with no `--config` takes the tunnel from `~/.cloudflared/config.yml` (octopus on the Mac Mini), **not** the name given: the record silently points at the wrong tunnel. Always pass `--config Deploy/cloudflared/suwon.yml` (and `--overwrite-dns` to repoint), and check the `tunnelID=` in the output.
 - The tunnel keeps the public `Host`; a request with `Host: 127.0.0.1` can only come from the machine itself.

@@ -66,6 +66,8 @@
 *.tif                   lfs
 *.tiff                  lfs
 *.webp                  lfs
+# Starter art ships in the package and must not be LFS pointers: OpenUPM and Package Manager fetch by Git.
+Packages/com.orcapafea.daedalus/Samples~/**/*.png -filter -diff -merge binary
 
 # Compressed Archive
 *.7z                    lfs

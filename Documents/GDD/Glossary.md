@@ -8,13 +8,13 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Package | Draft | `com.orcapafea.daedalus`, installed from OpenUPM: the sim, the runtime, the editor tools and the starter sample. |
 | Project | Draft | One student's Unity project with the package installed: a scene (Tilemaps + objects with Daedalus components) plus terrain and animation assets and the student's prefabs. |
 | Authored data | Draft | What a student saves: the scene, their prefabs and our assets. A package update must never break it (data version + upgrade step). |
-| Starter | Draft | The package sample a student imports first: a scene, example prefabs for every element and the default art pack. |
+| Starter | Draft | The package sample a student imports first: an open-and-play troll level and example trap, checkpoint and exit prefabs, in plain generated art. Its pieces are frozen once tagged. |
 | Daedalus component | Draft | One of our components in the Add Component menu under Daedalus (Player, Enemy, Checkpoint…); adding it makes an object work, with at most ~8 settings. |
 | Add-on | Draft | A small Daedalus component that extends one other (e.g. Shoots Projectiles on an Enemy). |
 | Sim | Draft | The pure `Step(state, input)` at a fixed 60 Hz tick, in its own assembly with no engine references. |
 | Tick | Draft | One fixed 1/60 s step of the sim. `FixedStepAccumulator` turns real time into ticks; after a hitch at most 5 run and the rest are dropped. |
 | Runtime | Draft | The package's play-time part: reads the scene into the sim, runs it, drives sprites, camera, input and saves. |
-| Editor tools | Draft | Our additions to the Unity Editor: custom inspectors and gizmos, the daedalus window, play-from-here, validation, scene autosave. No gameplay logic. |
+| Editor tools | Draft | Our additions to the Unity Editor: custom inspectors and gizmos, the daedalus window, play-from-here, validation. No gameplay logic. |
 | Daedalus window | Draft | The editor window holding the play-from-here ability checkboxes and the validation warnings. |
 | Shared build | Draft | A WebGL build of a student's game, uploaded to the class gallery as a Share zip and played in a browser. |
 | Class gallery | Draft | The website at `suwon.orcarin.com` where students sign in to upload their games and anyone can browse and play them (since v0.20); our web app on the operator's Mac Mini. |

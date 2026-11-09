@@ -3,7 +3,7 @@
 
 ## Art Direction
 
-- A **default art pack** ships in the starter sample: tiles, the player, a few enemies, props, so students can build immediately. To start: a licensed **CC0** pack, mapped to the auto-tile layouts.
+- A **default art pack** ships in the starter sample: tiles, the player, a few enemies, props, so students can build immediately. To start: a licensed **CC0** pack, mapped to the auto-tile layouts. (From `assets-and-sharing`; the 0.1.0 Starter uses plain generated art.)
 - Tile size: **16 px** (pixel art, smaller assets).
 - Auto-tiling (systems.md § Tile System) is how simple student art ends up looking clean; blank template PNGs per layout let students draw terrain straight into the right slots.
 - Students can import their own tilesets and sprite sheets (systems.md § Asset Import). Good default art and animation fallbacks are the mitigation for sprite-import confusion.

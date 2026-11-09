@@ -25,6 +25,12 @@ TestResults/
 
 # Throwaway compat project for the minimum editor (Tools/unity_tests.py)
 /Tools/compat/
+# The fixture is opened only as a scratch copy; these would appear if someone opened it by hand
+/Tools/fixtures/*/Library/
+/Tools/fixtures/*/Temp/
+/Tools/fixtures/*/Logs/
+/Tools/fixtures/*/UserSettings/
+/Tools/fixtures/*/Packages/packages-lock.json
 
 # Environment
 .env

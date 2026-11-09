@@ -4,13 +4,32 @@
   "displayName": "Daedalus Platformer Maker",
   "description": "Build a 2D platformer in the Unity Editor without code: place objects, add Daedalus components and tune their settings.",
   "unity": "6000.0",
+  "license": "MIT",
   "author": {
     "name": "orcapafea"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brisa0730/game_daedalus.git"
+  },
+  "documentationUrl": "https://github.com/brisa0730/game_daedalus/blob/main/Packages/com.orcapafea.daedalus/Documentation~/install-ko.md",
+  "keywords": [
+    "platformer",
+    "2d",
+    "tilemap",
+    "education"
+  ],
   "dependencies": {
     "com.unity.inputsystem": "1.11.2",
     "com.unity.modules.imageconversion": "1.0.0",
     "com.unity.modules.tilemap": "1.0.0",
     "com.unity.ugui": "2.0.0"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Starter",
+      "description": "A short troll level to play, ready-made traps to copy, and one spot left for you to finish.",
+      "path": "Samples~/Starter"
+    }
+  ]
 }

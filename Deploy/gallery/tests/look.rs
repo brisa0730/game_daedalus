@@ -168,7 +168,7 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     assert_eq!(font.status, StatusCode::OK);
     std::fs::write(out.join(FONT_PATH.trim_start_matches('/')), &font.body).unwrap();
     let results = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../TestResults");
-    let pictures: Vec<PathBuf> = ["6000.6.7f1-share-check-screenshot.png", "6000.6.7f1-traps-counter.png", "6000.6.7f1-traps-win.png"]
+    let pictures: Vec<PathBuf> = ["6000.6.8f1-share-check-screenshot.png", "6000.6.8f1-traps-counter.png", "6000.6.8f1-traps-win.png"]
         .iter()
         .map(|f| results.join(f))
         .filter(|p| p.exists())
