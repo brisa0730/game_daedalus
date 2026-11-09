@@ -8,6 +8,13 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.25 — 0.1.0 published (2026-11-09) · **students can install Daedalus from OpenUPM**
+
+- **Landed.** `main` pushed, tag `0.1.0` on commit `35ba14a`, listed through [openupm/openupm#7207](https://github.com/openupm/openupm/pull/7207) (merged automatically once data validation passed). The registry serves 0.1.0 built from that commit. No package code changed.
+- **Verified.** `install_check.py --editor all --source git` and `--source registry`: clean install, Starter import, scripted playthrough and the 0.1.0 fixture PASS on 6000.0.85f1 and 6000.6.8f1 for both sources.
+- **Not done.** The hand check of the guide and Share (Deferred.md) still comes before students are told to install. Whether the school network reaches `package.openupm.com` and `packages.unity.com` is untested (ISS-002 school check).
+- **GDD deltas.** GDD v0.24 → v0.25 (header: published). Roadmap: Milestone 7a closed into §0. Commit: `v0.25: first-release — 0.1.0 live on OpenUPM, registry install passes on both editors`.
+
 ## v0.24 — Phase 7 `first-release` (2026-11-09) · **the package is ready for students to install: MIT, a playable Starter, a Korean guide, proven on clean projects**
 
 - **Landed.** Per the critic-reviewed, handshake-approved (2 rounds) [prompt](../Phases/archive/phase7-first-release.md), moved ahead of combat at the operator's request: an MIT license on the package folder, `0.1.0` metadata, an honest README, [install-ko.md](../../Packages/com.orcapafea.daedalus/Documentation~/install-ko.md), and the Starter sample: an open-and-play troll level of three sections with five example traps (Fake Floor as a None-kind tile, four as prefabs), ending in a "your turn" stretch and a Runaway Exit. 488 EditMode and 85 PlayMode green on both editors (+11, +2; 2 run only in imported or fixture projects, where they pass). Log: [phase7-log](../../.claude/memory/logs/phases/phase7-log.md).

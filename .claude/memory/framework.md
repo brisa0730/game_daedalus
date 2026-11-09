@@ -70,6 +70,10 @@ type: reference
 - **Hub's template `com.unity.template.2d-cross-platform` is the one Hub shows as Universal 2D** on both editors.
 - **A Korean Windows console is cp949:** printing an emoji raises `UnicodeEncodeError`; reconfigure stdout with `errors="backslashreplace"`.
 
+## OpenUPM listing (2026-11)
+- **The add form leaves `licenseSpdxId: ''` when only a license name is filled in, and data validation rejects an empty string.** Set `licenseSpdxId: MIT` with the exact SPDX name `licenseName: MIT License`. The validator is `openupm-next` `local-data/src/validation/data-validator.ts`.
+- **A new package's pull request merged automatically once validation passed;** the registry served it within about an hour. A package in a subfolder and a subfolder README path are both accepted.
+
 ## Cloudflare Tunnel (cloudflared 2026.6.1)
 - `cloudflared tunnel route dns <name> <host>` with no `--config` takes the tunnel from `~/.cloudflared/config.yml` (octopus on the Mac Mini), **not** the name given: the record silently points at the wrong tunnel. Always pass `--config Deploy/cloudflared/suwon.yml` (and `--overwrite-dns` to repoint), and check the `tunnelID=` in the output.
 - The tunnel keeps the public `Host`; a request with `Host: 127.0.0.1` can only come from the machine itself.

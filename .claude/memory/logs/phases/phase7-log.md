@@ -15,7 +15,7 @@ MIT on the package folder; `0.1.0` metadata; README as the listing; `Documentati
 - **LFS proof (Step 4).** `git check-attr filter` on a Starter PNG: unset; on `Assets/Dev/TrapTest/Ground.png`: lfs. On `Starter.unity` and a `.meta`: `diff: unspecified`, `text: auto`. `git lfs ls-files | grep -c Packages/` = 0.
 - **Generator.** Normal, repeat and `--as-tagged` runs byte-identical across the sample. 30 frozen rows (15 pieces with their `.meta`, the palette included).
 - **Suites.** 488 EditMode and 87 PlayMode (85 passed, 2 skipped: the Starter and fixture tests, which need their own projects) on 6000.0.85f1 and 6000.6.8f1.
-- **Install.** `install_check.py --editor all --source file`: playthrough and fixture PASS on both. The package `.tgz` too, on 6000.0. Git URL and registry not run yet (they need the push).
+- **Install.** `install_check.py --editor all --source file`: playthrough and fixture PASS on both. The package `.tgz` too, on 6000.0. After publishing, `--source git` (commit 35ba14a) and `--source registry` (OpenUPM 0.1.0, built from 35ba14a): PASS on both.
 - **Share from the student's level.** 6000.0.85f1: build 462 s, zip 11,740,673 bytes. 6000.6.8f1: zip 11,467,014 bytes, screenshot shows the level. Run with `--no-gallery-check` (no cargo on this PC), so the gallery's `check_share_zip` hasn't seen a Starter-based zip.
 
 ## Re-import test (Step 9, Open question 6)

@@ -18,15 +18,12 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 | 3 | `death-and-respawn` (Milestone 2 `traps`, part 1: hazards, pits, checkpoint, exit, static traps, HUD, follow camera; editor check and play-check passed) | v0.10 | [Changelog v0.10](Changelog.md), [prompt](../Phases/archive/phase3-death-and-respawn.md), [log](../../.claude/memory/logs/phases/phase3-log.md) |
 | 4 | `moving-traps` (Milestone 2 `traps` complete: Move and Fall on the moving-box core, riding, pushing, crush nudge, runaway exit, Scene-view previews; editor check and play-check passed) | v0.13 | [Changelog v0.13](Changelog.md), [prompt](../Phases/archive/phase4-moving-traps.md), [log](../../.claude/memory/logs/phases/phase4-log.md) |
 | 5 | `gallery-server` (Milestone 3 `class-gallery`, part 1: the Korean class gallery live under launchd; Chrome check through the tunnel passed; ISS-002 open) | v0.16 | [Changelog v0.16](Changelog.md), [prompt](../Phases/archive/phase5-gallery-server.md), [log](../../.claude/memory/logs/phases/phase5-log.md) |
-| 7 | `first-release` (package 0.1.0 prepared ahead of combat: MIT license, the Starter sample, Korean install guide, clean-install and fixture checks on both editors; publishing still open in §1; hand check not yet done (Deferred.md)) | v0.24 | [Changelog v0.24](Changelog.md), [prompt](../Phases/archive/phase7-first-release.md), [log](../../.claude/memory/logs/phases/phase7-log.md) |
+| 7 | `first-release` (package 0.1.0 published on OpenUPM ahead of combat: MIT license, the Starter sample, Korean install guide, clean-install and fixture checks on both editors from file, Git URL and the registry; hand check not yet done (Deferred.md)) | v0.24, v0.25 | [Changelog v0.24, v0.25](Changelog.md), [prompt](../Phases/archive/phase7-first-release.md), [log](../../.claude/memory/logs/phases/phase7-log.md) |
 | 6 | `share-my-game` (Milestone 3 `class-gallery` complete: Daedalus → Share my game makes the Share zip; the gallery's own check accepts it on both editors; real upload, play and update on the live gallery passed; operator editor check not yet done (Deferred.md)) | v0.17 | [Changelog v0.17](Changelog.md), [prompt](../Phases/archive/phase6-share-my-game.md), [log](../../.claude/memory/logs/phases/phase6-log.md) |
 
 ## 1. Milestones & Phases
 
 Each milestone ends with something playable.
-
-### Milestone 7a — `first-release`: publish 0.1.0 (next)
-The package is ready and verified from a local install (Phase 7). Left: push `main`, test the Git URL (`install_check.py --source git`), push tag `0.1.0`, submit to OpenUPM (form at openupm.com/packages/add, from the operator's GitHub account), then `install_check.py --editor all --source registry`. Each outward-facing step needs the operator's go-ahead when it runs. The hand check (Deferred.md) comes before students are told to install.
 
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
 **Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.
