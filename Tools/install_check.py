@@ -8,14 +8,17 @@ Usage:
 Creates Tools/compat/install-<editor>/ from the Universal 2D template (com.unity.template.2d-cross-platform, the name
 Hub shows on both editors), points its manifest at the package, imports the Starter through Package Manager's own
 import, and runs the scripted playthrough. Fails if the playthrough was skipped: a skip means the sample wasn't there.
-It then copies Tools/fixtures/0.1.0 (a student-shaped project) to a scratch folder and proves today's package opens and
-plays it. --make-fixture creates that fixture on 6000.0 (once per release). --reimport-test installs a real 0.1.1 over
-a saved level and imports its sample both ways, printing what happened to the level.
+It then copies each Tools/fixtures/<version> (a student-shaped project saved on that release) to a scratch folder and
+proves today's package opens and plays it; every release tag, and the version in package.json, must have one.
+--make-fixture creates the current version's fixture on 6000.0, refused once that version is tagged. --reimport-test
+installs a real 0.1.1 over a saved level and imports its sample both ways, printing what happened to the level (it
+only knows 0.1.0 -> 0.1.1).
 """
 
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -29,11 +32,14 @@ from unity_tests import (EDITORS, INPUT_SYSTEM, PACKAGE_DIR, PACKAGE_NAME, REPO,
 GIT_URL = f"https://github.com/brisa0730/game_daedalus.git?path=/Packages/{PACKAGE_NAME}"
 REGISTRY = {"name": "OpenUPM", "url": "https://package.openupm.com", "scopes": ["com.orcapafea"]}
 STEP_TIMEOUT_SECONDS = 15 * 60
-TAG = "0.1.0"
-PLAYTHROUGHS = ["Orcapafea.Daedalus.Tests.StarterSamplePlaythroughTests", "Orcapafea.Daedalus.Tests.StarterStagesPlaythroughTests"]
+VERSION_TAG = re.compile(r"^\d+\.\d+\.\d+$")
+CURRENT = json.loads((PACKAGE_DIR / "package.json").read_text(encoding="utf-8"))["version"]
+PLAYTHROUGHS = ["Orcapafea.Daedalus.Tests.StarterSamplePlaythroughTests", "Orcapafea.Daedalus.Tests.StarterStagesPlaythroughTests",
+                "Orcapafea.Daedalus.Tests.StarterTrapDemoTests"]
 FIXTURE_TESTS = "Orcapafea.Daedalus.Tests.FixtureProjectTests"
-FIXTURE = REPO / "Tools" / "fixtures" / "0.1.0"
-SAMPLE_PATH = "Assets/Samples/Daedalus Platformer Maker/0.1.0/Starter"
+FIXTURES = REPO / "Tools" / "fixtures"
+SAMPLE_PATH = f"Assets/Samples/Daedalus Platformer Maker/{CURRENT}/Starter"
+SECOND_LEVEL = "Assets/My Level 2.unity"
 FIXTURE_METHOD = "InstallCheckFixture.Run"
 FIXTURE_SCRIPT = f"""using Orcapafea.Daedalus;
 using UnityEditor;
@@ -42,7 +48,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Tilemaps;
 
-// What a student does after importing: Save As, place a trap, finish the Your Turn spot, tune the Player.
+// What a student does after importing: Save As, place a trap, finish the Your Turn spot, tune the Player; then, as
+// install guide section 9 says, save, duplicate the level and link the first level's Exit to the copy (that order:
+// linking first would make the copy link to itself).
 public static class InstallCheckFixture
 {{
     public static void Run()
@@ -60,6 +68,23 @@ public static class InstallCheckFixture
         player.FindProperty("movement.runSpeed").floatValue = 7.5f;
         player.FindProperty("movement.jumpHeight").floatValue = 4f;
         player.ApplyModifiedPropertiesWithoutUndo();
+        EditorSceneManager.SaveScene(scene);
+        if (!AssetDatabase.CopyAsset("Assets/My Level.unity", "{SECOND_LEVEL}"))
+        {{
+            Debug.LogError("InstallCheckFixture: couldn't copy My Level.");
+            EditorApplication.Exit(1);
+            return;
+        }}
+        var link = new SerializedObject(Object.FindFirstObjectByType<Exit>()).FindProperty("nextStage");
+        string guid = AssetDatabase.AssetPathToGUID("{SECOND_LEVEL}");
+        if (link == null || string.IsNullOrEmpty(guid))
+        {{
+            Debug.LogError("InstallCheckFixture: no Next stage field, or no GUID for the copy.");
+            EditorApplication.Exit(1);
+            return;
+        }}
+        link.stringValue = guid;
+        link.serializedObject.ApplyModifiedPropertiesWithoutUndo();
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
         EditorApplication.Exit(0);
@@ -135,29 +160,42 @@ def unity(command, log):
         sys.exit(f"Unity timed out after {STEP_TIMEOUT_SECONDS} s; see {log}")
 
 
-fixture_before = None
+fixture_before = {}
 
 
 def git_output(*arguments):
     return subprocess.run(["git", *arguments], cwd=REPO, capture_output=True, text=True, check=True, encoding="utf-8").stdout
 
 
-def release_tag_exists():
-    """True once the release tag exists here or on origin; a clone that hasn't fetched it must not act as if it's free."""
-    if git_output("tag", "--list", TAG).strip() == TAG:
-        return True
+def version_key(version):
+    return tuple(int(part) for part in version.split("."))
+
+
+def releases():
+    """Every release tag, here and on origin, oldest first. A clone behind on tags must never act as if a release is free."""
+    local = {tag for tag in git_output("tag", "--list").split() if VERSION_TAG.match(tag)}
     try:
-        return bool(git_output("ls-remote", "--tags", "origin", f"refs/tags/{TAG}").strip())
+        listing = git_output("ls-remote", "--tags", "origin")
     except subprocess.CalledProcessError:
-        sys.exit("Can't reach origin to learn whether the release tag exists; refusing to treat the release as unpublished.")
+        sys.exit("Can't reach origin to learn which releases exist; refusing to guess.")
+    remote = set()
+    for line in listing.splitlines():
+        name = line.split("\t")[-1]
+        if name.startswith("refs/tags/") and not name.endswith("^{}") and VERSION_TAG.match(name[len("refs/tags/"):]):
+            remote.add(name[len("refs/tags/"):])
+    if remote - local:
+        sys.exit(f"Release tags {sorted(remote - local, key=version_key)} are on origin but not here. Run: git fetch --tags")
+    return sorted(local | remote, key=version_key)
 
 
 def check_tag_parity(project):
     """The tag is what OpenUPM built: its package.json, and the version the registry installed, must both match it."""
-    tagged = json.loads(git_output("show", f"{TAG}:Packages/{PACKAGE_NAME}/package.json"))["version"]
+    if CURRENT not in releases():
+        sys.exit(f"No tag {CURRENT}: the registry can't have built it.")
+    tagged = json.loads(git_output("show", f"{CURRENT}:Packages/{PACKAGE_NAME}/package.json"))["version"]
     lock = json.loads((project / "Packages" / "packages-lock.json").read_text(encoding="utf-8"))["dependencies"][PACKAGE_NAME]
-    if tagged != TAG or lock["version"] != TAG or lock["source"] != "registry":
-        sys.exit(f"Tag parity failed: tag {TAG}, package.json at the tag {tagged}, installed {lock['version']} from {lock['source']}.")
+    if tagged != CURRENT or lock["version"] != CURRENT or lock["source"] != "registry":
+        sys.exit(f"Tag parity failed: tag {CURRENT}, package.json at the tag {tagged}, installed {lock['version']} from {lock['source']}.")
 
 
 def package_version():
@@ -234,9 +272,8 @@ def run_method(editor_key, project, script_name, source, method, log_name, *extr
 
 def copy_fixture(source, name):
     """A scratch copy of a fixture, pointed at today's package. Opening or building never touches the committed one."""
-    global fixture_before
-    if fixture_before is None:
-        fixture_before = fixture_state()
+    if source not in fixture_before:
+        fixture_before[source] = fixture_state(source)
     project = REPO / "Tools" / "compat" / name
     if project.exists():
         shutil.rmtree(project)
@@ -245,42 +282,43 @@ def copy_fixture(source, name):
     return project
 
 
-def fixture_state():
-    return {str(path.relative_to(FIXTURE)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in FIXTURE.rglob("*") if path.is_file()}
+def fixture_state(fixture):
+    return {str(path.relative_to(fixture)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in fixture.rglob("*") if path.is_file()}
 
 
-def assert_fixture_untouched():
-    if fixture_state() != fixture_before:
-        sys.exit("The committed fixture changed during the run.")
+def assert_fixture_untouched(fixture):
+    if fixture_state(fixture) != fixture_before[fixture]:
+        sys.exit(f"The committed fixture {fixture.name} changed during the run.")
 
 
 def make_fixture():
-    if release_tag_exists():
-        sys.exit(f"Tag {TAG} exists: this fixture is what {TAG} students have, and is never regenerated.")
+    if CURRENT in releases():
+        sys.exit(f"Tag {CURRENT} exists: this fixture is what {CURRENT} students have, and is never regenerated.")
+    fixture = FIXTURES / CURRENT
     project = create_clean_project("6000.0")
     point_at_package(project, "file", None)
     import_starter("6000.0", project)
     run_method("6000.0", project, "InstallCheckFixture.cs", FIXTURE_SCRIPT, FIXTURE_METHOD, "install-fixture.log")
-    if FIXTURE.exists():
-        shutil.rmtree(FIXTURE)
-    FIXTURE.mkdir(parents=True)
+    if fixture.exists():
+        shutil.rmtree(fixture)
+    fixture.mkdir(parents=True)
     for folder in ("Assets", "Packages", "ProjectSettings"):
-        shutil.copytree(project / folder, FIXTURE / folder)
-    (FIXTURE / "Packages" / "packages-lock.json").unlink(missing_ok=True)
+        shutil.copytree(project / folder, fixture / folder)
+    (fixture / "Packages" / "packages-lock.json").unlink(missing_ok=True)
     # The helper scripts are gone; an empty folder would survive in git only as an orphan .meta.
-    empty = FIXTURE / "Assets" / "Editor"
+    empty = fixture / "Assets" / "Editor"
     if empty.exists() and not any(empty.iterdir()):
         empty.rmdir()
-        (FIXTURE / "Assets" / "Editor.meta").unlink(missing_ok=True)
+        (fixture / "Assets" / "Editor.meta").unlink(missing_ok=True)
     # The committed manifest is a student's: the release, from the registry, no test setup.
-    manifest_path = FIXTURE / "Packages" / "manifest.json"
+    manifest_path = fixture / "Packages" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["dependencies"][PACKAGE_NAME] = package_version()
     manifest["scopedRegistries"] = [REGISTRY]
     manifest.pop("testables", None)
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
-    print(f"Fixture written to {FIXTURE.relative_to(REPO)}")
+    print(f"Fixture written to {fixture.relative_to(REPO)}")
 
 
 def reimport_case(option_name, extra, second_package):
@@ -344,13 +382,19 @@ def check_editor(editor_key, source, ref):
     for playthrough in PLAYTHROUGHS:
         if not run(editor_key, "playmode", playthrough, str(project)) or not ran(project, playthrough):
             return False
-    if not FIXTURE.exists():
-        print("FAIL  no fixture: run --make-fixture first")
+    present = sorted((p.name for p in FIXTURES.iterdir() if p.is_dir() and VERSION_TAG.match(p.name)), key=version_key)
+    missing = sorted((set(releases()) | {CURRENT}) - set(present), key=version_key)
+    if missing:
+        print(f"FAIL  no fixture for {missing}: run --make-fixture on that version")
         return False
-    fixture = copy_fixture(FIXTURE, f"fixture-{editor_key}")
-    passed = run(editor_key, "playmode", FIXTURE_TESTS, str(fixture)) and ran(fixture, "the fixture test")
-    assert_fixture_untouched()
-    return passed
+    for version in present:
+        source = FIXTURES / version
+        fixture = copy_fixture(source, f"fixture-{version}-{editor_key}")
+        passed = run(editor_key, "playmode", FIXTURE_TESTS, str(fixture)) and ran(fixture, f"the {version} fixture test")
+        assert_fixture_untouched(source)
+        if not passed:
+            return False
+    return True
 
 
 def main():
@@ -358,7 +402,7 @@ def main():
     parser.add_argument("--editor", choices=[*EDITORS, "all"], default="all")
     parser.add_argument("--source", choices=["file", "git", "registry"], default="file")
     parser.add_argument("--ref", default="main", help="branch, commit or tag for --source git")
-    parser.add_argument("--make-fixture", action="store_true", help="create Tools/fixtures/0.1.0 on 6000.0")
+    parser.add_argument("--make-fixture", action="store_true", help="create Tools/fixtures/<package.json version> on 6000.0")
     parser.add_argument("--reimport-test", action="store_true", help="install 0.1.1 over a saved level, import both ways")
     args = parser.parse_args()
     if args.make_fixture:

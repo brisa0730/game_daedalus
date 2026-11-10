@@ -1,20 +1,26 @@
 #if UNITY_EDITOR
 using System.Collections;
+using System.IO;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Orcapafea.Daedalus.Tests
 {
     /// <summary>
-    /// A project saved on 0.1.0, shaped like a student's, still opens and plays on today's package (Architecture rule 4).
-    /// It runs only inside a copy of the fixture (Tools/install_check.py does, and fails if this was ignored).
+    /// A project saved on a released version, shaped like a student's, still opens and plays on today's package
+    /// (Architecture rule 4). From 0.2.0 the fixture has a second level its Exit links to. It runs only inside a copy of a
+    /// fixture (Tools/install_check.py does, and fails if this was ignored).
+    /// The counts below hold for every fixture because a later fixture relinks the Starter's Exit rather than adding one.
     /// </summary>
     public class FixtureProjectTests : SavedScenePlayTest
     {
         const string ScenePath = "Assets/My Level.unity";
+        const string SecondLevelPath = "Assets/My Level 2.unity";
         const int PlacedTraps = 6;
 
         static GameObject Named(string name)
@@ -64,6 +70,32 @@ namespace Orcapafea.Daedalus.Tests
             Keys(Key.RightArrow);
             yield return Until(() => X > start + 3f, "running");
             Keys();
+
+            // Keyed on the second level's file, not on the link, so a link that went missing can't pass.
+            ExitLink link = Named("Runaway Exit").GetComponent<Exit>().Link;
+            if (!File.Exists(SecondLevelPath))
+            {
+                Assert.AreEqual(ExitLink.LinkKind.None, link.Kind, "a one-level fixture's Exit wins");
+                yield break;
+            }
+            Assert.AreEqual(ExitLink.LinkKind.Scene, link.Kind, "My Level's Exit leads to the second level");
+            Assert.AreEqual(SecondLevelPath, link.Path, "My Level's Exit leads to the second level");
+
+            Scene first = SceneManager.GetSceneByPath(ScenePath);
+            foreach (GameObject root in first.GetRootGameObjects())
+            {
+                Object.DestroyImmediate(root);
+            }
+            AsyncOperation unloading = SceneManager.UnloadSceneAsync(first);
+            while (unloading != null && !unloading.isDone)
+            {
+                yield return null;
+            }
+            yield return LoadScene(link.Path);
+            Exit[] exits = PlayStartScan.FindActive<Exit>();
+            Assert.AreEqual(1, exits.Length, "the second level has one Exit");
+            Assert.AreEqual(ExitLink.LinkKind.None, exits[0].Link.Kind, "the second level's Exit ends the game");
+            Assert.AreEqual(PlacedTraps, Session.TrapCount, "the second level's traps reached the running level");
         }
     }
 }

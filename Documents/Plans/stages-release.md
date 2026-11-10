@@ -117,6 +117,7 @@ Bookkeeping (Post-Plan Cleanup, in the `v0.27` and `v0.28` commits): `Changelog.
 ---
 
 ## Notes to Spec / Open Risks
+- **As built (code review, LOW):** `FixtureProjectTests` loads `My Level 2` additively from the path the link resolves to, after unloading `My Level`; it doesn't run the stage change itself (`StarterStagesPlaythroughTests` walks a real one). `share_check` hashes the one fixture it shares, not all of them; only that one is ever copied. The Trap Demo's saved camera starts at the Starter's framing (y 7), deliberately; it follows the Player in play. The operator played the demo through and approved it (2026-11-10).
 - **The operator's hand check** of the guide and Share (Deferred.md) fires on "before students are first told to install". It now covers 0.2.0, guide § 9 included, after the publish. Its entry's "ships in 0.1.1" becomes "ships in the next patch".
 - **An update section in the guide** waits for the first release after students have installed. What to write then (Phase 7 re-import test): Package Manager's import over a previous one *replaces* the old sample folder with the new version's; GUIDs are kept, so saved levels point at the new pieces; anything edited inside `Assets/Samples` is lost.
 - OpenUPM's build is outside our control; if it fails, the tag stays and we fix forward with 0.2.1.

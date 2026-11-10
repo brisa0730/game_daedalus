@@ -19,7 +19,8 @@ dropped into the project for one run; Share must refuse with its exception text 
 Then a two-stage game (Assets/Dev/StageTest) goes through the same build and checks, and its zip is played in Chrome on
 localhost: the page must see Stage A, then a fully black frame, then Stage B holding steady, without the page hanging.
 --project PATH --scene PATH shares a student-shaped project instead (a scratch copy in Tools/compat/, pointed at today's
-package): the committed project is never opened, and the run fails if Tools/fixtures/0.1.0 changed.
+package): the committed project is never opened, and the run fails if it changed. --expect-chain TEXT (with --project)
+requires the build log's "Share my game: TEXT → <zip>" line, so a multi-stage fixture is seen building every stage.
 Writes TestResults/share-check/<editor>.zip and .log, TestResults/<unity version>-share-check-screenshot.png and
 TestResults/<unity version>-share-check-stage2.png.
 """
@@ -229,7 +230,7 @@ def check_labels():
         raise Fail("strings.rs NAV_UPLOAD is no longer 업로드")
 
 
-def check_editor(editor_key, gallery, probe=False, other_project=None, other_scene=None):
+def check_editor(editor_key, gallery, probe=False, other_project=None, other_scene=None, expect_chain=None):
     version = EDITORS[editor_key]
     exe = editor_exe(version)
     project, scene = prepare(editor_key, other_project, other_scene)
@@ -239,7 +240,7 @@ def check_editor(editor_key, gallery, probe=False, other_project=None, other_sce
         (probe_dir / "Editor" / "ShareCheckProbe.cs").write_text(PROBE, encoding="utf-8")
     settings_path, settings_text = seed(project)
     try:
-        return run_share(editor_key, version, exe, project, scene, gallery, probe)
+        return run_share(editor_key, version, exe, project, scene, gallery, probe, expect_chain=expect_chain)
     finally:
         settings_path.write_text(settings_text, encoding="utf-8", newline="")
         if probe:
@@ -378,7 +379,7 @@ def play_stages(editor_key, version):
             f"{result['longestFrameMs']:.0f} ms; zip {growth:+d} bytes against the trap bench")
 
 
-def run_share(editor_key, version, exe, project, scene, gallery, probe, name=None):
+def run_share(editor_key, version, exe, project, scene, gallery, probe, name=None, expect_chain=None):
     OUT.mkdir(parents=True, exist_ok=True)
     zip_path = OUT / f"{name or editor_key}.zip"
     log_path = OUT / f"{name or editor_key}.log"
@@ -415,6 +416,10 @@ def run_share(editor_key, version, exe, project, scene, gallery, probe, name=Non
         return f"refused as expected in {seconds:.0f}s: {share_line}"
     if code != 0:
         raise Fail(f"Unity exited {code}: {share_line}")
+    if expect_chain is not None:
+        chain_line = next((line for line in log.splitlines() if line.startswith("Share my game: ") and " → " in line), "no chain line")
+        if not chain_line.startswith(f"Share my game: {expect_chain} → "):
+            raise Fail(f"expected the chain {expect_chain!r}, the build logged: {chain_line}")
 
     if not zip_path.exists() or zip_path.stat().st_mtime < started:
         raise Fail("no fresh zip")
@@ -439,9 +444,12 @@ def main():
     parser.add_argument("--probe", action="store_true", help="prove an exception during the build makes no zip")
     parser.add_argument("--project", help="share a scratch copy of this project instead of the trap bench")
     parser.add_argument("--scene", help="the scene to share in --project, relative to it")
+    parser.add_argument("--expect-chain", help="with --project: the stage chain the build must log, e.g. 'A → B → win'")
     args = parser.parse_args()
     if bool(args.project) != bool(args.scene):
         parser.error("--project and --scene go together")
+    if args.expect_chain and not args.project:
+        parser.error("--expect-chain needs --project")
     editors = ["6000.6", "6000.0"] if args.editor == "all" else [args.editor]
 
     failed = False
@@ -453,14 +461,14 @@ def main():
         failed = True
     for editor_key in editors:
         try:
-            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe, args.project, args.scene)}", flush=True)
+            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe, args.project, args.scene, args.expect_chain)}", flush=True)
             if not args.probe and not args.project:
                 print(f"PASS  {EDITORS[editor_key]} stages: {check_stages(editor_key, not args.no_gallery_check)}", flush=True)
         except Fail as error:
             print(f"FAIL  {EDITORS[editor_key]}: {error}")
             failed = True
     if args.project:
-        assert_fixture_untouched()
+        assert_fixture_untouched(Path(args.project).resolve())
     sys.exit(1 if failed else 0)
 
 

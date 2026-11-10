@@ -8,9 +8,9 @@ GUID), StarterBuilder runs there, and the result is mirrored back. A scene or pr
 in Unity's random object IDs is kept as seeded, so a rebuild with no real change leaves no diff, and references held by
 a student's saved level stay valid.
 
---refreeze writes Tests/EditMode/StarterFrozen.txt. Until tag 0.1.0 exists it rewrites the list; after that it only
-adds new entries, and the generator leaves every listed piece exactly as seeded. --as-tagged behaves as if the tag
-existed, to test that path.
+--refreeze writes Tests/EditMode/StarterFrozen.txt. Until the first release tag exists it rewrites the list; after that it
+only adds new entries. The generator leaves every piece listed at any release tag exactly as seeded (the union of every
+tag's list). --as-tagged behaves as if the working copy's list were tagged, to test that path.
 """
 
 import argparse
@@ -24,7 +24,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # importing unity_tests must not leave Tools/__pycache__ behind
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from unity_tests import EDITORS, PACKAGE_DIR, REPO, RESULTS, editor_exe, ensure_compat_project, run_unity  # noqa: E402
-from install_check import TAG, git_output, release_tag_exists  # noqa: E402
+from install_check import git_output, releases  # noqa: E402
 
 EDITOR_KEY = "6000.0"
 BUILD_TIMEOUT_SECONDS = 10 * 60
@@ -84,15 +84,22 @@ def parse_frozen(text):
     return {line.split("\t")[0]: line for line in text.splitlines() if line.strip()}
 
 
-def read_frozen(as_tagged):
-    """What the release froze: the tag's own list, so an edited working copy can't loosen it."""
+def read_frozen(as_tagged, tags):
+    """What the releases froze: the union of every tag's own list, so an edited working copy can't loosen it."""
     if as_tagged:
         return parse_frozen(FROZEN_LIST.read_text(encoding="utf-8")) if FROZEN_LIST.exists() else {}
     relative = FROZEN_LIST.relative_to(REPO).as_posix()
-    try:
-        return parse_frozen(git_output("show", f"{TAG}:{relative}"))
-    except subprocess.CalledProcessError:
-        sys.exit(f"Tag {TAG} exists but its frozen list can't be read here. Run: git fetch --tags")
+    union = {}
+    for tag in tags:
+        try:
+            rows = parse_frozen(git_output("show", f"{tag}:{relative}"))
+        except subprocess.CalledProcessError:
+            sys.exit(f"Tag {tag} exists but its frozen list can't be read here. Run: git fetch --tags")
+        for key, row in rows.items():
+            if union.get(key, row) != row:
+                sys.exit(f"Release tags disagree on the frozen piece {key}: a frozen piece can never change.")
+            union[key] = row
+    return union
 
 
 def write_frozen(frozen_mode, old):
@@ -120,11 +127,12 @@ def check_frozen_untouched(built, frozen_rows_before):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--refreeze", action="store_true", help="write StarterFrozen.txt from the result")
-    parser.add_argument("--as-tagged", action="store_true", help="behave as if tag 0.1.0 existed")
+    parser.add_argument("--as-tagged", action="store_true", help="behave as if the working copy's frozen list were tagged")
     args = parser.parse_args()
 
-    frozen_mode = args.as_tagged or release_tag_exists()
-    frozen_before = read_frozen(args.as_tagged) if frozen_mode else {}
+    tags = [] if args.as_tagged else releases()
+    frozen_mode = args.as_tagged or bool(tags)
+    frozen_before = read_frozen(args.as_tagged, tags) if frozen_mode else {}
     if frozen_mode and not frozen_before:
         sys.exit(f"{FROZEN_LIST.name} is empty, but the tag exists: nothing to protect the frozen pieces with.")
 
@@ -132,14 +140,15 @@ def main():
     built = project / "Assets" / BUILD_FOLDER
     built_meta = project / "Assets" / f"{BUILD_FOLDER}.meta"
     builder_folder = project / "Assets" / "Dev"
-    picture = project / "starter-picture.png"
+    pictures = [project / "starter-picture.png", project / "trap-demo-picture.png"]
     log = RESULTS / "starter-build.log"
     RESULTS.mkdir(exist_ok=True)
 
     for leftover in (built, builder_folder):
         if leftover.exists():
             shutil.rmtree(leftover)
-    picture.unlink(missing_ok=True)
+    for picture in pictures:
+        picture.unlink(missing_ok=True)
     try:
         seed_copy = RESULTS / "starter-seed"
         if seed_copy.exists():
@@ -172,9 +181,10 @@ def main():
             shutil.rmtree(SAMPLE)
         SAMPLE.parent.mkdir(exist_ok=True)
         shutil.copytree(built, SAMPLE)
-        shutil.copy2(picture, RESULTS / "starter-picture.png")
+        for picture in pictures:
+            shutil.copy2(picture, RESULTS / picture.name)
         files = sum(1 for p in SAMPLE.rglob("*") if p.is_file() and p.suffix != ".meta")
-        print(f"Starter: {files} files in {SAMPLE.relative_to(REPO)}; picture TestResults/starter-picture.png")
+        print(f"Starter: {files} files in {SAMPLE.relative_to(REPO)}; pictures TestResults/starter-picture.png, trap-demo-picture.png")
         if args.refreeze:
             write_frozen(frozen_mode, frozen_before)
     finally:
@@ -183,7 +193,8 @@ def main():
                 shutil.rmtree(leftover)
         for meta in (built_meta, builder_folder.with_name("Dev.meta")):
             meta.unlink(missing_ok=True)
-        picture.unlink(missing_ok=True)
+        for picture in pictures:
+            picture.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

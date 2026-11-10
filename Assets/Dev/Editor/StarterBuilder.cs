@@ -30,6 +30,8 @@ namespace Orcapafea.Daedalus.Dev
         const string StageOnePath = StageFolder + "/Stage 1.unity";
         const string StageTwoPath = StageFolder + "/Stage 2.unity";
         const int StageWidth = 24;
+        const string TrapDemoFolder = Folder + "/Trap Demo";
+        const string TrapDemoPath = TrapDemoFolder + "/Trap Demo.unity";
         const string PaletteName = "Starter Palette";
         const string FrozenArgument = "-daedalusFrozenList";
         const int PixelsPerUnit = 16;
@@ -53,6 +55,71 @@ namespace Orcapafea.Daedalus.Dev
         static readonly Vector2Int RunawayOffset = new Vector2Int(6, 0);
         static readonly Vector2Int FloorSize = new Vector2Int(3, 1);
         static readonly Vector2Int SpikeSize = new Vector2Int(2, 1);
+
+        // The Trap Demo: the dev trap bench's 120 × 18 layout (TrapTestSceneBuilder), top row first, without its
+        // adversarial fixtures. '#' ground, '^' painted spikes, 'f' Fake Floor, 'P' the Player's feet.
+        static readonly string[] DemoLayout =
+        {
+            "........................................................................................................................", // 17
+            "........................................................................................................................", // 16
+            "........................................................................................................................", // 15
+            "........................................................................................................................", // 14
+            "........................................................................................................................", // 13
+            "........................................................................................................................", // 12
+            "........................................................................................................................", // 11
+            "........................................................................................................................", // 10
+            "........................................................................................................................", //  9
+            "........................................................................................................................", //  8
+            "........................................................................................................................", //  7
+            "........................................................................................................................", //  6
+            "........................................................................................................................", //  5
+            "......................................................................................................##########........", //  4  corridor ceiling (x 102–111)
+            "........................................................................................................................", //  3
+            "...................................................................................#....................................", //  2  crusher wall (x 83)
+            "..P.................................#......^^......................................#....................................", //  1  hop block (x 36), spike strip (x 43–44), crusher wall (x 83)
+            "#####...####...#############fff##############...######################.........###############.....#####################", //  0
+        };
+
+        static readonly Vector2[] DemoDropFloors = { new Vector2(6.5f, 0.5f), new Vector2(13.5f, 0.5f), new Vector2(46.5f, 0.5f) };
+        static readonly Vector2 DemoPopSpike = new Vector2(21f, 1.5f);
+        static readonly Vector2 DemoCeiling = new Vector2(63.5f, 10.5f);
+        static readonly Vector2Int[] DemoCheckpoints = { new Vector2Int(40, 1), new Vector2Int(57, 1), new Vector2Int(100, 1) };
+        static readonly Vector2 DemoExit = new Vector2(112.5f, 1.5f);
+
+        // The traps with no Starter prefab: name, bottom-left cell, size, action, trigger, hazard, offset, speed, zone
+        // (world; null = the default, the box grown up by one tile).
+        static readonly DemoTrap[] DemoTraps =
+        {
+            new DemoTrap("Hidden Block (appears when touched)", 35, 4, 1, 1, TrapAction.Appear, TrapTrigger.Touch, false, Vector2Int.zero, 0, null),
+            new DemoTrap("Sliding Floor (moves right)", 70, 0, 3, 1, TrapAction.Move, TrapTrigger.Zone, false, new Vector2Int(6, 0), 4f, null),
+            new DemoTrap("Crusher (moves left)", 88, 1, 2, 3, TrapAction.Move, TrapTrigger.Zone, false, new Vector2Int(-4, 0), LevelRules.DefaultMoveSpeed, null),
+            new DemoTrap("Fall Floor", 94, 0, 3, 1, TrapAction.Fall, TrapTrigger.Zone, false, Vector2Int.zero, 0, null),
+            new DemoTrap("Fast Spikes (shoot left)", 110, 1, 1, 1, TrapAction.Move, TrapTrigger.Zone, true, new Vector2Int(-7, 0), 30f, Rect.MinMaxRect(101, 1, 102, 3)),
+        };
+
+        sealed class DemoTrap
+        {
+            public DemoTrap(string name, int x, int y, int w, int h, TrapAction action, TrapTrigger trigger, bool hazard, Vector2Int offset, float speed, Rect? zone)
+            {
+                Name = name;
+                Cell = new Vector2Int(x, y);
+                Size = new Vector2Int(w, h);
+                Action = action;
+                Trigger = trigger;
+                Hazard = hazard;
+                Offset = offset;
+                Speed = speed;
+                Zone = zone ?? Rect.MinMaxRect(x, y, x + w, y + h + LevelRules.DefaultZoneGrowUp);
+            }
+
+            public readonly string Name;
+            public readonly Vector2Int Cell, Size, Offset;
+            public readonly TrapAction Action;
+            public readonly TrapTrigger Trigger;
+            public readonly bool Hazard;
+            public readonly float Speed;
+            public readonly Rect Zone;
+        }
 
         static readonly Color32 GroundColor = new Color32(70, 150, 80, 255);
         static readonly Color32 GroundSpeck = new Color32(60, 135, 70, 255);
@@ -128,7 +195,7 @@ namespace Orcapafea.Daedalus.Dev
             Place(fallingCeiling, CeilingCentre);
             Place(runawayExit, RunawayExitCentre);
             MakeYourTurn(groundSprite);
-            MakePlayer(playerSprite, collision);
+            MakePlayer(playerSprite, collision, PlayerFeet);
             MakeCamera();
             var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
             light.lightType = Light2D.LightType.Global;
@@ -139,11 +206,13 @@ namespace Orcapafea.Daedalus.Dev
             Produced.Add(StagePlayerPath);
             Produced.Add(StageOnePath);
             Produced.Add(StageTwoPath);
+            Produced.Add(TrapDemoPath); // before the cleanup below, or each rebuild would delete the seeded scene
             AssetDatabase.SaveAssets();
             DeleteWhatWasNotProduced();
-            string picture = SavePicture();
+            string picture = SavePicture(Ground.Length, Height, "starter-picture.png");
             MakeStageExample();
-            Debug.Log($"StarterBuilder: {ScenePath}, {Produced.Count} files; picture {picture}");
+            string demoPicture = MakeTrapDemo();
+            Debug.Log($"StarterBuilder: {ScenePath}, {Produced.Count} files; pictures {picture}, {demoPicture}");
         }
 
         // Two stages in their own folder, the first Exit linked to the second. After the picture: each scene replaces the last.
@@ -207,7 +276,157 @@ namespace Orcapafea.Daedalus.Dev
             Require(EditorSceneManager.SaveScene(scene, path), $"saved {path}");
         }
 
-        // After the 0.1.0 tag the frozen pieces are left exactly as seeded (Step 5): a re-save could change their bytes.
+        // Every kind of trap in one troll level, from the Starter's own tiles and prefabs; returns its picture's path.
+        static string MakeTrapDemo()
+        {
+            Directory.CreateDirectory(TrapDemoFolder);
+            AssetDatabase.Refresh();
+            // First: a new scene unloads assets loaded before it.
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var ground = Load<Tile>($"{TileFolder}/Ground Tile.asset");
+            var spike = Load<DaedalusTile>($"{TileFolder}/Spike Tile.asset");
+            var fakeFloor = Load<DaedalusTile>($"{TileFolder}/Fake Floor Tile.asset");
+            var groundSprite = Load<Sprite>($"{ArtFolder}/Ground.png");
+            var spikeSprite = Load<Sprite>($"{ArtFolder}/Spikes.png");
+
+            var grid = new GameObject("Grid").AddComponent<Grid>();
+            Tilemap collision = NewTilemap(grid, "Collision");
+            int height = DemoLayout.Length;
+            int width = DemoLayout[0].Length;
+            Vector2 start = default;
+            for (int row = 0; row < height; row++)
+            {
+                Require(DemoLayout[row].Length == width, $"demo layout row {row} is {width} wide");
+                int y = height - 1 - row;
+                for (int x = 0; x < width; x++)
+                {
+                    var cell = new Vector3Int(x, y, 0);
+                    switch (DemoLayout[row][x])
+                    {
+                        case '#': collision.SetTile(cell, ground); break;
+                        case '^': collision.SetTile(cell, spike); break;
+                        case 'f': collision.SetTile(cell, fakeFloor); break;
+                        case 'P': start = new Vector2(x + 0.5f, y); break;
+                        case '.': break;
+                        default: throw new InvalidOperationException($"Unknown demo layout symbol '{DemoLayout[row][x]}' at ({x}, {y}).");
+                    }
+                }
+            }
+
+            var dropFloor = Load<GameObject>($"{PrefabFolder}/Drop Floor.prefab");
+            for (int i = 0; i < DemoDropFloors.Length; i++)
+            {
+                Place(dropFloor, DemoDropFloors[i]).name = $"Drop Floor {(char)('A' + i)}";
+            }
+            Place(Load<GameObject>($"{PrefabFolder}/Pop Spike.prefab"), DemoPopSpike);
+            Place(Load<GameObject>($"{PrefabFolder}/Falling Ceiling.prefab"), DemoCeiling);
+            foreach (DemoTrap def in DemoTraps)
+            {
+                MakeDemoTrap(def, def.Hazard ? (TileBase)spike : ground, def.Hazard ? spikeSprite : groundSprite);
+            }
+            var checkpoint = Load<GameObject>($"{PrefabFolder}/Checkpoint.prefab");
+            foreach (Vector2Int cell in DemoCheckpoints)
+            {
+                Place(checkpoint, new Vector2(cell.x + 0.5f, cell.y + 0.5f));
+            }
+            Place(Load<GameObject>($"{PrefabFolder}/Runaway Exit.prefab"), DemoExit);
+            MakePlayer(Load<Sprite>($"{ArtFolder}/Player.png"), collision, start);
+            MakeCamera();
+            All<Camera>(scene)[0].transform.position = new Vector3(start.x, Height / 2f, -10);
+            var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
+            light.lightType = Light2D.LightType.Global;
+
+            SelfCheckTrapDemo(scene, collision, start);
+            Require(EditorSceneManager.SaveScene(scene, TrapDemoPath), $"saved {TrapDemoPath}");
+            AssetDatabase.SaveAssets();
+            return SavePicture(width, height, "trap-demo-picture.png");
+        }
+
+        static void MakeDemoTrap(DemoTrap def, TileBase tile, Sprite sprite)
+        {
+            var trapObject = new GameObject(def.Name);
+            trapObject.transform.position = new Vector3(def.Cell.x + def.Size.x / 2f, def.Cell.y + def.Size.y / 2f, 0);
+            Trap trap = trapObject.AddComponent<Trap>();
+            Vector3 p = trapObject.transform.position;
+            var serialized = new SerializedObject(trap);
+            Property(serialized, "trigger").intValue = (int)def.Trigger;
+            Property(serialized, "action").intValue = (int)def.Action;
+            Property(serialized, "size").vector2IntValue = def.Size;
+            if (def.Action == TrapAction.Move)
+            {
+                Property(serialized, "offset").vector2IntValue = def.Offset;
+                Property(serialized, "speed").floatValue = def.Speed;
+            }
+            Property(serialized, "tile").objectReferenceValue = tile;
+            // The zone is stored relative to the trap.
+            Property(serialized, "zone").rectValue = new Rect(def.Zone.xMin - p.x, def.Zone.yMin - p.y, def.Zone.width, def.Zone.height);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // The saved look, as the Trap inspector keeps it: the tile tiled across the box; Appear traps hidden.
+            SpriteRenderer renderer = trapObject.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.drawMode = SpriteDrawMode.Tiled;
+            renderer.size = def.Size;
+            renderer.enabled = def.Action != TrapAction.Appear;
+        }
+
+        static void SelfCheckTrapDemo(Scene scene, Tilemap collision, Vector2 start)
+        {
+            Require(All<Tilemap>(scene).Count == 1, "the demo has one Tilemap");
+            Require(All<Player>(scene).Count == 1, "the demo has one Player");
+            Require(All<Exit>(scene).Count == 1, "the demo has one Exit");
+            Require(All<Checkpoint>(scene).Count == DemoCheckpoints.Length, "the demo's checkpoints");
+            List<Trap> traps = All<Trap>(scene);
+            int expected = DemoDropFloors.Length + 2 + DemoTraps.Length + 1; // + Pop Spike, Falling Ceiling; + the exit's
+            Require(traps.Count == expected, $"the demo's {expected} traps (found {traps.Count})");
+
+            var actions = new HashSet<int>();
+            var triggers = new HashSet<int>();
+            var zones = new List<Rect>();
+            foreach (Trap trap in traps)
+            {
+                var serialized = new SerializedObject(trap);
+                actions.Add(Property(serialized, "action").intValue);
+                triggers.Add(Property(serialized, "trigger").intValue);
+                Vector2 p = trap.transform.position;
+                Rect zone = Property(serialized, "zone").rectValue;
+                zones.Add(new Rect(zone.x + p.x, zone.y + p.y, zone.width, zone.height));
+                if (trap.GetComponent<Exit>() != null)
+                {
+                    continue;
+                }
+                Vector2Int size = Property(serialized, "size").vector2IntValue;
+                Vector2 corner = p - (Vector2)size / 2f;
+                Require(Mathf.Approximately(corner.x, Mathf.Round(corner.x)) && Mathf.Approximately(corner.y, Mathf.Round(corner.y)), $"'{trap.name}' sits on whole cells");
+                for (int x = 0; x < size.x; x++)
+                {
+                    for (int y = 0; y < size.y; y++)
+                    {
+                        var cell = new Vector3Int(Mathf.RoundToInt(corner.x) + x, Mathf.RoundToInt(corner.y) + y, 0);
+                        Require(collision.GetTile(cell) == null, $"'{trap.name}' is not over a painted tile at {cell}");
+                    }
+                }
+            }
+            foreach (TrapAction action in (TrapAction[])Enum.GetValues(typeof(TrapAction)))
+            {
+                Require(actions.Contains((int)action), $"the demo has a {action} trap");
+            }
+            foreach (TrapTrigger trigger in (TrapTrigger[])Enum.GetValues(typeof(TrapTrigger)))
+            {
+                Require(triggers.Contains((int)trigger), $"the demo has a {trigger} trigger");
+            }
+            var safe = new List<Vector2> { start + new Vector2(0, 0.5f) };
+            foreach (Vector2Int cell in DemoCheckpoints)
+            {
+                safe.Add(new Vector2(cell.x + 0.5f, cell.y + 0.5f));
+            }
+            foreach (Vector2 point in safe)
+            {
+                Require(!zones.Exists(z => z.Contains(point)), $"no trap zone covers the start or a checkpoint at {point}");
+            }
+        }
+
+        // Once a release is tagged, the pieces any release froze are left exactly as seeded (Step 5): a re-save could change their bytes.
         static void ReadFrozenList()
         {
             Frozen.Clear();
@@ -375,13 +594,13 @@ namespace Orcapafea.Daedalus.Dev
             renderer.size = FloorSize;
         }
 
-        static void MakePlayer(Sprite sprite, Tilemap collision)
+        static void MakePlayer(Sprite sprite, Tilemap collision, Vector2 feet)
         {
             var playerObject = new GameObject("Player");
             SpriteRenderer spriteRenderer = playerObject.AddComponent<SpriteRenderer>();
             spriteRenderer.sprite = sprite;
             spriteRenderer.sortingOrder = 3;
-            playerObject.transform.position = new Vector3(PlayerFeet.x, PlayerFeet.y - sprite.bounds.min.y, 0);
+            playerObject.transform.position = new Vector3(feet.x, feet.y - sprite.bounds.min.y, 0);
             Player player = playerObject.AddComponent<Player>();
             var serialized = new SerializedObject(player);
             Property(serialized, "collisionTilemap").objectReferenceValue = collision;
@@ -453,18 +672,17 @@ namespace Orcapafea.Daedalus.Dev
         }
 
         // A separate wide camera renders the whole map with a margin (the scene's own camera follows the player).
-        static string SavePicture()
+        static string SavePicture(int width, int height, string fileName)
         {
-            int width = Ground.Length;
             int pictureWidth = (width + 2 * Margin) * PixelsPerUnit;
-            int pictureHeight = (Height + 2 * Margin) * PixelsPerUnit;
+            int pictureHeight = (height + 2 * Margin) * PixelsPerUnit;
             var cameraObject = new GameObject("Picture Camera");
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = (Height + 2 * Margin) / 2f;
+            camera.orthographicSize = (height + 2 * Margin) / 2f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = BackgroundColor;
-            cameraObject.transform.position = new Vector3(width / 2f, Height / 2f, -10);
+            cameraObject.transform.position = new Vector3(width / 2f, height / 2f, -10);
             var target = new RenderTexture(pictureWidth, pictureHeight, 24);
             try
             {
@@ -476,7 +694,7 @@ namespace Orcapafea.Daedalus.Dev
                 image.ReadPixels(new Rect(0, 0, pictureWidth, pictureHeight), 0, 0);
                 image.Apply();
                 RenderTexture.active = previous;
-                string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "starter-picture.png"));
+                string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", fileName));
                 File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
                 return path;

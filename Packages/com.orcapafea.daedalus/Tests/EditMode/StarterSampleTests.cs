@@ -81,7 +81,7 @@ namespace Orcapafea.Daedalus.Tests
         public void EveryPrefabTheSceneUsesIsInTheSample()
         {
             var guids = new HashSet<string>(FilesInSample(metas: true).Select(GuidIn));
-            foreach (string scene in new[] { "Starter.unity", "Stage Example/Stage 1.unity", "Stage Example/Stage 2.unity" })
+            foreach (string scene in new[] { "Starter.unity", "Stage Example/Stage 1.unity", "Stage Example/Stage 2.unity", "Trap Demo/Trap Demo.unity" })
             {
                 MatchCollection used = SourcePrefab.Matches(File.ReadAllText(Path.Combine(Sample, scene)));
                 Assert.IsNotEmpty(used, $"{scene} holds no prefab instances.");
@@ -102,7 +102,7 @@ namespace Orcapafea.Daedalus.Tests
             {
                 string relative = RelativeToSample(file);
                 bool isFolderMeta = file.EndsWith(".meta", StringComparison.Ordinal) && Directory.Exists(file.Substring(0, file.Length - ".meta".Length));
-                if (relative.StartsWith("Starter.unity", StringComparison.Ordinal) || relative.StartsWith("Stage Example", StringComparison.Ordinal) || isFolderMeta)
+                if (relative.StartsWith("Starter.unity", StringComparison.Ordinal) || relative.StartsWith("Stage Example", StringComparison.Ordinal) || relative.StartsWith("Trap Demo", StringComparison.Ordinal) || isFolderMeta)
                 {
                     continue;
                 }

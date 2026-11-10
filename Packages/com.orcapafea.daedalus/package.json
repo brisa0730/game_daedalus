@@ -1,6 +1,6 @@
 {
   "name": "com.orcapafea.daedalus",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Daedalus Platformer Maker",
   "description": "Build a 2D platformer in the Unity Editor without code: place objects, add Daedalus components and tune their settings.",
   "unity": "6000.0",
@@ -28,7 +28,7 @@
   "samples": [
     {
       "displayName": "Starter",
-      "description": "A short troll level to play, ready-made traps to copy, and one spot left for you to finish.",
+      "description": "A short troll level to play, a Trap Demo with every kind of trap, ready-made traps to copy, and one spot left for you to finish.",
       "path": "Samples~/Starter"
     }
   ]
