@@ -40,6 +40,7 @@ type: reference
 - **`WaitForEndOfFrame` never resumes in batch-mode PlayMode tests.** Wait with `yield return null`; a frame has been presented by the time the next frame's coroutines run.
 - **`InputAction.wantsInitialStateCheck` is read when bindings first resolve.** Set after the first `Enable` it does nothing, even across a `Disable`. Set it on a new action before enabling (`PlayerControls(keepHeldDirections: true)`).
 - `EditorSceneManager.LoadSceneAsyncInPlayMode` with a path that no longer exists logs an error ("expects a valid full path") and returns null; it doesn't throw.
+- **`Scene.isDirty` reads true in Play mode for a scene entered with unsaved edits** (operator editor check, 2026-11-10, 6000.6.8f1). Batch tests can't enter Play with a dirty scene, so only a hand check shows it.
 
 ## Allocation checks in EditMode tests (6000.0.85f1, 6000.6.7f1, Windows 11)
 - `GC.GetAllocatedBytesForCurrentThread()` compiles but **does not see allocations** in either editor's EditMode tests (a planted `new byte[1024]` gives a delta of 0). Never trust a zero from it without a planted-allocation check.
