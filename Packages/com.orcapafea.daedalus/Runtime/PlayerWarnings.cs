@@ -26,6 +26,19 @@ namespace Orcapafea.Daedalus
         public const string RopeTopInWall = "This rope's top is inside a wall or ceiling tile, so the player stops below it. Move the rope down so its top is in an empty cell or on a one-way platform.";
         public const string OldInputSetting = "The controls need the Input System. Set Edit > Project Settings > Player > Active Input Handling to Input System Package (New) or Both.";
 
+        public const string NextStageMissing = "This Exit's Next stage is missing: its scene was deleted, or moved outside Unity. Drag the scene into Next stage again.";
+        public const string NextStageMissingOnScreen = "This Exit's next stage is missing. Fix it in the Inspector.";
+
+        public static string PlayerInAnotherScene(string sceneName)
+        {
+            return $"{sceneName} is open at the same time and has a Player too, so both are running. To close it, right-click {sceneName} in the Hierarchy and choose Remove Scene.";
+        }
+
+        public static string PlayAgainUsesSaved(string sceneName)
+        {
+            return $"Play again uses the last saved {sceneName}. Your changes aren't lost: Stop, then press Ctrl+S.";
+        }
+
         public static string CellSize(Vector3 cellSize)
         {
             return $"The Collision Tilemap's Grid has a Cell Size of {cellSize.x} × {cellSize.y}. Daedalus needs 1 × 1, so collisions won't match the picture.";

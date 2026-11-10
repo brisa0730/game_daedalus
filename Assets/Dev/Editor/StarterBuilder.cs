@@ -25,6 +25,11 @@ namespace Orcapafea.Daedalus.Dev
         const string TileFolder = Folder + "/Tiles";
         const string PrefabFolder = Folder + "/Prefabs";
         const string ScenePath = Folder + "/Starter.unity";
+        const string StagePlayerPath = PrefabFolder + "/Stage Player.prefab";
+        const string StageFolder = Folder + "/Stage Example";
+        const string StageOnePath = StageFolder + "/Stage 1.unity";
+        const string StageTwoPath = StageFolder + "/Stage 2.unity";
+        const int StageWidth = 24;
         const string PaletteName = "Starter Palette";
         const string FrozenArgument = "-daedalusFrozenList";
         const int PixelsPerUnit = 16;
@@ -131,10 +136,75 @@ namespace Orcapafea.Daedalus.Dev
             SelfCheck(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             Produced.Add(ScenePath);
+            Produced.Add(StagePlayerPath);
+            Produced.Add(StageOnePath);
+            Produced.Add(StageTwoPath);
             AssetDatabase.SaveAssets();
             DeleteWhatWasNotProduced();
             string picture = SavePicture();
+            MakeStageExample();
             Debug.Log($"StarterBuilder: {ScenePath}, {Produced.Count} files; picture {picture}");
+        }
+
+        // Two stages in their own folder, the first Exit linked to the second. After the picture: each scene replaces the last.
+        static void MakeStageExample()
+        {
+            Directory.CreateDirectory(StageFolder);
+            AssetDatabase.Refresh();
+            SaveStagePlayerPrefab();
+            SaveStage(StageTwoPath, "", new Color32(44, 28, 44, 255));
+            SaveStage(StageOnePath, AssetDatabase.AssetPathToGUID(StageTwoPath), BackgroundColor);
+            AssetDatabase.SaveAssets();
+        }
+
+        static void SaveStagePlayerPrefab()
+        {
+            if (Frozen.Contains(StagePlayerPath))
+            {
+                return;
+            }
+            GameObject source = NewElement("Stage Player", Load<Sprite>($"{ArtFolder}/Player.png"));
+            try
+            {
+                source.GetComponent<SpriteRenderer>().sortingOrder = 3;
+                source.AddComponent<Player>();
+                SavePrefab(source, StagePlayerPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(source);
+            }
+        }
+
+        static void SaveStage(string path, string nextStage, Color background)
+        {
+            // First: a new scene unloads assets loaded before it.
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var ground = Load<Tile>($"{TileFolder}/Ground Tile.asset");
+            var grid = new GameObject("Grid").AddComponent<Grid>();
+            Tilemap collision = NewTilemap(grid, "Collision");
+            for (int x = 0; x < StageWidth; x++)
+            {
+                collision.SetTile(new Vector3Int(x, 0, 0), ground);
+            }
+
+            GameObject player = Place(Load<GameObject>(StagePlayerPath), Vector2.zero);
+            float pivot = player.GetComponent<SpriteRenderer>().sprite.bounds.min.y;
+            player.transform.position = new Vector3(PlayerFeet.x, PlayerFeet.y - pivot, 0);
+            GameObject exit = Place(Load<GameObject>($"{PrefabFolder}/Exit.prefab"), new Vector2(StageWidth - 3.5f, 1.5f));
+            var link = new SerializedObject(exit.GetComponent<Exit>());
+            Property(link, "nextStage").stringValue = nextStage;
+            link.ApplyModifiedPropertiesWithoutUndo();
+
+            MakeCamera();
+            Require(All<Camera>(scene).Count == 1, "a stage has one camera");
+            All<Camera>(scene)[0].backgroundColor = background;
+            var light = new GameObject("Global Light 2D").AddComponent<Light2D>();
+            light.lightType = Light2D.LightType.Global;
+
+            Require(All<Player>(scene).Count == 1 && All<Exit>(scene).Count == 1, "a stage has one Player and one Exit");
+            Require(path != StageOnePath || !string.IsNullOrEmpty(nextStage), "the first stage links to the second");
+            Require(EditorSceneManager.SaveScene(scene, path), $"saved {path}");
         }
 
         // After the 0.1.0 tag the frozen pieces are left exactly as seeded (Step 5): a re-save could change their bytes.
@@ -266,10 +336,11 @@ namespace Orcapafea.Daedalus.Dev
             return saved;
         }
 
-        static void Place(GameObject prefab, Vector2 centre)
+        static GameObject Place(GameObject prefab, Vector2 centre)
         {
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             instance.transform.position = new Vector3(centre.x, centre.y, 0);
+            return instance;
         }
 
         static Tilemap NewTilemap(Grid grid, string name)

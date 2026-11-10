@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 namespace Orcapafea.Daedalus.Editor
 {
     /// <summary>
-    /// Share my game's build: the active scene as a Brotli WebGL build plus a first-frame picture and the title, zipped in
+    /// Share my game's build: the active scene and every stage it leads to as a Brotli WebGL build plus a first-frame picture and the title, zipped in
     /// the shape the class gallery accepts. The menu and the command-line entry both run <see cref="Run"/>, so the test
     /// script exercises the student's path. Every setting it changes comes back before it returns.
     /// </summary>
@@ -45,12 +45,12 @@ namespace Orcapafea.Daedalus.Editor
                 return ShareTexts.NoWebModule;
             if (SharedPlayer() == null)
                 return ShareTexts.NoPlayer;
-            if (Camera.main == null)
+            if (StageWalk.MainCameraOf(SceneManager.GetActiveScene()) == null)
                 return ShareTexts.NoMainCamera;
             return null;
         }
 
-        /// <summary>The Player the picture frames: the first in hierarchy order when there are several (v1 scenes have one).</summary>
+        /// <summary>The active scene's Player the picture frames: the first in hierarchy order when there are several (v1 scenes have one).</summary>
         internal static Player SharedPlayer()
         {
             // Editor code, found once per share (the rule-5 scan exception), then sorted so the pick is deterministic.
@@ -61,10 +61,11 @@ namespace Orcapafea.Daedalus.Editor
 #endif
             Player first = null;
             List<int> firstOrder = null;
+            Scene active = SceneManager.GetActiveScene();
             foreach (Player player in players)
             {
-                // An unchecked Player never starts, so it would share an empty game.
-                if (!player.isActiveAndEnabled)
+                // An unchecked Player never starts, so it would share an empty game. Another open scene isn't what's shared.
+                if (!player.isActiveAndEnabled || player.gameObject.scene != active)
                     continue;
                 List<int> order = HierarchyOrder(player.transform);
                 if (first == null || Compare(order, firstOrder) < 0)
@@ -93,8 +94,19 @@ namespace Orcapafea.Daedalus.Editor
             var clock = Stopwatch.StartNew();
             if (scene.isDirty && !EditorSceneManager.SaveScene(scene))
                 return Fail(ShareTexts.SaveFailed);
+            StageWalk walk = StageWalk.From(scene);
+            if (walk.Stop != null)
+                return Fail(walk.Stop);
+            string[] stages = new string[walk.Stages.Count];
+            for (int i = 0; i < stages.Length; i++)
+            {
+                stages[i] = walk.Stages[i];
+                Scene stage = SceneManager.GetSceneByPath(stages[i]);
+                if (stage.isLoaded && stage.isDirty && !EditorSceneManager.SaveScene(stage))
+                    return Fail(ShareTexts.SaveFailed);
+            }
             // Before the platform switch, which can reload scripts.
-            byte[] picture = ShareScreenshot.Take(SharedPlayer(), Camera.main);
+            byte[] picture = ShareScreenshot.Take(SharedPlayer(), StageWalk.MainCameraOf(scene));
             if (picture == null)
                 return Fail(ShareTexts.NoPicture);
 
@@ -114,18 +126,18 @@ namespace Orcapafea.Daedalus.Editor
                 IDisposable scenes;
                 try
                 {
-                    scenes = BuildScenes.Use(new[] { scene.path });
+                    scenes = BuildScenes.Use(stages);
                 }
-                catch (FileNotFoundException)
+                catch (FileNotFoundException missing)
                 {
-                    return Fail(string.Format(ShareTexts.SceneMissing, scene.path));
+                    return Fail(string.Format(ShareTexts.SceneMissing, missing.FileName));
                 }
                 using (scenes)
                 using (var watch = new ExceptionWatch())
                 {
                     report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                     {
-                        scenes = new[] { scene.path },
+                        scenes = stages,
                         locationPathName = buildDir,
                         target = BuildTarget.WebGL,
                         options = BuildOptions.None,
@@ -143,7 +155,7 @@ namespace Orcapafea.Daedalus.Editor
             long bytes = ShareZip.Write(zipPath, title, picture, buildDir, MaxZipBytes);
             if (bytes > MaxZipBytes)
                 return Fail(ShareTexts.TooBigFor(bytes));
-            Debug.Log($"Share my game: {scene.path} → {zipPath}, {bytes} bytes, {clock.Elapsed.TotalSeconds:0}s");
+            Debug.Log($"Share my game: {walk.Chain} → {zipPath}, {bytes} bytes, {clock.Elapsed.TotalSeconds:0}s");
             return new Result { Ok = true, ZipPath = zipPath, ZipBytes = bytes };
         }
 

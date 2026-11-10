@@ -27,7 +27,7 @@ namespace Orcapafea.Daedalus.Tests
         };
 
         // Strings and comments are blanked together, so "//" inside a string can't hide the rest of a line.
-        static readonly Regex StringsAndComments = new Regex(
+        internal static readonly Regex StringsAndComments = new Regex(
             @"@""(?:[^""]|"""")*""|""(?:\\.|[^\\""\n])*""|'(?:\\.|[^\\'\n])+'|//[^\n]*|/\*.*?\*/",
             RegexOptions.Singleline);
 

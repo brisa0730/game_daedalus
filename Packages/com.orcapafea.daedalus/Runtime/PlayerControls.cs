@@ -28,14 +28,18 @@ namespace Orcapafea.Daedalus
         bool jumpLatched;
         bool jumpHeld;
 
-        public PlayerControls()
+        /// <param name="keepHeldDirections">
+        /// A new action doesn't see a key already held. True on arriving at a new stage, so a direction held through the
+        /// change keeps working; Jump is left alone, so a held jump needs a fresh press.
+        /// </param>
+        public PlayerControls(bool keepHeldDirections = false)
         {
             // One button per direction (digital, diagonals not normalised). A single Value action with several
             // bindings follows only one control at a time, which lost Right when Down was added.
-            left = Direction("Left", "<Keyboard>/a", "<Keyboard>/leftArrow", "<Gamepad>/dpad/left");
-            right = Direction("Right", "<Keyboard>/d", "<Keyboard>/rightArrow", "<Gamepad>/dpad/right");
-            up = Direction("Up", "<Keyboard>/w", "<Keyboard>/upArrow", "<Gamepad>/dpad/up");
-            down = Direction("Down", "<Keyboard>/s", "<Keyboard>/downArrow", "<Gamepad>/dpad/down");
+            left = Direction("Left", "<Keyboard>/a", "<Keyboard>/leftArrow", "<Gamepad>/dpad/left", keepHeldDirections);
+            right = Direction("Right", "<Keyboard>/d", "<Keyboard>/rightArrow", "<Gamepad>/dpad/right", keepHeldDirections);
+            up = Direction("Up", "<Keyboard>/w", "<Keyboard>/upArrow", "<Gamepad>/dpad/up", keepHeldDirections);
+            down = Direction("Down", "<Keyboard>/s", "<Keyboard>/downArrow", "<Gamepad>/dpad/down", keepHeldDirections);
 
             stick = new InputAction("Stick", InputActionType.Value, "<Gamepad>/leftStick", expectedControlType: "Vector2");
 
@@ -135,9 +139,10 @@ namespace Orcapafea.Daedalus
             playAgain.Dispose();
         }
 
-        static InputAction Direction(string name, string key, string arrow, string dpad)
+        static InputAction Direction(string name, string key, string arrow, string dpad, bool keepHeld)
         {
-            var action = new InputAction(name, InputActionType.Button);
+            // Read when the bindings first resolve, so it must be set before the first Enable.
+            var action = new InputAction(name, InputActionType.Button) { wantsInitialStateCheck = keepHeld };
             action.AddBinding(key);
             action.AddBinding(arrow);
             action.AddBinding(dpad);

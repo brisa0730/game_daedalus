@@ -16,7 +16,11 @@ namespace Orcapafea.Daedalus
         const float BumpScale = 1.3f;
         const float BumpSeconds = 0.15f;
         const float DimAlpha = 0.6f;
-        const int CachedCounts = 1000;
+        // The last entry reads 999+.
+        const int CachedCounts = 1001;
+        const int TitleSize = 32;
+        const int NoticeSize = 16;
+        const string WinTitle = "You made it!";
         const string PlayAgainText = "Press any key to play again";
 
         static readonly string[] Skull =
@@ -37,7 +41,9 @@ namespace Orcapafea.Daedalus
         readonly RectTransform counter;
         readonly Text count;
         readonly GameObject win;
+        readonly Text title;
         readonly Text winDeaths;
+        readonly Text saveNote;
         readonly GameObject playAgain;
         readonly string[] counts = new string[CachedCounts];
         readonly string[] deathLines = new string[CachedCounts];
@@ -52,7 +58,7 @@ namespace Orcapafea.Daedalus
         {
             for (int i = 0; i < CachedCounts; i++)
             {
-                counts[i] = i.ToString();
+                counts[i] = i < CachedCounts - 1 ? i.ToString() : "999+";
                 deathLines[i] = "Deaths: " + counts[i];
             }
 
@@ -96,9 +102,9 @@ namespace Orcapafea.Daedalus
             Stretch(winBox);
             var dim = win.AddComponent<Image>();
             dim.color = new Color(0, 0, 0, DimAlpha);
-            Text title = Label("Title", winBox, font, 32, TextAnchor.MiddleCenter);
+            title = Label("Title", winBox, font, TitleSize, TextAnchor.MiddleCenter);
             Place(title.rectTransform, 30);
-            title.text = "You made it!";
+            title.text = WinTitle;
             winDeaths = Label("Deaths", winBox, font, 20, TextAnchor.MiddleCenter);
             Place(winDeaths.rectTransform, -10);
             Text prompt = Label("Play Again", winBox, font, 14, TextAnchor.MiddleCenter);
@@ -106,13 +112,19 @@ namespace Orcapafea.Daedalus
             prompt.text = PlayAgainText;
             playAgain = prompt.gameObject;
             playAgain.SetActive(false);
+            saveNote = Label("Save Note", winBox, font, 14, TextAnchor.MiddleCenter);
+            Place(saveNote.rectTransform, -80);
+            saveNote.gameObject.SetActive(false);
             win.SetActive(false);
         }
 
         public GameObject Root => root;
         internal Text Count => count;
         internal GameObject Win => win;
+        internal RectTransform Counter => counter;
+        internal Text Title => title;
         internal Text WinDeaths => winDeaths;
+        internal Text SaveNote => saveNote;
         internal GameObject PlayAgain => playAgain;
 
         /// <summary>Shows the counter and, once the exit is reached, the win screen. Call once per frame.</summary>
@@ -145,6 +157,30 @@ namespace Orcapafea.Daedalus
                 shownPlayAgain = canPlayAgain;
                 playAgain.SetActive(canPlayAgain);
             }
+        }
+
+        /// <summary>The win screen says this instead of the win: the next stage couldn't be reached.</summary>
+        public void ShowNotice(string notice)
+        {
+            title.fontSize = NoticeSize;
+            title.text = notice;
+            winDeaths.text = "";
+        }
+
+        /// <summary>Back to the plain win screen, after a restart in place.</summary>
+        public void ClearNotice()
+        {
+            title.fontSize = TitleSize;
+            title.text = WinTitle;
+            winDeaths.text = deathLines[Mathf.Min(Mathf.Max(shownDeaths, 0), CachedCounts - 1)];
+            saveNote.gameObject.SetActive(false);
+        }
+
+        /// <summary>One line under Play again, on the win screen only.</summary>
+        public void ShowSaveNote(string note)
+        {
+            saveNote.text = note;
+            saveNote.gameObject.SetActive(true);
         }
 
         public void Destroy()

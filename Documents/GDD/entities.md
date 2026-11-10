@@ -1,5 +1,5 @@
 # Entities & Data
-**Last updated:** v0.11
+**Last updated:** v0.26
 
 Values here mirror the single source of truth in the sim assembly (CLAUDE.md § Coding Conventions → Tunable defaults): movement defaults and ranges in `MovementSettings`, movement internals in `MovementInternals` (both pinned by `MovementSettingsTests`; change the code, the test and this file together). Movement values are **starting values**: Phase 2's operator play-check tunes them. Combat values are still a sketch.
 
@@ -34,6 +34,7 @@ Student-facing settings, by Player section (field = `MovementSettings` identifie
 | Rule | Value |
 |---|---|
 | Death beat | 0.4 s (24 ticks) |
+| Fade between stages | 0.25 s each way (`StageFadeSeconds`; hidden, tuned at the play-check) |
 | Hazard core inset | 0.2 tile per side |
 | Contact margin (Touch, Checkpoint, Exit) | 0.0625 tile |
 | Default zone | the trap's box grown up by 1 tile |
@@ -102,7 +103,7 @@ Settings marked for walkers, flyers or jumpers show only for that movement type,
 | Checkpoint | `Checkpoint` component (Add Component → Daedalus → Checkpoint; no settings): sets the respawn point when touched (the latest touched wins; recorded under either On hazard rule; the player respawns at its box's bottom centre); tinted gold while active; saves in-game progress (from `world-systems`). Its box is the sprite's bounds, else 1 × 1 |
 | Trap | A box of tiles that moves, falls, vanishes or appears when the player touches it or enters its zone (§ Trap) |
 | Enemy | Movement type and the settings above; enemy types are saved as prefabs |
-| Exit / goal | `Exit` component (Add Component → Daedalus → Exit; no settings): ends the game with a win screen when touched; box as the Checkpoint's; a Trap on the same object makes it run away (moving traps) |
+| Exit / goal | `Exit` component (Add Component → Daedalus → Exit; one setting, **Next stage**, a scene): goes to the next stage when touched, or ends the game with a win screen when it is empty; box as the Checkpoint's; a Trap on the same object makes it run away (moving traps) |
 
 Each element is one Daedalus component that students add to an object (a GameObject with a sprite) from the Add Component menu; the component's Inspector shows its settings. The starter also ships each one as a ready-made prefab. The player itself is one **Player** component holding every ability as a toggle; its settings are grouped into collapsible sections (Movement, Abilities, Attack, Health) of at most ~8 each.
 

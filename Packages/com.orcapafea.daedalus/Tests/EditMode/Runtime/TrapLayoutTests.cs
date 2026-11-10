@@ -36,23 +36,51 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
-        public void CheckpointAndExitHaveTheirMenusNoVisibleSettingsAndDataVersionOne()
+        public void CheckpointHasItsMenuNoVisibleSettingsAndDataVersionOne()
         {
             Assert.AreEqual("Daedalus/Checkpoint", typeof(Checkpoint).GetCustomAttribute<AddComponentMenu>().componentMenu);
+            AssertLayout(NewObject("Checkpoint").AddComponent<Checkpoint>(), "m_Script");
+        }
+
+        [Test]
+        public void ExitHasItsMenuTheNextStageSettingAndDataVersionOne()
+        {
             Assert.AreEqual("Daedalus/Exit", typeof(Exit).GetCustomAttribute<AddComponentMenu>().componentMenu);
-            foreach (Component component in new Component[] { NewObject("Checkpoint").AddComponent<Checkpoint>(), NewObject("Exit").AddComponent<Exit>() })
+            Exit exit = NewObject("Exit").AddComponent<Exit>();
+            AssertLayout(exit, "m_Script", "nextStage");
+            const BindingFlags F = BindingFlags.NonPublic | BindingFlags.Instance;
+            Assert.IsNotEmpty(typeof(Exit).GetField("nextStage", F).GetCustomAttribute<TooltipAttribute>().tooltip);
+            Assert.IsNotNull(typeof(Exit).GetField("builtNextStagePath", F).GetCustomAttribute<HideInInspector>());
+            Assert.AreEqual(ExitLink.LinkKind.None, exit.Link.Kind, "a new Exit ends the game");
+        }
+
+        [Test]
+        public void AnExitSavedBeforeStagesLoadsWithNoNextStage()
+        {
+            // 0.1.0 saved only the data version; the new fields take their field initializers.
+            Exit fresh = NewObject("Fresh").AddComponent<Exit>();
+            string json = EditorJsonUtility.ToJson(fresh);
+            json = System.Text.RegularExpressions.Regex.Replace(json, ",\\s*\"nextStage\":\"[^\"]*\"", "");
+            json = System.Text.RegularExpressions.Regex.Replace(json, ",\\s*\"builtNextStagePath\":\"[^\"]*\"", "");
+            StringAssert.DoesNotContain("nextStage", json, "precondition: the old data has no link");
+            Exit old = NewObject("Old").AddComponent<Exit>();
+            EditorJsonUtility.FromJsonOverwrite(json, old);
+            Assert.AreEqual(ExitLink.LinkKind.None, old.Link.Kind);
+            Assert.AreEqual(1, old.DataVersion);
+        }
+
+        static void AssertLayout(Component component, params string[] paths)
+        {
+            var serialized = new SerializedObject(component);
+            var visible = new List<string>();
+            SerializedProperty iterator = serialized.GetIterator();
+            while (iterator.NextVisible(true))
             {
-                var serialized = new SerializedObject(component);
-                var visible = new List<string>();
-                SerializedProperty iterator = serialized.GetIterator();
-                while (iterator.NextVisible(true))
-                {
-                    visible.Add(iterator.propertyPath);
-                }
-                CollectionAssert.AreEquivalent(new[] { "m_Script" }, visible, component.GetType().Name);
-                Assert.AreEqual(1, serialized.FindProperty("dataVersion").intValue, component.GetType().Name);
-                Assert.IsNotNull(component.GetType().GetField("dataVersion", BindingFlags.NonPublic | BindingFlags.Instance).GetCustomAttribute<HideInInspector>());
+                visible.Add(iterator.propertyPath);
             }
+            CollectionAssert.AreEquivalent(paths, visible, component.GetType().Name);
+            Assert.AreEqual(1, serialized.FindProperty("dataVersion").intValue, component.GetType().Name);
+            Assert.IsNotNull(component.GetType().GetField("dataVersion", BindingFlags.NonPublic | BindingFlags.Instance).GetCustomAttribute<HideInInspector>());
         }
 
         [Test]

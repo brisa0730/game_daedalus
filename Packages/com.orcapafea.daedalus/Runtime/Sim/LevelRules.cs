@@ -51,6 +51,9 @@ namespace Orcapafea.Daedalus.Sim
         public const float WinInputLockSeconds = 1f;
         public const int WinInputLockTicks = (int)(WinInputLockSeconds * FixedStepAccumulator.TicksPerSecond + 0.5f);
 
+        /// <summary>Seconds of each half of the fade between stages: to black, and back.</summary>
+        public const float StageFadeSeconds = 0.25f;
+
         /// <summary>Seconds to whole ticks, rounded as <see cref="MovementInternals"/> does; negative or non-finite gives 0.</summary>
         public static int SecondsToTicks(float seconds)
         {

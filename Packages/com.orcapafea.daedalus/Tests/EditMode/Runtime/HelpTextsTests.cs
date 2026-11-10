@@ -67,6 +67,14 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void TheExitsStoryTellsWhereItLeads()
+        {
+            Assert.AreEqual("Ends the game with the win screen.", HelpTexts.ExitStory(ExitLink.None));
+            Assert.AreEqual("Goes to Stage2.", HelpTexts.ExitStory(ExitLink.ToScene("Assets/Game/Stage2.unity")));
+            StringAssert.StartsWith("The next stage is missing", HelpTexts.ExitStory(ExitLink.Broken));
+        }
+
+        [Test]
         public void AZoneReachingMoreThanATilePastTheTrapSaysItFiresEarly()
         {
             Trap trap = NewTrap();

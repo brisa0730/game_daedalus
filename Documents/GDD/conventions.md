@@ -1,5 +1,5 @@
 # Conventions
-**Last updated:** v0.10
+**Last updated:** v0.26
 
 Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Coding Conventions and § Testing. Sections fill in as the code establishes them.
 
@@ -26,6 +26,6 @@ Mirrors [CLAUDE.md](../../.claude/CLAUDE.md) § Coding Conventions and § Testin
 
 - **Scenario tests:** a small map written as ASCII rows (`AsciiLevel`: `.` none, `#` solid, `-` one-way, `C` climbable, `R` rope, `+` one-way + rope, `^` hazard, `P` start; level scenarios with traps, checkpoints and exits go through `LevelScenario`) and a scripted input sequence, driven through the real `PlayerStepper.Step` by `PlayerScenario`, asserting positions and states tick by tick. Every precondition is asserted (e.g. "the jump fired"); breakpoint tests assert both sides. Run on both 6000.0.85f1 and 6000.6.8f1.
 - **Gate tests** (`GateIntegrityTests`) pin the level-design breakpoints at defaults (ledges, gaps, corridors, chimneys, single-wall scaling) and name the defaults they assume, so a retune that moves a breakpoint reads as "gate moved", not "bug". **Matrix tests** (`AbilityMatrixTests`) run one map × several ability sets and check that each surface responds only to its ability.
-- **PlayMode tests** use the Input System's `InputTestFixture` by composition, send whole keyboard states, and run at `Time.captureFramerate = 60` (one tick per frame). Their levels are built in code (`TestLevel`, the `AsciiLevel` symbols) so both editors run them; screenshots go to `TestResults/<unity version>-movement-*.png` and `-traps-*.png`.
+- **PlayMode tests** use the Input System's `InputTestFixture` by composition, send whole keyboard states, and run at `Time.captureFramerate = 60` (one tick per frame). Their levels are built in code (`TestLevel`, the `AsciiLevel` symbols) so both editors run them; screenshots go to `TestResults/<unity version>-movement-*.png` and `-traps-*.png`. Stage tests use real scene files written by a `PrebuildSetup` (`StageScenes`), additively, because a Single scene there would replace the test runner's bootstrap scene; each marks the test runner `DontDestroyOnLoad` so an Exit's Single load doesn't end the run (`-stages-*.png`).
 - **The dev scenes** are generated (`MovementTestSceneBuilder` → `Assets/Dev/MovementTest/`, `TrapTestSceneBuilder` → the trap bench `Assets/Dev/TrapTest/`: the Phase 3 sections, then a Falling Ceiling, a Sliding Floor, a Crusher, a Fall Floor, fast spikes in a corridor, a Runaway Exit and adversarial fixtures) and verified by their self-checks and pictures; never hand-edited.
 - **Operator play-check** for movement feel; the movement defaults passed it unchanged (Phase 2), and the death, respawn and trap numbers too (Phases 3 and 4).

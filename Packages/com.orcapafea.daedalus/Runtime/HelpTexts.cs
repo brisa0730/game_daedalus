@@ -16,9 +16,35 @@ namespace Orcapafea.Daedalus
 
         public const string CheckpointNotice = "Touching this checkpoint makes it the place the player comes back to.";
         public const string CheckpointNoEffect = "The Player's On hazard is Return to safe ground, so the player comes back where it last stood safely, not here. Set it to Respawn at checkpoint to use checkpoints.";
-        public const string ExitNotice = "Touching this ends the game with a win screen.";
+        public const string ExitOnPrefabAsset = "This is the prefab, so a Next stage set here sends every placed copy to one scene. Set it on the placed Exit in each scene instead.";
+        public const string ExitsDiffer = "The selected Exits go to different places.";
         public const string TrapPlayModeNote = "Trap changes take effect the next time you press Play.";
         public const string MoveStill = "Its Offset is 0 × 0, so it doesn't move.";
+
+        /// <summary>A scene's name for the student: its file name, or "the first scene" when it was never saved.</summary>
+        public static string StageName(string path)
+        {
+            return string.IsNullOrEmpty(path) ? "the first scene" : System.IO.Path.GetFileNameWithoutExtension(path);
+        }
+
+        public static string StageLoadFailed(string stageName)
+        {
+            return $"Couldn't open {stageName}. Check that it is saved and still in the project.";
+        }
+
+        /// <summary>What touching this Exit does, in one sentence.</summary>
+        public static string ExitStory(ExitLink link)
+        {
+            switch (link.Kind)
+            {
+                case ExitLink.LinkKind.Scene:
+                    return $"Goes to {StageName(link.Path)}.";
+                case ExitLink.LinkKind.Broken:
+                    return "The next stage is missing: its scene was deleted, or moved outside Unity. Drag the scene in again.";
+                default:
+                    return "Ends the game with the win screen.";
+            }
+        }
 
         /// <summary>For the editor (which can't name the sim's types): <paramref name="player"/>'s settings, or the defaults without a Player.</summary>
         public static string TrapStoryInScene(Trap trap, Tilemap collision, Player player)

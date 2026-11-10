@@ -81,11 +81,14 @@ namespace Orcapafea.Daedalus.Tests
         public void EveryPrefabTheSceneUsesIsInTheSample()
         {
             var guids = new HashSet<string>(FilesInSample(metas: true).Select(GuidIn));
-            MatchCollection used = SourcePrefab.Matches(File.ReadAllText(Path.Combine(Sample, "Starter.unity")));
-            Assert.IsNotEmpty(used, "The scene holds no prefab instances.");
-            foreach (Match match in used)
+            foreach (string scene in new[] { "Starter.unity", "Stage Example/Stage 1.unity", "Stage Example/Stage 2.unity" })
             {
-                Assert.IsTrue(guids.Contains(match.Groups[1].Value), $"The scene uses a prefab outside the sample: {match.Groups[1].Value}");
+                MatchCollection used = SourcePrefab.Matches(File.ReadAllText(Path.Combine(Sample, scene)));
+                Assert.IsNotEmpty(used, $"{scene} holds no prefab instances.");
+                foreach (Match match in used)
+                {
+                    Assert.IsTrue(guids.Contains(match.Groups[1].Value), $"{scene} uses a prefab outside the sample: {match.Groups[1].Value}");
+                }
             }
         }
 
@@ -99,7 +102,7 @@ namespace Orcapafea.Daedalus.Tests
             {
                 string relative = RelativeToSample(file);
                 bool isFolderMeta = file.EndsWith(".meta", StringComparison.Ordinal) && Directory.Exists(file.Substring(0, file.Length - ".meta".Length));
-                if (relative.StartsWith("Starter.unity", StringComparison.Ordinal) || isFolderMeta)
+                if (relative.StartsWith("Starter.unity", StringComparison.Ordinal) || relative.StartsWith("Stage Example", StringComparison.Ordinal) || isFolderMeta)
                 {
                     continue;
                 }

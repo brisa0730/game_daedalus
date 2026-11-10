@@ -16,12 +16,17 @@ Assets/Dev/TrapTest with a hostile title, then checks:
 --probe instead proves the fail-closed wire: a build callback that logs an exception (the build still succeeds) is
 dropped into the project for one run; Share must refuse with its exception text and make no zip. Then it is removed.
 6000.6 uses the dev project; 6000.0 the compat project (Tools/compat/6000.0), with the trap bench copied in.
+Then a two-stage game (Assets/Dev/StageTest) goes through the same build and checks, and its zip is played in Chrome on
+localhost: the page must see Stage A, then a fully black frame, then Stage B holding steady, without the page hanging.
 --project PATH --scene PATH shares a student-shaped project instead (a scratch copy in Tools/compat/, pointed at today's
 package): the committed project is never opened, and the run fails if Tools/fixtures/0.1.0 changed.
-Writes TestResults/share-check/<editor>.zip and .log, and TestResults/<unity version>-share-check-screenshot.png.
+Writes TestResults/share-check/<editor>.zip and .log, TestResults/<unity version>-share-check-screenshot.png and
+TestResults/<unity version>-share-check-stage2.png.
 """
 
 import argparse
+import functools
+import http.server
 import json
 import os
 import re
@@ -29,6 +34,8 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -37,6 +44,7 @@ sys.dont_write_bytecode = True  # importing unity_tests must not leave Tools/__p
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from unity_tests import EDITORS, REPO, RESULTS, editor_exe, ensure_compat_project, looks_locked  # noqa: E402
 from install_check import assert_fixture_untouched, copy_fixture  # noqa: E402
+from perf_check import CHROME, Handler, Received  # noqa: E402
 
 OUT = RESULTS / "share-check"
 GALLERY = REPO / "Deploy" / "gallery"
@@ -44,6 +52,12 @@ SHARE_TEXTS = REPO / "Packages" / "com.orcapafea.daedalus" / "Editor" / "ShareTe
 STRINGS_RS = GALLERY / "src" / "strings.rs"
 BENCH = "Assets/Dev/TrapTest"
 COMPAT_BENCH = "Assets/ShareCheck/TrapTest"
+STAGE_BENCH = "Assets/Dev/StageTest"
+COMPAT_STAGE_BENCH = "Assets/ShareCheck/StageTest"
+STAGE_SCENE = "Stage A.unity"
+PAGE_TIMEOUT_SECONDS = 180
+GATE_STAGE_PIXELS = 0.4
+GATE_HITCH_MS = 5000
 MAX_ZIP_BYTES = 50_000_000
 BUILD_TIMEOUT_SECONDS = 60 * 60
 ENTRIES = ["daedalus.json", "screenshot.png", "Build/game.loader.js", "Build/game.data.br",
@@ -124,6 +138,17 @@ def prepare(editor_key, other_project=None, other_scene=None):
         shutil.rmtree(target)
     shutil.copytree(REPO / BENCH, target)  # .meta files too, so the scene's GUIDs resolve
     return project, f"{COMPAT_BENCH}/TrapTest.unity"
+
+
+def prepare_stages(editor_key):
+    if editor_key == "6000.6":
+        return REPO, f"{STAGE_BENCH}/{STAGE_SCENE}"
+    project = ensure_compat_project(editor_key)
+    target = project / COMPAT_STAGE_BENCH
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(REPO / STAGE_BENCH, target)  # .meta files too, so the Exit's link and the tiles resolve
+    return project, f"{COMPAT_STAGE_BENCH}/{STAGE_SCENE}"
 
 
 def check_zip(zip_path):
@@ -222,10 +247,141 @@ def check_editor(editor_key, gallery, probe=False, other_project=None, other_sce
             Path(str(probe_dir) + ".meta").unlink(missing_ok=True)
 
 
-def run_share(editor_key, version, exe, project, scene, gallery, probe):
+def check_stages(editor_key, gallery):
+    version = EDITORS[editor_key]
+    project, scene = prepare_stages(editor_key)
+    settings_path, settings_text = seed(project)
+    try:
+        summary = run_share(editor_key, version, editor_exe(version), project, scene, gallery, False, f"{editor_key}-stages")
+    finally:
+        settings_path.write_text(settings_text, encoding="utf-8", newline="")
+    return f"{summary}; {play_stages(editor_key, version)}"
+
+
+# Unity's WebGL build, played with the Share zip's own files. Blue is Stage A, orange Stage B (StageTestSceneBuilder).
+STAGE_PAGE = """<!doctype html><meta charset=utf-8><style>html,body{margin:0;background:#222}</style>
+<canvas id=c width=960 height=540 style="width:960px;height:540px"></canvas>
+<script src="Build/game.loader.js"></script>
+<script>
+const logs = [];
+function send(result) {
+  result.logs = logs.slice(-40);
+  fetch('result', {method: 'POST', body: JSON.stringify(result)});
+  c.toBlob(b => fetch('screenshot', {method: 'POST', body: b}), 'image/png');
+}
+let finished = false;
+function fail(why) { if (!finished) { finished = true; send({ok: false, why}); } }
+function sample(gl) {
+  // Away from the HUD in the top-left corner.
+  const pixel = new Uint8Array(4); let blue = 0, orange = 0, black = 0, total = 0;
+  for (let y = 0.1; y < 0.8; y += 0.1) for (let x = 0.1; x < 0.95; x += 0.1) {
+    gl.readPixels(Math.floor(x * c.width), Math.floor(y * c.height), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    const [r, g, b] = pixel; total++;
+    if (b - r > 60 && b > 120) blue++;
+    if (r - b > 60 && r > 120) orange++;
+    if (Math.max(r, g, b) < 12) black++;
+  }
+  return {blue: blue / total, orange: orange / total, black: black / total};
+}
+function watch() {
+  const gl = c.getContext('webgl2') || c.getContext('webgl');
+  let state = 'A', last = performance.now(), longest = 0, stableSince = 0, frames = 0, sawA = 0, sawBlack = 0, seenSince = 0;
+  function frame(now) {
+    if (finished) return;
+    const interval = now - last; last = now; frames++;
+    if (state !== 'A') longest = Math.max(longest, interval);
+    const s = sample(gl);
+    if (state === 'A' && s.blue > 0.9) { sawA++; }
+    if (state === 'A' && sawA > 0 && s.black > 0.98) { state = 'black'; sawBlack = 1; }
+    else if (state === 'black' && s.orange > 0.5) { state = 'B'; stableSince = now; }
+    else if (state === 'B' && s.orange < 0.5) { stableSince = now; }
+    if (state === 'B' && now - stableSince >= 500) {
+      finished = true;
+      send({ok: true, sawAFrames: sawA, sawBlack: sawBlack === 1, longestFrameMs: longest, stageBPixels: s.orange, frames});
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  setTimeout(() => fail('stage state stuck at ' + state + ' after ' + frames + ' frames, saw blue on ' + sawA), 90000);
+}
+createUnityInstance(c, {dataUrl: 'Build/game.data.br', frameworkUrl: 'Build/game.framework.js.br', codeUrl: 'Build/game.wasm.br',
+  streamingAssetsUrl: 'StreamingAssets', companyName: 'x', productName: 'x', productVersion: '1',
+  webglContextAttributes: {preserveDrawingBuffer: true}, print: m => logs.push(m), printErr: m => logs.push(m),
+  showBanner: (m, t) => { if (t === 'error') fail('loader: ' + m); }}).then(watch).catch(e => fail('loader: ' + e));
+setTimeout(() => fail('Unity never started'), 120000);
+</script>"""
+
+BROTLI_TYPES = {".js.br": "application/javascript", ".wasm.br": "application/wasm", ".data.br": "application/octet-stream"}
+
+
+class BrotliHandler(Handler):
+    def guess_type(self, path):
+        for suffix, content_type in BROTLI_TYPES.items():
+            if str(path).endswith(suffix):
+                return content_type
+        return super().guess_type(path)
+
+    def end_headers(self):
+        if self.path.endswith(".br"):
+            self.send_header("Content-Encoding", "br")
+        super().end_headers()
+
+
+def play_stages(editor_key, version):
+    """Plays the two-stage zip in Chrome; returns a summary, or raises Fail."""
+    if not CHROME.exists():
+        raise Fail(f"Chrome not found at {CHROME} (set CHROME)")
+    folder = tempfile.mkdtemp(prefix="daedalus-stages-")
+    profile = tempfile.mkdtemp(prefix="daedalus-stages-chrome-")
+    received = Received()
+    try:
+        with zipfile.ZipFile(OUT / f"{editor_key}-stages.zip") as archive:
+            archive.extractall(folder)
+        (Path(folder) / "index.html").write_text(STAGE_PAGE, encoding="utf-8")
+        handler = functools.partial(BrotliHandler, directory=folder, received=received)
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{server.server_address[1]}/index.html"
+        chrome = subprocess.Popen([str(CHROME), f"--user-data-dir={profile}", "--new-window", "--window-size=1100,700",
+                                   "--no-first-run", "--no-default-browser-check", "--disable-background-timer-throttling",
+                                   "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows", url],
+                                  start_new_session=sys.platform != "win32")
+        try:
+            arrived = received.done.wait(PAGE_TIMEOUT_SECONDS)
+        finally:
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(chrome.pid)], capture_output=True)
+            else:
+                os.killpg(chrome.pid, signal.SIGKILL)
+                chrome.wait()
+            server.shutdown()
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+        shutil.rmtree(profile, ignore_errors=True)
+    if not arrived:
+        raise Fail(f"the stage page sent nothing within {PAGE_TIMEOUT_SECONDS}s")
+    result = received.result
+    (RESULTS / f"{version}-share-check-stage2.png").write_bytes(received.screenshot)
+    (OUT / f"{editor_key}-stages.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if not result.get("ok"):
+        raise Fail(f"the stage change in Chrome: {result.get('why')}; last log lines: {result.get('logs', [])[-5:]}")
+    if not (result["sawAFrames"] > 0 and result["sawBlack"]):
+        raise Fail(f"the frames weren't Stage A, black, Stage B: {result}")
+    if result["stageBPixels"] < GATE_STAGE_PIXELS:
+        raise Fail(f"Stage B covers {result['stageBPixels']:.2f} of the samples, under {GATE_STAGE_PIXELS}")
+    if result["longestFrameMs"] > GATE_HITCH_MS:
+        raise Fail(f"the stage change froze the page for {result['longestFrameMs']:.0f} ms")
+    trap_zip = OUT / f"{editor_key}.zip"
+    growth = (OUT / f"{editor_key}-stages.zip").stat().st_size - trap_zip.stat().st_size if trap_zip.exists() else 0
+    return (f"in Chrome: {result['sawAFrames']} frames of Stage A, black, Stage B; longest frame "
+            f"{result['longestFrameMs']:.0f} ms; zip {growth:+d} bytes against the trap bench")
+
+
+def run_share(editor_key, version, exe, project, scene, gallery, probe, name=None):
     OUT.mkdir(parents=True, exist_ok=True)
-    zip_path = OUT / f"{editor_key}.zip"
-    log_path = OUT / f"{editor_key}.log"
+    zip_path = OUT / f"{name or editor_key}.zip"
+    log_path = OUT / f"{name or editor_key}.log"
     title_file = OUT / "title.txt"
     title_file.write_text(HOSTILE_TITLE, encoding="utf-8")
     for stale in (zip_path, log_path):
@@ -266,7 +422,8 @@ def run_share(editor_key, version, exe, project, scene, gallery, probe):
     if zip_bytes > MAX_ZIP_BYTES:
         raise Fail(f"zip is {zip_bytes} bytes")
     screenshot, title = check_zip(zip_path)
-    (RESULTS / f"{version}-share-check-screenshot.png").write_bytes(screenshot)
+    if name is None:
+        (RESULTS / f"{version}-share-check-screenshot.png").write_bytes(screenshot)
     if gallery:
         report = gallery_check(zip_path, title_file)
         title = report["title"]
@@ -296,7 +453,9 @@ def main():
         failed = True
     for editor_key in editors:
         try:
-            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe, args.project, args.scene)}")
+            print(f"PASS  {EDITORS[editor_key]}: {check_editor(editor_key, not args.no_gallery_check, args.probe, args.project, args.scene)}", flush=True)
+            if not args.probe and not args.project:
+                print(f"PASS  {EDITORS[editor_key]} stages: {check_stages(editor_key, not args.no_gallery_check)}", flush=True)
         except Fail as error:
             print(f"FAIL  {EDITORS[editor_key]}: {error}")
             failed = True

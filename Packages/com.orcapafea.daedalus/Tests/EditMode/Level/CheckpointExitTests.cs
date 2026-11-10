@@ -88,6 +88,17 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void WonExitNamesTheExitTouchedAndBeginClearsIt()
+        {
+            LevelScenario s = new LevelScenario(Floor).Exit(new Box(9, 1, 10, 2)).Exit(new Box(6, 1, 7, 2)).Begin();
+            Assert.AreEqual(-1, s.Stepper.WonExit, "not won yet");
+            Assert.That(s.RunUntil(Hold(1), x => x.Stepper.Phase == LevelPhase.Won), Is.GreaterThan(0));
+            Assert.AreEqual(1, s.Stepper.WonExit, "the nearer exit, second in the list");
+            s.BeginAt(s.Level.StartX, s.Level.StartY);
+            Assert.AreEqual(-1, s.Stepper.WonExit);
+        }
+
+        [Test]
         public void DeathWinsOverAnExitTouchedOnTheSameTick()
         {
             // A Pop Spike over the player's path whose zone starts where the exit's touch begins:

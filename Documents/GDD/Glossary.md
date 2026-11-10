@@ -1,5 +1,5 @@
 # Glossary
-**Last updated:** v0.16
+**Last updated:** v0.26
 
 Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 
@@ -37,7 +37,7 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Override | Draft | Unity's prefab override: a placed enemy's change to its prefab's values. |
 | Safe ground | Draft | The last position the player stood fully on painted non-hazard tiles, outside every trap trigger and trap box; with On hazard = Return to safe ground, hazards return the player there. |
 | Checkpoint | Draft | A placed element (`Checkpoint` component) that sets the respawn point when touched and, from `world-systems`, saves in-game progress. |
-| Exit | Draft | A placed element (`Exit` component) that ends the game with the win screen when touched. |
+| Exit | Draft | A placed element (`Exit` component) that goes to its Next stage when touched, or ends the game with the win screen when it has none. |
 | Respawn point | Draft | Where Respawn at checkpoint brings the player back: where Play began, then the latest checkpoint touched. |
 | Active radius | Draft | The area (~1.5 screens) around the camera inside which objects update. |
 | Collision Tilemap | Draft | The one of the three Tilemaps (Background, Collision, Foreground) whose tiles affect gameplay. |
@@ -85,6 +85,8 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Scenario test | Draft | An EditMode test that steps the sim through a scripted input sequence on a small ASCII map and checks it tick by tick. |
 | Troll level | Draft | A short section that looks normal, then betrays the player with traps (the genre of games like Level Devil); how students begin the course. |
 | Section | Draft | One short stretch of the continuous map, starting at a checkpoint; troll levels are built as sections side by side. |
+| Stage | Draft | One Unity scene of a troll game made of several; an Exit's Next stage links it to the next. |
+| Next stage | Draft | The Exit's one setting: the scene the player goes to from it. Empty ends the game. |
 | Trap | Draft | The Daedalus component (`Trap`) that makes a box of tiles move, fall, vanish or appear when the player touches it or enters its zone; fires once per life; never triggers another trap. |
 | Trap zone | Draft | A trap's trigger box, drawn in the Scene view and stored relative to the trap's object (default: the trap's box grown up by 1 tile); traps sharing a zone fire together. |
 | Trigger | Draft | What sets a trap off: Player enters zone, or Player touches (the contact margin). |

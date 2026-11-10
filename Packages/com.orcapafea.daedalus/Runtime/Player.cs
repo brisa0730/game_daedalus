@@ -58,6 +58,16 @@ namespace Orcapafea.Daedalus
         float frameDelta;
         PlayStart? pendingStart;
         bool settingsDirty;
+        // Stages. Where each Exit leads, in the sim's exit order; no run in a one-scene game.
+        ExitLink[] exitLinks;
+        StageRun stageRun;
+        int carriedDeaths;
+        // The first frame of a win has been dealt with.
+        bool winHandled;
+        // On the way to another stage: the win screen and Play again wait.
+        bool leaving;
+        // Arrived from another stage: nothing ticks until the fade has cleared.
+        bool holding;
         // The toggles as last applied, so an Inspector edit changes only the abilities whose toggle changed
         // (a slider edit leaves a play-from-here or pickup ability set alone).
         Abilities appliedToggles;
@@ -86,9 +96,20 @@ namespace Orcapafea.Daedalus
                 pendingStart = start;
                 return;
             }
-            session.Restart(start);
+            RestartInPlace(start);
             WarnPlacement();
             Render();
+        }
+
+        void RestartInPlace(PlayStart start)
+        {
+            session.Restart(start);
+            winHandled = false;
+            hud.ClearNotice();
+            if (stageRun != null)
+            {
+                stageRun.ClearFailure();
+            }
         }
 
         internal MovementSettings BuildSettings()
@@ -235,6 +256,7 @@ namespace Orcapafea.Daedalus
             hud = new PlayHud(cameraFollow.Camera);
             burst = new DeathBurst(spriteRenderer);
             appliedToggles = abilities.ToAbilities();
+            StartStages(exits);
 
             for (int i = 0; i < problems.Count; i++)
             {
@@ -272,17 +294,113 @@ namespace Orcapafea.Daedalus
                 ApplyChangedToggles();
             }
             controls.ReadFrame();
+            if (holding)
+            {
+                if (stageRun != null && stageRun.Revealing)
+                {
+                    Render();
+                    return;
+                }
+                holding = false;
+                session.ResetClock();
+                controls.ClearLatch();
+            }
             int ticks = session.AdvanceClock(deltaTime);
             for (int i = 0; i < ticks; i++)
             {
                 session.Tick(controls.TakeTickInput());
             }
-            if (session.Phase == LevelPhase.Won && session.CanPlayAgain && controls.PlayAgainPressed)
+            if (session.Phase == LevelPhase.Won && !winHandled)
             {
-                session.Restart(firstStart);
+                winHandled = true;
+                HandleWin();
+            }
+            if (leaving && stageRun != null && stageRun.LoadFailed)
+            {
+                leaving = false;
+                hud.ShowNotice(HelpTexts.StageLoadFailed(stageRun.FailedStage));
+            }
+            if (session.Phase == LevelPhase.Won && !leaving && session.CanPlayAgain && controls.PlayAgainPressed)
+            {
+                PlayAgain();
                 controls.ClearLatch();
             }
             Render();
+        }
+
+        void StartStages(Exit[] exits)
+        {
+            exitLinks = new ExitLink[exits.Length];
+            for (int i = 0; i < exits.Length; i++)
+            {
+                exitLinks[i] = exits[i].Link;
+                if (exitLinks[i].Kind == ExitLink.LinkKind.Broken)
+                {
+                    Debug.LogWarning(PlayerWarnings.NextStageMissing, exits[i]);
+                }
+            }
+            Player[] players = PlayStartScan.FindActive<Player>();
+            for (int i = 0; i < players.Length; i++)
+            {
+                if (players[i].gameObject.scene != gameObject.scene)
+                {
+                    Debug.LogWarning(PlayerWarnings.PlayerInAnotherScene(players[i].gameObject.scene.name), this);
+                    break;
+                }
+            }
+            stageRun = StageRun.Find();
+            if (stageRun != null)
+            {
+                carriedDeaths = stageRun.CarriedDeaths;
+                holding = stageRun.Revealing;
+                controls.Dispose();
+                controls = new PlayerControls(keepHeldDirections: true);
+                controls.Enable();
+            }
+        }
+
+        // The first frame of a win, before the frame draws, so a linked Exit never flashes the win screen.
+        void HandleWin()
+        {
+            ExitLink link = exitLinks[session.WonExit];
+            if (link.Kind == ExitLink.LinkKind.Scene)
+            {
+                if (stageRun == null)
+                {
+                    // Another Player in this scene may have just made it.
+                    stageRun = StageRun.Find();
+                }
+                if (stageRun == null)
+                {
+                    stageRun = StageRun.Create(gameObject.scene.path, gameObject.scene.isDirty);
+                }
+                leaving = true;
+                stageRun.GoNext(link.Path, session.Deaths);
+            }
+            else if (link.Kind == ExitLink.LinkKind.Broken)
+            {
+                hud.ShowNotice(PlayerWarnings.NextStageMissingOnScreen);
+            }
+            else if (stageRun != null && stageRun.FirstSceneUnsaved)
+            {
+                string note = PlayerWarnings.PlayAgainUsesSaved(HelpTexts.StageName(stageRun.FirstScene));
+                hud.ShowSaveNote(note);
+                Debug.LogWarning(note, this);
+            }
+        }
+
+        void PlayAgain()
+        {
+            // From a missing-stage notice, restart here as a one-scene game does.
+            if (stageRun != null && !stageRun.LoadFailed && exitLinks[session.WonExit].Kind != ExitLink.LinkKind.Broken)
+            {
+                leaving = true;
+                stageRun.PlayAgain();
+            }
+            else
+            {
+                RestartInPlace(firstStart);
+            }
         }
 
         void OnDestroy()
@@ -352,7 +470,8 @@ namespace Orcapafea.Daedalus
             }
             burst.Show(session.Phase, session.PhaseTicks, session.InterpolationFraction, session.DeathFeetWorld);
             cameraFollow.Follow(CameraTarget(feet));
-            hud.Show(session.Deaths, session.Phase == LevelPhase.Won, session.CanPlayAgain, frameDelta);
+            bool won = session.Phase == LevelPhase.Won && !leaving;
+            hud.Show(carriedDeaths + session.Deaths, won, won && session.CanPlayAgain, frameDelta);
         }
 
         void WarnPlacement()

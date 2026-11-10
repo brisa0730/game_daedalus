@@ -34,6 +34,13 @@ type: reference
 - Batch mode runs Play-mode frames unthrottled (90 frames ≈ 0.03 s); set `Time.captureFramerate` for frame-based waits.
 - URP 2D's default sprite material is lit; a generated scene needs a Global Light 2D (`Light2D.lightType = Global`) to show its art.
 
+## Scene loads and held input (6000.0.85f1, 6000.6.8f1; Input System 1.11.2, 1.20.1)
+- **`[PrebuildSetup]` runs after the test runner's bootstrap scene exists.** `EditorSceneManager.NewScene(Single)` there replaces it, and the runner's `Code-based tests runner` object with it: Play mode starts, no test ever runs, and the process spins forever with no log. Build scene files additively (and `CloseScene`).
+- **The test runner isn't `DontDestroyOnLoad`** (Test Framework 1.8.0): a `Single` load in a PlayMode test destroys it and the run never ends. Mark that object `DontDestroyOnLoad` in the test's `[SetUp]`.
+- **`WaitForEndOfFrame` never resumes in batch-mode PlayMode tests.** Wait with `yield return null`; a frame has been presented by the time the next frame's coroutines run.
+- **`InputAction.wantsInitialStateCheck` is read when bindings first resolve.** Set after the first `Enable` it does nothing, even across a `Disable`. Set it on a new action before enabling (`PlayerControls(keepHeldDirections: true)`).
+- `EditorSceneManager.LoadSceneAsyncInPlayMode` with a path that no longer exists logs an error ("expects a valid full path") and returns null; it doesn't throw.
+
 ## Allocation checks in EditMode tests (6000.0.85f1, 6000.6.7f1, Windows 11)
 - `GC.GetAllocatedBytesForCurrentThread()` compiles but **does not see allocations** in either editor's EditMode tests (a planted `new byte[1024]` gives a delta of 0). Never trust a zero from it without a planted-allocation check.
 - The Test Framework's `Is.Not.AllocatingGCMemory()` (namespace `UnityEngine.TestTools.Constraints`; `.Not.AllocatingGCMemory()` is an extension method, so import the namespace and alias NUnit's `Is` to avoid CS0104) **works in batch mode on both editors**: it detects a planted `new byte[1024]` and a planted `new int[1]` inside `PlayerStepper.Step`.
@@ -93,7 +100,8 @@ type: reference
 ## WebGL (6000.6.7f1, Chrome)
 - **A missing scene in Build Settings blanks every WebGL build (URP 17.6, ISS-001, fixed v0.15).** `Light2DPrefilteringAnalysis.AnalyzeBuildScenes` opens every enabled Build Settings scene (not `BuildPlayerOptions.scenes`) and throws on a missing one. That empties URP's feature list, and URP then strips every shader variant: the player logs `Cannot create required material because shader is null` each frame. An empty list strips every `Hidden/Light2D` variant instead. Our dev builds use `BuildScenes.Use`. URP 17.0 (6000.0) doesn't have the analysis. A native macOS player drew despite the same exception (unexplained).
 - A build also rewrites `Assets/Settings/UniversalRP.asset`'s `m_Light2DKeptVariantCombos` with the 2D light combinations it found; that is per-build churn, so don't commit it.
-- Chrome accepts Brotli from `http://127.0.0.1` (a secure context), so loopback tests can serve `.br` files.
+- Chrome accepts Brotli from `http://127.0.0.1` (a secure context), so loopback tests can serve `.br` files; the server must send `Content-Encoding: br` and the inner type (`share_check.py` `BrotliHandler`).
+- To read a Unity canvas from the page, pass `webglContextAttributes: {preserveDrawingBuffer: true}` to `createUnityInstance` and `gl.readPixels` it in `requestAnimationFrame` (v0.26, the stage check).
 - A WebGL build's `Application.persistentDataPath` is `/idbfs/<md5 of the page URL up to its last '/'>` (query ignored), stored in IndexedDB `/idbfs`; `PlayerPrefs` live there too. In an opaque-origin (sandboxed without `allow-same-origin`) frame, IndexedDB throws `SecurityError`.
 - On the Mac Mini a WebGL build of the trap bench takes ~4 min cold and 13–18 s warm; the build report's "2 errors" are licensing and network noise ("Access token is unavailable", "Curl error 42") and the build succeeds.
 - URP writes which graphics settings reach the player to `Temp/graphics-settings-stripping.json`, deleted when Unity exits (nothing copies it since the spike build script went in v0.17).

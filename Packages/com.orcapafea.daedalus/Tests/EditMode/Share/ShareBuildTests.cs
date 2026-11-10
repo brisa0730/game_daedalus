@@ -161,6 +161,22 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void APlayerOrCameraInAnotherOpenSceneDoesNotCount()
+        {
+            UnityEngine.SceneManagement.Scene active = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            AssetDatabase.CreateFolder("Assets", "DaedalusTestTemp");
+            EditorSceneManager.SaveScene(active, Folder + "/Active.unity"); // Unity won't open a second scene beside an unsaved one
+            UnityEngine.SceneManagement.Scene other = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            UnityEngine.SceneManagement.SceneManager.SetActiveScene(other);
+            NewPlayer("Elsewhere");
+            NewMainCamera();
+            UnityEngine.SceneManagement.SceneManager.SetActiveScene(active);
+            Assert.IsNull(ShareBuild.SharedPlayer(), "the Player is in the other scene");
+            Assert.AreEqual(ExpectedOr(ShareTexts.NoPlayer), ShareBuild.CheckBeforeBuild());
+            Assert.IsNull(StageWalk.MainCameraOf(active), "so is the camera");
+        }
+
+        [Test]
         public void NoTextNamesCode()
         {
             foreach (FieldInfo field in typeof(ShareTexts).GetFields(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public))

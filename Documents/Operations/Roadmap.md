@@ -25,8 +25,8 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 Each milestone ends with something playable.
 
-### `stages` (next, ahead of Milestone 4)
-Troll games made of stages, one Unity scene per stage: an Exit's optional Next stage, a quick fade, one death total across the game, Share my game builds the whole chain. One-scene games stay as they are. The Ori-style big map stays one scene. Decided 2026-11-09 (`decisions.md`).
+### `stages` (Phase 8; code shipped in v0.26, waiting on the operator's checks)
+Troll games made of stages, one Unity scene per stage. It moves to §0 when the operator editor check and play-check are done ([phase8-log](../../.claude/memory/logs/phases/phase8-log.md) § Operator checks). Students get it with the next package release.
 
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
 **Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.

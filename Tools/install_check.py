@@ -30,7 +30,7 @@ GIT_URL = f"https://github.com/brisa0730/game_daedalus.git?path=/Packages/{PACKA
 REGISTRY = {"name": "OpenUPM", "url": "https://package.openupm.com", "scopes": ["com.orcapafea"]}
 STEP_TIMEOUT_SECONDS = 15 * 60
 TAG = "0.1.0"
-PLAYTHROUGH = "Orcapafea.Daedalus.Tests.StarterSamplePlaythroughTests"
+PLAYTHROUGHS = ["Orcapafea.Daedalus.Tests.StarterSamplePlaythroughTests", "Orcapafea.Daedalus.Tests.StarterStagesPlaythroughTests"]
 FIXTURE_TESTS = "Orcapafea.Daedalus.Tests.FixtureProjectTests"
 FIXTURE = REPO / "Tools" / "fixtures" / "0.1.0"
 SAMPLE_PATH = "Assets/Samples/Daedalus Platformer Maker/0.1.0/Starter"
@@ -340,8 +340,10 @@ def check_editor(editor_key, source, ref):
     import_starter(editor_key, project)
     if source == "registry":
         check_tag_parity(project)
-    if not run(editor_key, "playmode", PLAYTHROUGH, str(project)) or not ran(project, "the playthrough"):
-        return False
+    # One run each: a skip in either is a failure, so neither is required in name only.
+    for playthrough in PLAYTHROUGHS:
+        if not run(editor_key, "playmode", playthrough, str(project)) or not ran(project, playthrough):
+            return False
     if not FIXTURE.exists():
         print("FAIL  no fixture: run --make-fixture first")
         return False

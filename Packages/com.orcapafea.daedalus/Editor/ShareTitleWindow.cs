@@ -1,27 +1,33 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 namespace Orcapafea.Daedalus.Editor
 {
-    /// <summary>Share my game's one question: the title. Shows the scene, the title as the gallery will show it, and what to expect.</summary>
+    /// <summary>Share my game's one question: the title. Shows the scene, the game's stages, any warnings, the title as the gallery will show it, and what to expect.</summary>
     internal sealed class ShareTitleWindow : EditorWindow
     {
         const string FieldName = "ShareTitle";
 
         string sceneName;
+        string chain;
+        IReadOnlyList<string> warnings;
+        Vector2 warningsScroll;
         string gameTitle;
         Action<string> onShare;
         bool focused;
 
-        internal static void Open(string sceneName, string title, Action<string> onShare)
+        internal static void Open(string sceneName, string title, string chain, IReadOnlyList<string> warnings, Action<string> onShare)
         {
             var window = CreateInstance<ShareTitleWindow>();
             window.titleContent = new GUIContent(ShareTexts.Title);
             window.sceneName = sceneName;
+            window.chain = chain;
+            window.warnings = warnings;
             window.gameTitle = title;
             window.onShare = onShare;
-            var size = new Vector2(420, 170);
+            var size = new Vector2(420, warnings.Count == 0 ? 195 : 320);
             window.minSize = size;
             window.maxSize = size;
             window.ShowModalUtility();
@@ -30,6 +36,16 @@ namespace Orcapafea.Daedalus.Editor
         void OnGUI()
         {
             EditorGUILayout.LabelField(string.Format(ShareTexts.Scene, sceneName), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(string.Format(ShareTexts.YourGame, chain), EditorStyles.wordWrappedLabel);
+            if (warnings.Count > 0)
+            {
+                using (var scroll = new EditorGUILayout.ScrollViewScope(warningsScroll, GUILayout.Height(120)))
+                {
+                    warningsScroll = scroll.scrollPosition;
+                    foreach (string warning in warnings)
+                        EditorGUILayout.HelpBox(warning, MessageType.Warning);
+                }
+            }
             EditorGUILayout.Space();
             GUI.SetNextControlName(FieldName);
             gameTitle = EditorGUILayout.TextField("Title", gameTitle);

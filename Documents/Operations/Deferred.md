@@ -46,11 +46,11 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Why deferred:** seen once; a time limit makes it a clear failure instead of a silent wait.
 - **Trigger to act:** a second `StarterBuilder timed out` or `Unity timed out` from the tools. Fix shape: compare the end of the logs, and treat a logged success followed by a hang as a pass only if the output is complete.
 
-### Share's checks look at every open scene, but only the active one is built
-- **Severity:** LOW · **Source:** Phase 6 (`share-my-game`, v0.17; code review)
-- **Description:** [ShareBuild.cs](../../Packages/com.orcapafea.daedalus/Editor/ShareBuild.cs) `SharedPlayer()` and `Camera.main` search all loaded scenes. With a second scene open that holds the Player or the camera, the stops and the picture pass, yet the game built from the active scene alone has no Player.
-- **Why deferred:** v1 students work in one scene; multi-scene editing isn't taught.
-- **Trigger to act:** a student shares with several scenes open, or the starter sample uses additive scenes. Fix shape: limit both checks to `SceneManager.GetActiveScene()` (filter by `gameObject.scene`), and stop with a plain message when the camera is in another scene.
+### The Share picture and the Collision Tilemap pick still look at every open scene
+- **Severity:** LOW · **Source:** Phase 8 (`stages`, v0.26; code review)
+- **Description:** [Player.cs](../../Packages/com.orcapafea.daedalus/Runtime/Player.cs) `FirstView` and `ResolveCollisionTilemap` scan all loaded scenes. With a stage open additively while sharing, the picture's map rectangle grows to include that stage's Exits, Checkpoints and Traps, and a Player with an empty Collision field may pick the other scene's Tilemap for the picture. The built game is right: Share builds each stage alone.
+- **Why deferred:** cosmetic and only with two scenes open; the play-start warning already tells the student about that state.
+- **Trigger to act:** a card picture framed wrongly, or the first multi-scene editing the course teaches. Fix shape: pass the Player's own scene into `FirstView` and its scans, and filter by `gameObject.scene`.
 
 ### Gallery backups live on the same disk
 - **Severity:** MED · **Source:** Phase 5 (`gallery-server`, v0.16; handshake round 1, R3)

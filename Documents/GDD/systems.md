@@ -1,5 +1,5 @@
 # Systems
-**Last updated:** v0.19
+**Last updated:** v0.26
 
 Per-system contracts. Values and defaults live in [entities.md](entities.md). All Draft.
 
@@ -66,8 +66,8 @@ Built in phase 1 (`movement-sim`) in `PlayerStepper`; values in [entities.md](en
 - **Pits** are a death only below the map bottom; there is no per-column pit rule.
 - **Respawn point:** where Play began, until a checkpoint is touched. A moved start or respawn lands on non-hazard support, clear of hazards and of present Solid traps (a Player placed on a spike strip lives).
 - **One touch rule:** Touch triggers, the Checkpoint and the Exit fire on the hitbox grown by 0.0625 tile (the contact margin), so standing against one counts; hazards use the inset core instead.
-- **Death counter:** a skull and a number in the top-left corner, counting every death since Play began, with a small bump on each death; no student setting.
-- **Checkpoint:** touching it sets the respawn point (the latest touched wins; recorded under either On hazard rule) and tints it gold while active. The in-game progress save arrives in `world-systems`. **Exit:** touching it freezes the game and dims it under a win screen ("You made it!", "Deaths: N"); input is ignored for 1 s, then any key plays again from the start (counter 0, traps reset).
+- **Death counter:** a skull and a number in the top-left corner, counting every death since Play began across every stage, with a small bump on each death (none for arriving at a stage); reads 999+ from 1000; no student setting.
+- **Checkpoint:** touching it sets the respawn point (the latest touched wins; recorded under either On hazard rule) and tints it gold while active. The in-game progress save arrives in `world-systems`. **Exit:** touching one with no Next stage freezes the game and dims it under a win screen ("You made it!", "Deaths: N"); input is ignored for 1 s, then any key plays again from the start (counter 0, traps reset). With a Next stage it goes there instead (§ Stages); a Next stage whose scene is missing shows a notice in place of the win, and any key restarts the stage in place.
 
 ## Enemies
 
@@ -86,7 +86,7 @@ Getting stuck on terrain is acceptable and expected. Enemies update only inside 
 
 ## World & Level Elements
 
-One large continuous map: no rooms, no screen transitions. Progression comes from **ability gating**: areas are reachable only once the player has the right pickup (e.g. a high ledge needs double jump).
+The explorable game is one large continuous map: no rooms, no screen transitions (a troll game may instead be a run of stages, § Stages). Progression comes from **ability gating**: areas are reachable only once the player has the right pickup (e.g. a high ledge needs double jump).
 
 - **Map:** a Unity Grid of 1-unit cells, with 16 px tile art. Up to ~500 × 200 tiles.
 - **Layers:** three Tilemaps: Background, Collision, Foreground. **Only the Collision Tilemap affects gameplay**: a tile's kind counts only there; Background and Foreground are always decoration.
@@ -95,7 +95,17 @@ One large continuous map: no rooms, no screen transitions. Progression comes fro
 - **Plain tiles are solid:** any tile on the Collision Tilemap that isn't a `DaedalusTile` counts as Solid; a `DaedalusTile` brings its own kind.
 - **Map bounds:** the painted cells of the Collision Tilemap, grown to include the start, the ropes, the traps, checkpoints and exits, plus 24 empty rows on top ([architecture.md](architecture.md) § Data Flow). Past the painted extent the sides are solid, so a pit must sit between painted tiles.
 - **Placeable elements:** [entities.md](entities.md) § Placeable elements.
-- **Sections:** troll levels are short sections side by side on the one map, each starting at a checkpoint. No rooms, no level select.
+- **Sections:** troll levels are short sections side by side on one map, each starting at a checkpoint. No level select.
+
+### Stages (v0.26)
+
+A troll game can be a linear run of stages, **one Unity scene per stage**, each with its own Player. A one-scene game has no stage run at all and plays as it always did.
+- **Link:** an Exit's optional **Next stage** holds a scene, stored by asset GUID so it survives a rename or move. Empty is the win screen. A deleted target is **broken, never empty**: the Inspector shows an error, Share stops, and a game that reaches it shows a notice instead of a win.
+- **The change, in order:** the Exit freezes the world (no win screen, no death burst) → fade to full black (0.25 s; a hitch can't skip it) → black is shown for two more frames, because a load blocks the only thread in a shared game → the next scene loads → its first frame is drawn under black → fade in. **The player and traps stay still until the fade has cleared**; ticks start from one ordinary frame's time. A direction held through the change keeps working; a held jump needs a fresh press, and a jump pressed during the fade is dropped.
+- **Deaths:** a death stays inside its stage. The sim's counter is per stage; the stage run carries the total of the stages already left.
+- **Play again** returns to the scene where Play began (in a shared game, stage 1) with the total at 0. In the Editor a stage is loaded from its saved file, so when that first scene had unsaved edits the win screen says so ("Stop, then press Ctrl+S"). If a load fails, the screen names the scene and any key restarts the current stage in place.
+- **Two scenes open:** a second loaded scene holding an active Player runs too; a play-start warning names it.
+- **Not in v1:** level select, stage cards or names, resuming at a stage after closing the game (`world-systems`), rooms the player walks back and forth between.
 
 ### Traps
 
@@ -149,7 +159,8 @@ Students work in the Unity Editor, and its usability with our tools decides whet
 - **Gizmos:** the Scene view shows ranges and paths (aggro range, attack range, moving-platform route, trap zones, ghosts and end positions).
 - **Validation warnings** in the daedalus window and on entering Play mode: no player start or more than one, no exit, an ability pickup that's never placed, elements outside the map.
 - **Trap warnings (v0.10)**, in the Trap's inspector and once in the Console at play start: a trap over painted Collision tiles, a hazard tile on a decoration Tilemap (Console only), a trap off the grid, no Tile, a Tile that can't be drawn (Rule or animated), a sprite that isn't Full Rect (inspector only: an import setting), a scaled or rotated trap, a trap on an Exit or Checkpoint. The trap's story names an early zone (one reaching more than a tile ahead). The Checkpoint notes that it has no effect under Return to safe ground.
-- **Saving:** students work in the normal Unity Editor and save their own scenes (Ctrl+S); the tools never save a scene for them, apart from Share my game, which saves the scene it shares.
+- **The Exit's inspector (v0.26):** a Next stage slot for a scene, a help box in the Trap's story style ("Ends the game with the win screen." / "Goes to Stage2." / the missing-scene error, with a button to clear it), and a warning on the prefab asset, where a link would send every placed copy to one scene.
+- **Saving:** students work in the normal Unity Editor and save their own scenes (Ctrl+S); the tools never save a scene for them, apart from Share my game, which saves the scenes it shares.
 - No minimap: Scene-view zoom covers it.
 
 ## Tile System
@@ -195,11 +206,12 @@ No rule editing for students: they paint with preconfigured terrains. Fixed layo
 ## Share
 
 Students share games on the **class gallery** at `suwon.orcarin.com`, a website anyone can browse and play since v0.20, while only the teacher and the students sign in (to upload and manage). Its pages and messages are in **Korean**; IDs and passwords use plain letters and digits. Live since v0.16; the editor's Share my game since v0.17.
-- **Make the upload:** **Daedalus → Share my game** shares the open scene and writes one zip in the **Share zip** shape (platforms.md § Share zip): a Brotli WebGL build, a picture of the game's first frame for the card and the title.
-  - **Stops first,** each with one plain message and nothing changed: Play mode, Unity still compiling, no WebGL Build Support (pointing at Unity Hub), no (enabled) Player, no Main Camera. A never-saved scene then gets Unity's save dialog.
-  - **One question:** a small window asks for a **title** only (the card shows the student's nickname from their account), shows "The gallery will show: …" when the gallery's cleaning changes it (at most 40 characters, whitespace collapsed), and says the first share takes several minutes and Unity will look busy. The title is remembered per scene for the next share.
-  - **Then:** the scene is saved without asking (Unity's Don't Save would share an old version); a save dialog opens on the Desktop (later the last folder) with the title as the file name.
-  - **The build** holds exactly the shared scene in Build Settings and sets the web Player Settings the gallery needs (Brotli, no decompression fallback, no data caching, plain file names, no threads); the student's values come back afterwards, and a missing scene stops it with a plain message naming the scene. On newer editors URP's 2D shader preparation reads Build Settings, and a deleted scene listed there ships a game that draws nothing (v0.15), so any exception logged during the build makes no zip. The project stays on the Web platform afterwards (switching back would reimport on every share).
+- **Make the upload:** **Daedalus → Share my game** shares the open scene and every stage it leads to, and writes one zip in the **Share zip** shape (platforms.md § Share zip): a Brotli WebGL build, a picture of the game's first frame for the card and the title.
+  - **Stops first,** each with one plain message and nothing changed: Play mode, Unity still compiling, no WebGL Build Support (pointing at Unity Hub), no (enabled) Player, no Main Camera, in the active scene only (another open scene isn't what's shared). A never-saved scene then gets Unity's save dialog.
+  - **Stages (v0.26):** Share follows every enabled Exit, opening each stage to read it and closing only what it opened. It **stops**, naming the scene, on a broken link, a stage with no Player or Main Camera, or a chain no Exit can win. It **warns** in the window, without stopping, about a stage with no Exit, a back-link in a chain that can be won (a fake Exit that sends you back is a legitimate troll, but duplicating a scene copies its link), Exits in one stage that go to different places, and another scene that links to this start (found by searching the project's scene files, once per share; a link set on a prefab asset isn't seen, and a project not saved as text says it couldn't check).
+  - **One question:** a small window asks for a **title** only (the card shows the student's nickname from their account), lists the game ("Your game: Stage1 → Stage2 → win") and any warnings, shows "The gallery will show: …" when the gallery's cleaning changes it (at most 40 characters, whitespace collapsed), and says the first share takes several minutes and Unity will look busy. The title is remembered per scene for the next share.
+  - **Then:** the scene and any open stage are saved without asking (Unity's Don't Save would share an old version); a save dialog opens on the Desktop (later the last folder) with the title as the file name.
+  - **The build** holds exactly the shared stages in Build Settings, the start first, and sets the web Player Settings the gallery needs (Brotli, no decompression fallback, no data caching, plain file names, no threads); the student's values come back afterwards, and a missing scene stops it with a plain message naming the scene. On newer editors URP's 2D shader preparation reads Build Settings, and a deleted scene listed there ships a game that draws nothing (v0.15), so any exception logged during the build makes no zip. The project stays on the Web platform afterwards (switching back would reimport on every share).
   - **The picture** is the main camera's view framed exactly as play start frames the first frame (clamped to the map), 1280 × 720, smaller if needed to stay under 1 MB. Appear traps are hidden in it, as in the game.
   - **Done:** a zip over 50 MB isn't written (an earlier zip at that path stays). The done message names the file and the next step on the gallery (업로드, then 새 게임, or 내 게임 업데이트하기 to update an earlier share at the same address so players keep their progress), with Show the zip / Open the gallery / Close.
   - Messages are short plain English quoting the gallery's Korean button labels. A build contains only the game. The editor never goes online; Open the gallery only opens the student's browser.

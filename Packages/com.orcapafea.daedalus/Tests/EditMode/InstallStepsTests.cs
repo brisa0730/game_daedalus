@@ -21,5 +21,21 @@ namespace Orcapafea.Daedalus.Tests
             StringAssert.Contains("https://package.openupm.com", steps);
             StringAssert.Contains("com.orcapafea", steps);
         }
+
+        [Test]
+        public void TheStageStepsComeAfterTheFirstShareAndSaveBeforeDuplicating()
+        {
+            string steps = PackageFiles.Read(StepsPath);
+            int share = steps.IndexOf("## 8.", System.StringComparison.Ordinal);
+            int stages = steps.IndexOf("## 9.", System.StringComparison.Ordinal);
+            Assert.That(share, Is.GreaterThan(0), "the share section");
+            Assert.That(stages, Is.GreaterThan(share), "sharing one level never depends on stages");
+            string section = steps.Substring(stages);
+            int save = section.IndexOf("Ctrl+S", System.StringComparison.Ordinal);
+            int duplicate = section.IndexOf("Ctrl+D", System.StringComparison.Ordinal);
+            Assert.That(save, Is.GreaterThan(0));
+            Assert.That(duplicate, Is.GreaterThan(save), "a duplicate only has what was saved");
+            StringAssert.Contains("Next stage", section);
+        }
     }
 }

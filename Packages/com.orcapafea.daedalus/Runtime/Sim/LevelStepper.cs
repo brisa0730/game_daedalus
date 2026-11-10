@@ -130,6 +130,8 @@ namespace Orcapafea.Daedalus.Sim
         public int PhaseTicks { get; private set; }
         /// <summary>Deaths since the last <see cref="Begin"/>.</summary>
         public int Deaths { get; private set; }
+        /// <summary>Index of the exit that won; −1 until one does.</summary>
+        public int WonExit { get; private set; }
         /// <summary>The feet at the last death (Y no lower than the map bottom, for pits).</summary>
         public float DeathX { get; private set; }
         public float DeathY { get; private set; }
@@ -159,13 +161,14 @@ namespace Orcapafea.Daedalus.Sim
         public bool IsTrapMoving(int index) => trapStates[index].Motion == Motion.Moving;
 
         /// <summary>
-        /// A start source (play start, play-from-here, play again): every trap reset, the counter at 0, no checkpoint,
+        /// A start source (play start, play-from-here, play again): every trap reset, this stage's counter at 0, no checkpoint,
         /// and the player at rest at the nearest free start, which is also the first safe ground.
         /// </summary>
         public void Begin(float feetX, float feetY, Abilities abilities)
         {
             ResetTraps();
             Deaths = 0;
+            WonExit = -1;
             ActiveCheckpoint = -1;
             LastPlacement = StartPlacement.Find(grid, feetX, feetY);
             StartX = LastPlacement.X;
@@ -292,6 +295,7 @@ namespace Orcapafea.Daedalus.Sim
                 {
                     Phase = LevelPhase.Won;
                     PhaseTicks = 0;
+                    WonExit = e;
                     return;
                 }
             }

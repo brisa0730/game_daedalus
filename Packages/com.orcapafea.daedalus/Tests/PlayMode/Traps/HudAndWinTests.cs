@@ -109,6 +109,47 @@ namespace Orcapafea.Daedalus.Tests
             Assert.AreEqual(Level.Start.y, SimFeetWorld(Level.Player).y, 1e-4f, "no jump from the held key");
             Assert.AreEqual(Level.Start.x, SimFeetWorld(Level.Player).x, 1e-4f, "at the start");
             Assert.IsNotNull(floor);
+            Assert.IsNull(StageRun.Find(), "a one-scene game has no stage run");
+        }
+
+        [UnityTest]
+        public IEnumerator ABrokenLinkShowsTheNoticeInsteadOfAWinAndALaterRestartClearsIt()
+        {
+            Build(ExitRun, WithCamera);
+            Level.AddExit(8, 1).NextStageGuid = "00000000000000000000000000000001";
+            yield return null;
+            LogAssert.Expect(LogType.Warning, PlayerWarnings.NextStageMissing);
+            PlayHud hud = Level.Player.Hud;
+            Keys(Key.RightArrow);
+            yield return UntilWon();
+            Keys();
+            yield return null;
+            Assert.IsTrue(hud.Win.activeSelf, "a screen, so the student isn't stuck");
+            Assert.AreEqual(PlayerWarnings.NextStageMissingOnScreen, hud.Title.text);
+            Assert.AreEqual("", hud.WinDeaths.text);
+            Assert.IsNull(StageRun.Find());
+            yield return Frames(LevelRules.WinInputLockTicks);
+            Keys(Key.A);
+            yield return null;
+            Keys();
+            Assert.AreEqual(LevelPhase.Playing, Level.Player.Session.Phase, "Play again works");
+            Assert.AreEqual("You made it!", hud.Title.text);
+            Assert.AreEqual("Deaths: 0", hud.WinDeaths.text);
+        }
+
+        [UnityTest]
+        public IEnumerator TheCounterReads999PlusFrom1000()
+        {
+            Build(ExitRun, WithCamera);
+            yield return null;
+            PlayHud hud = Level.Player.Hud;
+            hud.Show(999, false, false, 0);
+            Assert.AreEqual("999", hud.Count.text);
+            hud.Show(1000, false, false, 0);
+            Assert.AreEqual("999+", hud.Count.text);
+            hud.Show(4321, false, false, 0);
+            Assert.AreEqual("999+", hud.Count.text);
+            Assert.AreEqual("Deaths: 999+", hud.WinDeaths.text);
         }
     }
 }

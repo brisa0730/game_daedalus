@@ -35,7 +35,9 @@ namespace Orcapafea.Daedalus
 
         public LevelPhase Phase => level.Phase;
         public int PhaseTicks => level.PhaseTicks;
+        /// <summary>This stage's deaths; the game's total is the stage run's carried count plus this.</summary>
         public int Deaths => level.Deaths;
+        public int WonExit => level.WonExit;
         public bool CanPlayAgain => level.CanPlayAgain;
         public int TrapChanges => level.TrapChanges;
         public int TrapCount => level.TrapCount;
@@ -71,7 +73,7 @@ namespace Orcapafea.Daedalus
 
         /// <summary>
         /// Puts the player at <paramref name="start"/> (moved out of walls if needed), at rest, with its abilities plus Jump;
-        /// every trap reset and the death counter at 0.
+        /// every trap reset and this stage's death counter at 0.
         /// </summary>
         public void Restart(PlayStart start)
         {
@@ -85,6 +87,9 @@ namespace Orcapafea.Daedalus
 
         /// <summary>Adds elapsed time; returns how many ticks to run now.</summary>
         public int AdvanceClock(double seconds) => accumulator.Advance(seconds);
+
+        /// <summary>Forgets the time banked so far, so a long frame can't turn into catch-up ticks.</summary>
+        public void ResetClock() => accumulator.Reset();
 
         public void Tick(in PlayerInput input)
         {

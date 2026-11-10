@@ -34,8 +34,25 @@ namespace Orcapafea.Daedalus.Editor
                 if (string.IsNullOrEmpty(path) || !EditorSceneManager.SaveScene(scene, path))
                     return;
             }
+            StageWalk walk;
+            try
+            {
+                walk = StageWalk.From(scene);
+            }
+            catch (Exception exception)
+            {
+                // A stage file that can't be opened: one plain message, not only the Console.
+                Debug.LogException(exception);
+                EditorUtility.DisplayDialog(ShareTexts.Title, ShareTexts.Unexpected, "OK");
+                return;
+            }
+            if (walk.Stop != null)
+            {
+                EditorUtility.DisplayDialog(ShareTexts.Title, walk.Stop, "OK");
+                return;
+            }
             string guid = AssetDatabase.AssetPathToGUID(scene.path);
-            ShareTitleWindow.Open(scene.name, LoadTitle(guid), title => Continue(title, guid));
+            ShareTitleWindow.Open(scene.name, LoadTitle(guid), walk.Chain, walk.Warnings, title => Continue(title, guid));
         }
 
         static void Continue(string rawTitle, string sceneGuid)
