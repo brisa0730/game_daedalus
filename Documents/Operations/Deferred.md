@@ -28,17 +28,17 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Why deferred:** a publish took under 0.4 s per file from the Mac Mini; the game still plays, only slower; restarts happen at each redeploy.
 - **Trigger to act:** a `publishing took too long` or `publishing to the bucket failed` warning in `gallery.log`, or a student's game seen loading from `suwon-play` (`Tools/gallery_load.py`). Fix shape: run `reconcile` on a timer (e.g. hourly) as well as at start.
 
-### The hand check of the install guide and Share my game isn't done
-- **Severity:** MED · **Source:** Phase 6 (`share-my-game`, v0.17; Step 12) and Phase 7 (`first-release`, v0.24; Step 11)
-- **Description:** the menu flow was verified by EditMode tests, the batch build (`Tools/share_check.py`) and a real upload, but nobody has clicked through it in the Editor: the title window (focus, Enter, the cleaned-title line), the save dialog's Desktop / last-folder start, the done dialog's three buttons, the stop dialogs in Play mode and during a reload, Unity's save dialog for a new scene, and above all **a Korean title typed with the IME on a Windows school laptop with 6000.0** and **one timed first share** there (it decides whether "several minutes" needs a number). Also unchecked: a Build Profile with a Player Settings override (Gzip) — Share should either still produce `.br` files or fail with the build-failed text. Since Phase 7 the same check covers following [install-ko.md](../../Packages/com.orcapafea.daedalus/Documentation~/install-ko.md) on a clean Windows laptop: every step is verified by script except what a person reads and clicks.
-- **Why deferred:** the operator closed Phase 6 satisfied ("for now") without running it, and on 2026-11-09 chose to move on from it again in Phase 7 ("I can't do the test now. let's just move on").
-- **Trigger to act:** before students are first told to install (0.2.0 is the first version they get: none installed 0.1.0), or any student report about installing or Share. Fix shape: follow install-ko.md on a clean laptop, sections 9 (stages) and 7's Trap Demo line included, then the checklist in [phase6-log](../../.claude/memory/logs/phases/phase6-log.md) § Operator editor check; fix what fails, reword what reads badly. The guide and messages aren't frozen, so a fix ships in the next patch.
+### The hand check of Share my game in the Editor isn't done
+- **Severity:** MED · **Source:** Phase 6 (`share-my-game`, v0.17; Step 12)
+- **Description:** the menu flow was verified by EditMode tests, the batch build (`Tools/share_check.py`) and a real upload, but nobody has clicked through it in the Editor: the title window (focus, Enter, the cleaned-title line), the save dialog's Desktop / last-folder start, the done dialog's three buttons, the stop dialogs in Play mode and during a reload, Unity's save dialog for a new scene, and above all **a Korean title typed with the IME on a Windows school laptop with 6000.0** and **one timed first share** there (it decides whether "several minutes" needs a number). Also unchecked: a Build Profile with a Player Settings override (Gzip) — Share should either still produce `.br` files or fail with the build-failed text. (The install guide half of this check passed on 2026-11-11, v0.29.)
+- **Why deferred:** the operator closed Phase 6 satisfied ("for now") without running it, and on 2026-11-09 chose to move on from it again in Phase 7.
+- **Trigger to act:** before students are first told to share a game, or any student report about Share. Fix shape: the checklist in [phase6-log](../../.claude/memory/logs/phases/phase6-log.md) § Operator editor check; fix what fails, reword what reads badly; a fix ships in the next patch.
 
 ### The install guide has no picture of the imported Starter folder
 - **Severity:** LOW · **Source:** Phase 7 (`first-release`, v0.24; code review)
 - **Description:** [install-ko.md](../../Packages/com.orcapafea.daedalus/Documentation~/install-ko.md) section 4 names the folder's path in words; the plan called for a screenshot, because Import opens nothing.
-- **Why deferred:** batch mode can't capture the Unity Editor's Project window; it needs a person at the editor.
-- **Trigger to act:** the hand check above. Fix shape: the operator's screenshot, under `Documentation~/`.
+- **Why deferred:** batch mode can't capture the Unity Editor's Project window; it needs a person at the editor. The operator's hand check of the guide (2026-11-11) passed without it.
+- **Trigger to act:** a student who can't find the imported Starter folder. Fix shape: the operator's screenshot, under `Documentation~/`.
 
 ### Unity once failed to exit after the Starter build
 - **Severity:** LOW · **Source:** Phase 7 (`first-release`, v0.24)
