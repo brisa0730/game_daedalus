@@ -20,7 +20,7 @@ namespace Orcapafea.Daedalus
         [SerializeField, Tooltip("What sets the trap off: the player entering its zone (the yellow box), or touching the trap itself.")]
         TrapTrigger trigger = TrapTrigger.Zone;
 
-        [SerializeField, Tooltip("The box the player must enter to set the trap off. Drag its handles in the Scene view.")]
+        [SerializeField, Tooltip("The box the player must enter to set the trap off (the yellow box), in whole tiles: X and Y from the trap's bottom-left corner (right and up), then its width and height. You can also drag its handles in the Scene view.")]
         Rect zone = TrapLook.DefaultZoneLocal(new Vector2Int(LevelRules.DefaultTrapWidth, LevelRules.DefaultTrapHeight));
 
         [SerializeField, Tooltip("What the trap does: Vanish (disappears), Appear (hidden until it fires), Move (slides to its end and stays) or Fall (drops until it lands, or out of the map).")]

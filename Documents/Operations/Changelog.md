@@ -8,6 +8,13 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.29 — 0.2.1: the trap zone typed in tiles (2026-11-10) · **students can type a trap's zone instead of grabbing the yellow box**
+
+- **Landed.** Operator request: the yellow zone box is hard to grab where it overlaps the trap's sprite. The Trap Inspector's read-only Zone becomes **Zone (tiles)**, typed in whole tiles (X, Y from the trap's bottom-left corner; W, H at least 1); typing with several traps selected gives them all the same zone in the level, so shared zones still fire together. **Snap zone to grid** replaces Fit zone around trap (the operator didn't need it; `FitZone` stays for the size-change follow). No serialized change: the zone is still stored relative to the trap. Package 0.2.1 with its fixture `Tools/fixtures/0.2.1`, released by the CLAUDE.md checklist. 526 EditMode (+3) green on both editors.
+- **Key surfaces.** [TrapEditor.cs](../../Packages/com.orcapafea.daedalus/Editor/TrapEditor.cs) `ZoneField`, [TrapAuthoring.cs](../../Packages/com.orcapafea.daedalus/Editor/TrapAuthoring.cs) `ZoneInTiles`, `SetZoneInTiles`, `SnapZoneToGrid`, [TrapAuthoringTests.cs](../../Packages/com.orcapafea.daedalus/Tests/EditMode/Runtime/TrapAuthoringTests.cs), the zone tooltip in [Trap.cs](../../Packages/com.orcapafea.daedalus/Runtime/Trap.cs), guide section 7.
+- **Not done.** The operator editor check of the new field (batch can't show an Inspector).
+- **GDD deltas.** GDD v0.28 → v0.29 ([GDD.md](../GDD/GDD.md), [systems.md](../GDD/systems.md) § Traps triggers). Commit: `v0.29: 0.2.1 — the trap zone typed in tiles, Snap zone to grid`.
+
 ## v0.28 — 0.2.0 published (2026-11-10) · **students can install stages and the Trap Demo from OpenUPM**
 
 - **Landed.** `main` pushed and tag `0.2.0` on `c1f1ef5`, checked locally before the push (package.json 0.2.0, the 0.2.0 fixture, the Trap Demo at the tag). OpenUPM listed 0.2.0 as `latest` within about 2 minutes of the check starting; no PR needed. No package code changed.

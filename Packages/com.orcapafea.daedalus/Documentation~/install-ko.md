@@ -27,7 +27,7 @@ Unity Hub에서 **New project**를 누르고 템플릿은 **Universal 2D**를 �
 2. 왼쪽에서 **My Registries**를 고르고 **Daedalus Platformer Maker**를 찾아 **Install**을 누릅니다.
 3. 같은 화면의 **Samples** 탭에서 **Starter** 옆의 **Import**를 누릅니다.
 
-가져오기가 끝나도 아무것도 열리지 않습니다. **Project** 창에서 `Assets/Samples/Daedalus Platformer Maker/0.2.0/Starter` 폴더를 찾으세요.
+가져오기가 끝나도 아무것도 열리지 않습니다. **Project** 창에서 `Assets/Samples/Daedalus Platformer Maker/0.2.1/Starter` 폴더를 찾으세요.
 
 ## 5. Console 찾아두기
 
@@ -52,7 +52,7 @@ Unity Hub에서 **New project**를 누르고 템플릿은 **Universal 2D**를 �
 3. `Starter/Prefabs` 폴더에서 `Drop Floor`를 지운 자리로 끌어다 놓습니다.
 4. Inspector에 **Snap to grid** 버튼이 보이면 누릅니다. 안 보이면 이미 칸에 맞은 것입니다.
 
-`Falling Ceiling`은 아래쪽의 긴 상자에 플레이어가 들어오면 떨어집니다. 옮긴 뒤에는 그 상자가 바닥까지 닿는지 확인하고, 닿지 않으면 Scene 창에서 상자의 손잡이를 끌어 늘리세요.
+`Falling Ceiling`은 아래쪽의 긴 상자에 플레이어가 들어오면 떨어집니다. 옮긴 뒤에는 그 상자가 바닥까지 닿는지 확인하고, 닿지 않으면 Scene 창에서 상자의 손잡이를 끌어 늘리거나 Inspector의 **Zone (tiles)**에 숫자를 넣으세요. X와 Y는 함정의 왼쪽 아래 모서리에서 몇 칸 떨어졌는지(오른쪽과 위가 +), W와 H는 상자의 가로와 세로 칸 수입니다.
 
 `Fake Floor Tile`은 Tile Palette에 있는 타일입니다. 바닥처럼 보이지만 밟으면 그대로 떨어집니다.
 

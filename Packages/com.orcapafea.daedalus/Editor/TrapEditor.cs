@@ -8,7 +8,7 @@ namespace Orcapafea.Daedalus.Editor
 {
     /// <summary>
     /// The Trap's Inspector: the zone shows only for the zone trigger, Offset and Speed only for Move, Size and Tile only
-    /// off an Exit; the trap's story and its warnings in plain words; Fit zone and Snap to grid buttons; in the Scene
+    /// off an Exit; the trap's story and its warnings in plain words; the zone typed in whole tiles, Snap zone to grid and Snap to grid buttons; in the Scene
     /// view, zone handles, a Move's end arrow and handle, and a Fall's landing outline. No gameplay logic: the story, the
     /// boxes, the landing and every warning text come from the runtime (<see cref="HelpTexts"/>, <see cref="TrapLook"/>,
     /// <see cref="PlayerWarnings"/>).
@@ -18,6 +18,7 @@ namespace Orcapafea.Daedalus.Editor
     {
         static readonly Color ZoneColor = new Color(1f, 0.9f, 0.2f);
         static readonly Color PathColor = new Color(0.4f, 0.85f, 1f);
+        const string ZoneLabel = "Zone (tiles)";
 
         SerializedProperty trigger;
         SerializedProperty zone;
@@ -86,15 +87,12 @@ namespace Orcapafea.Daedalus.Editor
             bool zoneShown = trigger.hasMultipleDifferentValues || trigger.enumValueIndex == (int)TrapTrigger.Zone;
             if (zoneShown)
             {
-                using (new EditorGUI.DisabledScope(true))
-                {
-                    EditorGUILayout.PropertyField(zone);
-                }
-                if (GUILayout.Button("Fit zone around trap"))
+                ZoneField(trap);
+                if (GUILayout.Button("Snap zone to grid"))
                 {
                     foreach (Object t in targets)
                     {
-                        TrapAuthoring.FitZone((Trap)t);
+                        TrapAuthoring.SnapZoneToGrid((Trap)t);
                     }
                 }
             }
@@ -128,6 +126,27 @@ namespace Orcapafea.Daedalus.Editor
                 EditorGUILayout.HelpBox(HelpTexts.TrapStoryInScene(trap, collision, player), MessageType.Info);
                 Warnings(trap);
             }
+        }
+
+        // The zone in whole tiles from the trap's bottom-left corner; typing gives every selected trap the same zone.
+        void ZoneField(Trap active)
+        {
+            Rect shared = TrapLook.WorldZone(active);
+            bool mixed = false;
+            var traps = new Trap[targets.Length];
+            for (int i = 0; i < targets.Length; i++)
+            {
+                traps[i] = (Trap)targets[i];
+                mixed |= TrapLook.WorldZone(traps[i]) != shared;
+            }
+            EditorGUI.showMixedValue = mixed;
+            EditorGUI.BeginChangeCheck();
+            RectInt typed = EditorGUILayout.RectIntField(new GUIContent(ZoneLabel, zone.tooltip), TrapAuthoring.ZoneInTiles(active));
+            if (EditorGUI.EndChangeCheck())
+            {
+                TrapAuthoring.SetZoneInTiles(active, traps, typed);
+            }
+            EditorGUI.showMixedValue = false;
         }
 
         void Warnings(Trap trap)

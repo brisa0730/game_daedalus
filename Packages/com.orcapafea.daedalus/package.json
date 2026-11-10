@@ -1,6 +1,6 @@
 {
   "name": "com.orcapafea.daedalus",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "Daedalus Platformer Maker",
   "description": "Build a 2D platformer in the Unity Editor without code: place objects, add Daedalus components and tune their settings.",
   "unity": "6000.0",

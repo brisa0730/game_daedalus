@@ -23,6 +23,37 @@ namespace Orcapafea.Daedalus.Editor
             EditorUtility.SetDirty(trap);
         }
 
+        /// <summary>
+        /// The zone as the Inspector shows it: whole tiles, x and y from the bottom-left corner of the trap's box (on an
+        /// Exit, the exit's box), width and height at least 1.
+        /// </summary>
+        public static RectInt ZoneInTiles(Trap trap)
+        {
+            Rect box = TrapLook.WorldBox(trap);
+            Rect zone = TrapLook.WorldZone(trap);
+            return new RectInt(
+                Mathf.RoundToInt(zone.xMin - box.xMin), Mathf.RoundToInt(zone.yMin - box.yMin),
+                Mathf.Max(1, Mathf.RoundToInt(zone.width)), Mathf.Max(1, Mathf.RoundToInt(zone.height)));
+        }
+
+        /// <summary>
+        /// The Inspector's write: every trap gets the same zone in the level, <paramref name="tiles"/> measured from
+        /// <paramref name="reference"/>'s box, so traps selected together keep sharing one zone.
+        /// </summary>
+        public static void SetZoneInTiles(Trap reference, Trap[] traps, RectInt tiles)
+        {
+            Rect box = TrapLook.WorldBox(reference);
+            float xMin = box.xMin + tiles.x, yMin = box.yMin + tiles.y;
+            float xMax = xMin + Mathf.Max(1, tiles.width), yMax = yMin + Mathf.Max(1, tiles.height);
+            Undo.RecordObjects(traps, "Set Trap Zone");
+            foreach (Trap trap in traps)
+            {
+                Vector3 p = trap.transform.position;
+                trap.Zone = Rect.MinMaxRect(xMin - p.x, yMin - p.y, xMax - p.x, yMax - p.y);
+                EditorUtility.SetDirty(trap);
+            }
+        }
+
         /// <summary>The Move-end handle's write: the end's centre at <paramref name="worldEndCentre"/>, rounded to whole tiles and clamped to the range.</summary>
         public static void SetEnd(Trap trap, Vector2 worldEndCentre)
         {
@@ -43,6 +74,23 @@ namespace Orcapafea.Daedalus.Editor
             Undo.RecordObject(t, "Snap Trap to Grid");
             Vector2 centre = TrapLook.SnappedCentre(trap);
             t.position = new Vector3(centre.x, centre.y, t.position.z);
+        }
+
+        /// <summary>Rounds the zone's edges to whole tiles in the level, as the handles do; width and height stay at least 1.</summary>
+        public static void SnapZoneToGrid(Trap trap)
+        {
+            Rect world = TrapLook.WorldZone(trap);
+            float xMin = Mathf.Round(world.xMin), yMin = Mathf.Round(world.yMin);
+            float xMax = Mathf.Max(Mathf.Round(world.xMax), xMin + 1), yMax = Mathf.Max(Mathf.Round(world.yMax), yMin + 1);
+            Vector3 p = trap.transform.position;
+            Rect snapped = Rect.MinMaxRect(xMin - p.x, yMin - p.y, xMax - p.x, yMax - p.y);
+            if (snapped == trap.Zone)
+            {
+                return;
+            }
+            Undo.RecordObject(trap, "Snap Trap Zone to Grid");
+            trap.Zone = snapped;
+            EditorUtility.SetDirty(trap);
         }
 
         /// <summary>

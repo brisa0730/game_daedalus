@@ -44,7 +44,7 @@ namespace Orcapafea.Daedalus.Tests
         {
             string version = Read().version;
             Assert.IsTrue(Regex.IsMatch(version, @"^\d+\.\d+\.\d+$"), $"Not a plain x.y.z version: \"{version}\"");
-            Assert.AreEqual("0.2.0", version);
+            Assert.AreEqual("0.2.1", version);
         }
 
         [Test]

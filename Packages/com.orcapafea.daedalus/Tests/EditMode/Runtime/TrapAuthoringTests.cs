@@ -129,6 +129,48 @@ namespace Orcapafea.Daedalus.Tests
         }
 
         [Test]
+        public void TheZoneReadsInWholeTilesFromTheTrapsCorner()
+        {
+            Trap trap = NewTrap(1.5f, 0.5f);
+            Assert.AreEqual(new RectInt(0, 0, 3, 2), TrapAuthoring.ZoneInTiles(trap), "a Drop Floor's default zone");
+            trap.Zone = Rect.MinMaxRect(-1.5f, -9.5f, 1.5f, -0.5f);
+            Assert.AreEqual(new RectInt(0, -9, 3, 9), TrapAuthoring.ZoneInTiles(trap), "a Falling Ceiling's zone, below it");
+        }
+
+        [Test]
+        public void TypingAZoneGivesEverySelectedTrapTheSameZoneAndUndoes()
+        {
+            Trap a = NewTrap(1.5f, 0.5f);
+            Trap b = NewTrap(8.5f, 3.5f);
+            Rect before = b.Zone;
+            Undo.IncrementCurrentGroup();
+            TrapAuthoring.SetZoneInTiles(a, new[] { a, b }, new RectInt(-2, 0, 4, 0));
+            Assert.AreEqual(Rect.MinMaxRect(-2, 0, 2, 1), TrapLook.WorldZone(a), "from a's corner; height at least 1");
+            Assert.AreEqual(TrapLook.WorldZone(a), TrapLook.WorldZone(b), "b shares a's zone in the level");
+            Assert.AreEqual(new RectInt(-2, 0, 4, 1), TrapAuthoring.ZoneInTiles(a), "reads back what was typed");
+            Undo.PerformUndo();
+            Assert.AreEqual(before, b.Zone, "undone");
+        }
+
+        [Test]
+        public void SnapZoneToGridRoundsTheEdgesInTheLevelAndUndoes()
+        {
+            Trap trap = NewTrap(1.5f, 0.5f);
+            trap.Zone = Rect.MinMaxRect(-1.2f, -0.4f, 1.9f, 0.6f);
+            Undo.IncrementCurrentGroup();
+            TrapAuthoring.SnapZoneToGrid(trap);
+            Assert.AreEqual(Rect.MinMaxRect(0, 0, 3, 1), TrapLook.WorldZone(trap), "edges on whole tiles");
+            Undo.PerformUndo();
+            Assert.AreEqual(Rect.MinMaxRect(-1.2f, -0.4f, 1.9f, 0.6f), trap.Zone, "undone");
+
+            trap.Zone = Rect.MinMaxRect(-0.2f, 0f, -0.1f, 0.1f);
+            TrapAuthoring.SnapZoneToGrid(trap);
+            Rect thin = TrapLook.WorldZone(trap);
+            Assert.AreEqual(1f, thin.width, "never thinner than a tile");
+            Assert.AreEqual(1f, thin.height, "never shorter than a tile");
+        }
+
+        [Test]
         public void ATrapOnAnExitKeepsTheExitsLookWhateverItsAction()
         {
             var go = new GameObject("Exit");

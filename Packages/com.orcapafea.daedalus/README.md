@@ -6,10 +6,10 @@ Requires Unity 6000.0 or newer. The Starter sample needs a **Universal 2D** (URP
 
 **Install steps for students (Korean):** [Documentation~/install-ko.md](Documentation~/install-ko.md)
 
-## What works in 0.2.0
+## What works in 0.2.1
 
 - **Player:** run, jump, double jump, wall slide and climb, ropes, tuned with Inspector settings.
-- **Traps:** one Trap component that can vanish, appear, move or fall, set off by a zone or a touch.
+- **Traps:** one Trap component that can vanish, appear, move or fall, set off by a zone (typed in tiles or dragged in the Scene view) or a touch.
 - **Checkpoints and Exits**, including an Exit that runs away.
 - **Stages:** a game can be several scenes. An Exit's Next stage leads to the next one, with a quick fade; deaths add up across the game, and Share my game builds every stage.
 - **Painted tiles** on a Tilemap named Collision: solid, one-way, climbable, hazard, or drawn with no collision.
