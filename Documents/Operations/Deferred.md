@@ -53,7 +53,7 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 - **Trigger to act:** a card picture framed wrongly, or the first multi-scene editing the course teaches. Fix shape: pass the Player's own scene into `FirstView` and its scans, and filter by `gameObject.scene`.
 
 ### `--reimport-test` only knows 0.1.0 → 0.1.1
-- **Severity:** LOW · **Source:** [stages-release plan](../Plans/stages-release.md) (v0.27)
+- **Severity:** LOW · **Source:** [stages-release plan](../Plans/archive/stages-release.md) (v0.27)
 - **Description:** `Tools/install_check.py --reimport-test` copies today's package as 0.1.1 and refuses any other version; it tests updating a saved level from 0.1.0. With the package at 0.2.0 it refuses, so the update path students will actually take (one released version to the next) has no scripted check.
 - **Why deferred:** no student has installed 0.1.0 (operator, 2026-11-10), so nobody takes 0.1.0 → 0.2.0; 0.2.0 is their first install.
 - **Trigger to act:** the first release after students have installed. Fix shape: `--from TAG` installs the old tag by git URL, saves a level, switches to today's package by `file:`, imports the sample both ways, and asserts nothing is missing, the saved level's prefab source moved to the new version's folder, and the new pieces arrived. Its result is what the guide's update section says (an import over a previous one replaces the old sample folder; GUIDs are kept; edits inside `Assets/Samples` are lost). It reuses `FIXTURE_SCRIPT`, which since 0.2.0 also copies the level to `My Level 2` and links it, so the saved project it updates has two stages.

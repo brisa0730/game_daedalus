@@ -1,6 +1,6 @@
 # Plan: Stages release (package 0.2.0)
 
-**Date:** 2026-11-10 | **Status:** approved (handshake, 2 rounds)
+**Date:** 2026-11-10 | **Status:** complete
 
 ## Overview
 
@@ -250,3 +250,10 @@ I had the same access as in round 1: `device_bash` over the office PC repo, and 
 ## Reviewer's view
 
 I would build this as written. F1–F3 are fixed in ways that close the holes rather than move them, and the folds introduced nothing new. What remains open belongs to the operator, and the plan already puts each at the right point: the Trap Demo play-check, the OK before each commit and push, and the hand check before students are told.
+
+---
+
+**Approval:** User confirmed 2026-11-10 ("let's commit and execute"; the Trap Demo play-check approved; "go" for commit, push and tag).
+**Execution:** COMPLETE 2026-11-10.
+**Verification:** both editors: unity_tests (523 EditMode, 102 PlayMode), build_starter twice with no diff, install_check from file, Git (`#0.2.0`) and the registry (all playthroughs, both fixtures), share_check on the benches and the 0.2.0 fixture (`My Level → My Level 2 → win`). Code review PASS WITH FLAGS (0 HIGH, 0 MED, 4 LOW, folded or recorded under Notes).
+**Version note:** shipped as v0.27 (the release commit) and v0.28 (publish record).
