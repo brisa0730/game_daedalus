@@ -22,6 +22,12 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### A game that stalled once stayed stalled until Chrome's cache was cleared (cause unknown)
+- **Severity:** LOW · **Source:** ISS-002 (Phase 5 `gallery-server`, v0.16; closed v0.30)
+- **Description:** in Phase 5 one game's load stalled, survived a Chrome restart, and cleared only when Chrome's HTTP cache was cleared (a cached partial download is the leading guess). Since v0.23 games load from the Naver bucket with versioned, `immutable` files, so it can only recur on the Mac fallback (`suwon-play`), where `Accept-Ranges: none` is the safeguard.
+- **Why deferred:** never reproduced; gallery games now start in under 5 s from school (v0.30).
+- **Trigger to act:** a student's game stuck on the loading box that a reload doesn't fix. Fix shape: capture the stuck request in DevTools (host, status, `Range`, size received), then a ~60 s "reopen" watchdog on the play page.
+
 ### A game published to the bucket mid-run stays local until the next start
 - **Severity:** LOW · **Source:** gallery Naver storage plan (v0.23; code review MED)
 - **Description:** an upload whose bucket copy fails or passes the 45 s publish deadline ([upload.rs](../../Deploy/gallery/src/upload.rs) `publish_upload`) plays from the Mac, over Cloudflare's slow route, until the server next starts and [storage.rs](../../Deploy/gallery/src/storage.rs) `reconcile` copies it. Removals that fail their bucket delete wait the same way.
