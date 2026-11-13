@@ -3,7 +3,7 @@
 
 ## Engine & Targets
 
-- **Unity 6 package** `com.orcapafea.daedalus`, C#. Minimum editor **6000.0** (declared in the package's `package.json`); developed on **6000.6.8f1**; every test also runs on **6000.0.85f1**.
+- **Unity 6 package** `com.orcapafea.daedalus`, C#. Minimum editor **6000.0** (declared in the package's `package.json`); developed on **6000.6.9f1**; every test also runs on **6000.0.85f1**.
 - **Students** work in the Unity Editor on their school laptops (the operator confirmed the hardware). Each machine needs Unity Hub, a Unity 6 editor with **WebGL Build Support**, and a Unity account with a Personal or education license.
 - **Played games** are WebGL builds in desktop Chrome. No native builds, no store publishing in v1.
 

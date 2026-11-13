@@ -3,7 +3,7 @@
 Usage:
     python Tools/perf_check.py [--skip-build]
 
-Builds Assets/Dev/PerfCheck as a release WebGL build with Unity 6000.6.8f1, serves it on
+Builds Assets/Dev/PerfCheck as a release WebGL build with Unity 6000.6.9f1, serves it on
 localhost, opens it in Chrome, and waits for the page to post its measurements and a
 screenshot. Writes TestResults/perf-check.json and TestResults/perf-check.png.
 
@@ -30,7 +30,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 RESULTS = REPO / "TestResults"
 BUILD = RESULTS / "perf-build"
-EDITOR_VERSION = "6000.6.8f1"
+EDITOR_VERSION = "6000.6.9f1"
 CHROME = Path(os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
                              if sys.platform == "darwin"
                              else r"C:\Program Files\Google\Chrome\Application\chrome.exe"))

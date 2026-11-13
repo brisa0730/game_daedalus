@@ -34,7 +34,7 @@ PACKAGE_NAME = "com.orcapafea.daedalus"
 PACKAGE_DIR = REPO / "Packages" / PACKAGE_NAME
 INPUT_SYSTEM = "com.unity.inputsystem"
 RESULTS = REPO / "TestResults"
-EDITORS = {"6000.0": "6000.0.85f1", "6000.6": "6000.6.8f1"}
+EDITORS = {"6000.0": "6000.0.85f1", "6000.6": "6000.6.9f1"}
 PLATFORMS = {"editmode": "EditMode", "playmode": "PlayMode"}
 ASSEMBLIES = {
     "editmode": "Orcapafea.Daedalus.Tests.EditMode",
