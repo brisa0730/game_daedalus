@@ -67,3 +67,4 @@ Each entry leads with a **bolded one-line rule**, then as much context (the why,
 - **A security fix needs its own adversarial re-read: closing one lockout (hashing unknown IDs) opened two more (a free throttle flush, a burst of simultaneous attempts).** Each fold of the gallery's sign-in design was caught by the next reviewer, not by the author (handshake rounds 1–2, code review, 2026-11-03).
 - **The screenshot check finds what tests can't.** 121 green tests passed a "reopen" page whose black text sat on the black game frame; only looking at the Chrome screenshot showed a student would see an empty box (Phase 5 Step 22).
 
+- **Stage only the files you changed; never `git add -A`.** Another session (the Mac, or a parallel one) can leave edits in the shared working copy: a `git add -A` swept its Roadmap `slopes` section into an unrelated chore commit (2026-11-24, caught by the operator). `git add <paths>`, then check `git show --stat` before committing.
