@@ -1,8 +1,11 @@
 //! The gallery's page shell and small shared pieces. Every page goes through maud, which escapes all text.
 
+use std::sync::LazyLock;
+
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use maud::{DOCTYPE, Markup, html};
+use sha2::{Digest, Sha256};
 
 use crate::db::{Role, User};
 use crate::strings as s;
@@ -19,6 +22,22 @@ pub enum Nav {
 /// The served path of the heading font (Galmuri11 Bold, v2.40.4, SIL OFL 1.1; `static/fonts/OFL.txt`). The
 /// release is in the name, so the file can be cached for good; a new font is a new path. `gallery.css` names it.
 pub const FONT_PATH: &str = "/static/fonts/Galmuri11-Bold-v2.40.4.woff2";
+
+const GALLERY_CSS: &str = include_str!("../static/gallery.css");
+const GALLERY_JS: &str = include_str!("../static/gallery.js");
+
+/// The stylesheet's and the script's addresses, each with a fingerprint of its bytes. Cloudflare turns our
+/// `no-cache` into a 4-hour browser cache, so without a new address per release a deployed page could run the
+/// previous release's script (v0.31's stars never started for browsers that held the v0.23 script).
+pub static GALLERY_CSS_URL: LazyLock<String> = LazyLock::new(|| versioned("/static/gallery.css", GALLERY_CSS));
+pub static GALLERY_JS_URL: LazyLock<String> = LazyLock::new(|| versioned("/static/gallery.js", GALLERY_JS));
+
+/// `path?v=` and the first 12 hex digits of the SHA-256 of `body`. The routes ignore the query.
+pub fn versioned(path: &str, body: &str) -> String {
+    let digest = Sha256::digest(body.as_bytes());
+    let hex: String = digest[..6].iter().map(|b| format!("{b:02x}")).collect();
+    format!("{path}?v={hex}")
+}
 
 /// The logo: the player block (white, one eye, a yellow band) and the site name.
 fn logo() -> Markup {
@@ -51,8 +70,8 @@ pub fn shell(title: &str, user: Option<&User>, nav: Option<Nav>, body: Markup) -
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 meta name="color-scheme" content="dark";
                 title { (title) " · " (s::SITE_NAME) }
-                link rel="stylesheet" href="/static/gallery.css";
-                script src="/static/gallery.js" defer {}
+                link rel="stylesheet" href=(*GALLERY_CSS_URL);
+                script src=(*GALLERY_JS_URL) defer {}
             }
             body {
                 header.top {
@@ -110,11 +129,11 @@ pub fn see_other(location: &str) -> Response {
 }
 
 pub async fn gallery_css() -> Response {
-    static_file("text/css; charset=utf-8", include_str!("../static/gallery.css"))
+    static_file("text/css; charset=utf-8", GALLERY_CSS)
 }
 
 pub async fn gallery_js() -> Response {
-    static_file("application/javascript; charset=utf-8", include_str!("../static/gallery.js"))
+    static_file("application/javascript; charset=utf-8", GALLERY_JS)
 }
 
 /// The heading font: bytes, cached for good (the release is in its path).

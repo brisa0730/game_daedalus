@@ -151,6 +151,24 @@ async fn the_font_is_public_and_cached_for_good() {
 }
 
 #[tokio::test]
+async fn pages_link_the_stylesheet_and_script_by_fingerprint() {
+    // Cloudflare caches both for 4 hours in the browser, so a release must change their addresses.
+    let app = TestApp::new().await;
+    let html = app.get(GALLERY, "/", None).await.text();
+    for (url, file) in [
+        (&*gallery::pages::GALLERY_CSS_URL, include_str!("../static/gallery.css")),
+        (&*gallery::pages::GALLERY_JS_URL, include_str!("../static/gallery.js")),
+    ] {
+        assert!(url.contains("?v=") && url.len() == url.find("?v=").unwrap() + 3 + 12, "{url}");
+        assert!(html.contains(&format!("\"{url}\"")), "the page links {url}");
+        let answer = app.get(GALLERY, url, None).await;
+        assert_eq!(answer.status, StatusCode::OK, "{url}");
+        assert_eq!(answer.text(), file, "{url} serves the file it fingerprints");
+    }
+    assert_ne!(gallery::pages::versioned("/a", "one"), gallery::pages::versioned("/a", "two"), "new bytes, new address");
+}
+
+#[tokio::test]
 async fn the_games_host_only_serves() {
     let app = TestApp::new().await;
     for method in [Method::POST, Method::PUT, Method::DELETE] {
