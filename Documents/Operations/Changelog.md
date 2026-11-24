@@ -14,6 +14,7 @@ Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra
 - **Key surfaces.** [strings.rs](../../Deploy/gallery/src/strings.rs) `uploaded_recently` (new), `uploaded_ago` (24 hours and over); [gallery.rs](../../Deploy/gallery/src/gallery.rs) `upload_time` picks one; [look.rs](../../Deploy/gallery/tests/look.rs) `backdate` takes seconds, kim's updated game is 23 hours old so the widest label (23시간 전에 업데이트) is on screen.
 - **Verified.** On the Mac: look pages served on localhost, `list-mine` at 1280 × 900 and in a 390 px frame: the label and 삭제 share one line, no overflow.
 - **Rollback.** No migration: v0.36's binary runs on the same database.
+- **Deployed** 2026-11-24 16:16 KST: v0.36 binary kept as `bin/gallery.prev`; log `gallery listening`, reconcile published=10 failed=0; the live list shows 1분 전에 업데이트, 41분 전에 업데이트, 1시간 전에 올림, 7일 전에 올림.
 - **GDD deltas.** GDD v0.36 → v0.37 ([GDD.md](../GDD/GDD.md) header, [systems.md](../GDD/systems.md) § Play). Commit: `v0.37: gallery — minutes and hours for a recent upload`.
 
 ## v0.36 — Gallery: the rating average as stars (2026-11-24) · **a game's average shows as five stars filled to it, not as a number**
