@@ -94,7 +94,7 @@ async fn the_player_page_names_exactly_the_stored_files() {
         r#"data-data="Build/game.data.br""#,
         r#"data-framework="Build/game.framework.js.br""#,
         r#"data-code="Build/game.wasm.br""#,
-        r#"<script src="player.js">"#,
+        r#"<script src="player.js?v="#,
         r#"<html lang="ko">"#,
     ] {
         assert!(html.contains(attr), "{attr}");

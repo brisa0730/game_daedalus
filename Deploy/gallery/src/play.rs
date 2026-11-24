@@ -1,6 +1,8 @@
 //! The games host (`suwon-play.orcarin.com`): trades the gallery's `enter` grant for a per-game gate cookie, then
 //! serves the server's own player page and the build's four files. Nothing else from an upload is ever served.
 
+use std::sync::LazyLock;
+
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
@@ -132,7 +134,7 @@ pub async fn player_page(
                     data-error=(s::PLAYER_LOAD_FAILED) {}
                 div #loading { p #loading-label { (s::PLAYER_LOADING) } progress #loading-bar aria-labelledby="loading-label" {} }
                 p #error hidden {}
-                script src="player.js" {}
+                script src=(*PLAYER_JS_URL) {}
             }
         }
     };
@@ -141,13 +143,18 @@ pub async fn player_page(
     response
 }
 
+const PLAYER_JS: &str = include_str!("../static/player.js");
+
+/// The player script's address relative to the game's folder, fingerprinted like the gallery's (`pages::versioned`).
+pub static PLAYER_JS_URL: LazyLock<String> = LazyLock::new(|| crate::pages::versioned("player.js", PLAYER_JS));
+
 pub async fn player_js(State(state): State<AppState>, Path(id): Path<String>, headers: HeaderMap) -> Response {
     if let Err(response) = gated(&state, &id, &headers).await {
         return response;
     }
     (
         [(header::CONTENT_TYPE, "application/javascript; charset=utf-8"), (header::CACHE_CONTROL, "private, no-cache")],
-        include_str!("../static/player.js"),
+        PLAYER_JS,
     )
         .into_response()
 }

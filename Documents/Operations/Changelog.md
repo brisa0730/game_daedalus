@@ -8,6 +8,14 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.34 — Gallery: script and stylesheet addresses change with each release (2026-11-24) · **after a deploy, every browser runs the new script at once**
+
+- **Landed.** Operator report right after the v0.31 + v0.32 deploy: the play page stayed on 3분 후에 별점을 줄 수 있어요 past 3 minutes. Cause: the server sends `gallery.js` and `gallery.css` with `no-cache`, but Cloudflare rewrites it to `max-age=14400`, so a browser that visited before the deploy ran the v0.23 script (no stars) on the new page for up to 4 hours. Each page now links `gallery.css`, `gallery.js` and `player.js` as `?v=<first 12 hex of the SHA-256 of the file>`; the routes ignore the query. Workaround until deployed: Cmd+Shift+R. **Not yet deployed** (operator: deploy with the next phase).
+- **Key surfaces.** [pages.rs](../../Deploy/gallery/src/pages.rs) `versioned`, `GALLERY_CSS_URL`, `GALLERY_JS_URL`, `shell`; [play.rs](../../Deploy/gallery/src/play.rs) `PLAYER_JS_URL`; tests: [routing.rs](../../Deploy/gallery/tests/routing.rs) `pages_link_the_stylesheet_and_script_by_fingerprint`, [play.rs](../../Deploy/gallery/tests/play.rs) (the player page's script link).
+- **Verified.** `cargo test` 191 green (+1), `cargo clippy --all-targets -- -D warnings` clean. Live diagnosis: `curl -sI https://suwon.orcarin.com/static/gallery.js` answers `cache-control: max-age=14400` while the origin sends `no-cache`.
+- **Rollback.** No migration: the v0.32 binary runs on the same database.
+- **GDD deltas.** GDD v0.33 → v0.34 ([GDD.md](../GDD/GDD.md) header, [platforms.md](../GDD/platforms.md) Class gallery). Commit: `v0.34: gallery — script and stylesheet addresses change with each release`.
+
 ## v0.33 — Design: gallery comments with owner-only replies (2026-11-24) · **the gallery will let anyone leave a comment and the game's maker answer it**
 
 - **Landed.** Design only, no code: anyone, guests as 손님, comments on a game (300 characters, plain text); only the game's owner replies, one level; guests wait for the 3-minute rating gate, everyone 30 s between comments; writers and the teacher delete, the owner doesn't; the teacher sees real names and a recent-comments list. Open to the public for now; the operator asks for it to be closed if it goes wrong.
