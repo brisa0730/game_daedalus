@@ -48,13 +48,15 @@ Default art pack (CC0, pre-mapped, with a seamless single-tile ground style so t
 ### Milestone 8 — `classroom-test` (days 37+)
 Run a class session with students, starting with troll levels, including the install path on a school machine (Unity Hub, the editor with WebGL support, the OpenUPM registry, the package, the starter) and a first sign-in and upload to the class gallery; fix what blocks them.
 
-### Planned, not yet scheduled: `slopes`
-Added 2026-11-24 at the operator's request: wanted, but not yet assigned to a milestone. Today every Collision Tilemap tile is a full square, so a student's sloped tile art plays as a one-tile step the player must jump (seen in a gallery game, `suwon.orcarin.com/play/mqu5bazvx6`). Rough size: one phase, about 3–4 days. Recommended slot: before Milestone 4, so enemies are built on slopes rather than retrofitted (operator's call). Work to scope when it's scheduled:
-- **Angles: 45° and 22.5° in the same phase** (operator, 2026-11-24). A 22.5° slope is two tiles, a low half and a high half. One floor model covers both: each slope tile has a floor height at its left and right edges. That way the downhill ground-stick, the joins (low half to high half, 22.5° to 45°, slope to flat) and every interaction test are done once, not redone for a second angle.
-- **Sim:** walk up and down a slope surface, stay on the ground running downhill, and keep the existing rules working on slopes: one-way and moving platforms, pushed boxes, wall climb, coyote time, jump buffer, ceiling-corner correction, safe-ground recording. Scenario tests for each.
-- **Authoring:** six slope options in the collision dropdown (↗ and ↖ at 45°; the low and high halves of each at 22.5°), with clear labels and an Inspector warning for a half-slope missing its other half. Auto-tiling that understands slopes goes with the `editor-tools` terrain work.
-- **Update safety:** new `TileKind` values appended, never renumbered; saved levels play exactly as before; nothing becomes a slope unless the student makes it one.
+### Planned, not yet scheduled: `slopes` (with Blocks)
+Added 2026-11-24 at the operator's request; widened the same day. Today every Collision Tilemap tile is a full square, so a student's sloped tile art plays as a one-tile step the player must jump (seen in a gallery game, `suwon.orcarin.com/play/mqu5bazvx6`), and ground can only be painted on the Tilemap. Principle (operator, 2026-11-24): **art is free, ground is simple shapes the student lays under it** (as in Hollow Knight-style games: collision drawn apart from the art). Rough size: one phase, about 5–7 days. Recommended slot: before Milestone 4, so enemies are built on it rather than retrofitted. Work to scope:
+- **Blocks:** any sprite GameObject becomes ground with one component: a size in whole tiles, a kind (solid, one-way, hazard), the sprite drawn tiled or stretched, Snap to grid, and an invisible option (ground laid over a big hand-drawn picture). Stamped into the grid at play start like painted cells; a scene needs no Tilemap.
+- **Slopes at any angle** (operator, 2026-11-24, replacing "45° and 22.5° only"): each slope cell has a floor height at its left and right edges, in pixels (16 per tile). A **Ramp** component (width and height in tiles, facing) becomes slope cells at play start, so any rise over run works and several ramps in a row make a curve. Painted slope tiles for common angles may come as a shortcut.
+- **Limits:** floors only (a slanted ceiling acts as a flat ceiling at its lowest point; real slanted ceilings to decide at planning); ground steeper than about 60° is a wall (slide or wall-climb, not walk), a **hidden internal**, not a student setting (operator); a small step-up of a few pixels forgives joins that don't quite meet.
+- **Sim:** walk up and down a slope, stay on the ground running downhill, and keep the existing rules working on slopes and Blocks: one-way and moving platforms, pushed boxes, traps, ropes, wall climb, coyote time, jump buffer, ceiling-corner correction, safe-ground recording. Scenario tests over a spread of angles, not per angle.
+- **Update safety:** new `TileKind` values appended, never renumbered; saved levels play exactly as before; nothing becomes a slope or a Block unless the student makes it one.
 - **To decide at planning:** whether enemies and moving boxes use slopes too.
+- **Later, only on evidence:** free boxes at any position (not snapped to whole tiles) if the mid-`editor-tools` student check shows snapping limits students; any-shape collision stays out (§3).
 
 ## 2. Pre-launch gates
 
@@ -70,6 +72,7 @@ Added 2026-11-24 at the operator's request: wanted, but not yet assigned to a mi
 Out of scope for v1. Each trigger is "an operator decision after v1" unless stated; record costs and risks here when known, never a preferred answer.
 
 - **Swinging ropes** (physics-based). v1 ropes are ladder-style.
+- **Any-shape ground collision** (outlines of sprites, rotated pieces, true curves; deferred 2026-11-24). v1 ground is tiles, Blocks and Ramps. Cost: a rewrite of the collision under every movement and trap rule, and snag-on-a-corner bugs students can't fix. Trigger: students' levels keep fighting rectangles and ramps after `slopes` ships.
 - **Multiple attacks, combos, magic, ranged player attacks.**
 - **Pathfinding enemy AI.** Getting stuck on terrain is accepted in v1.
 - **Boss scripting, multi-phase patterns.**
