@@ -24,7 +24,9 @@ Canonical terms. Each is **Draft** (provisional) or **Active** (committed).
 | Share zip | Active | The one file Share my game makes and the class gallery accepts: `daedalus.json`, `screenshot.png` and the four Brotli build files (platforms.md § Share zip). |
 | Rating | Draft | A browser's 1–5 stars for a gallery game, changeable; the average shows from the first rating (★ 4.3 (12명); from 3 in v0.31). Anonymous: kept by the rater cookie's hash, never a user (v0.31). |
 | Rater cookie | Draft | `__Host-gallery_rater`: the anonymous random cookie that makes one browser one rater (platforms.md); never the known-browser cookie. |
-| Rating gate | Draft | The 3 minutes after a browser first opened a game before it may rate it; checked on the server (`rating_gate_secs`). |
+| Rating gate | Draft | The 3 minutes after a browser first opened a game before it may rate it, and since v0.33 (design) before a guest may comment on it; checked on the server (`rating_gate_secs`). |
+| Comment | Draft | Up to 300 characters of plain text anyone writes under a gallery game on its play page; signed by the writer's nickname, or 손님 for a guest (v0.33, design). |
+| Reply | Draft | The game owner's answer under a comment on their game; one level deep, owner only (v0.33, design). |
 | Nickname | Draft | The name the class gallery shows publicly for a student: on their game cards, the play view and the header. Set and changed by the teacher (`display_name` in the database; was Display name until v0.20). |
 | Real name | Draft | The name the teacher knows a student by; the class gallery shows it only on the teacher's pages (students list, account slips, remove confirm). |
 | Account slip | Draft | The printable slip the class gallery shows once when the teacher creates or resets an account: address, ID, password. |

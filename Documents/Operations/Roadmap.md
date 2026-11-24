@@ -27,6 +27,9 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 
 Each milestone ends with something playable.
 
+### Next: `gallery-comments` (class gallery, ahead of Milestone 4)
+Comments under each gallery game, guests included, with owner-only replies and teacher deletion (systems.md § Comments, decisions.md 2026-11-24). Ships with the still-undeployed v0.31–v0.32 rating changes in one Mac Mini deploy (backup first).
+
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
 **Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.
 **Inherited from `stages`:** HP carries between stages. Say what the stage change does to it, and test it across a real scene load.

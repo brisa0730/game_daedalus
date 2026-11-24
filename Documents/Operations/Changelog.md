@@ -8,6 +8,11 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.33 — Design: gallery comments with owner-only replies (2026-11-24) · **the gallery will let anyone leave a comment and the game's maker answer it**
+
+- **Landed.** Design only, no code: anyone, guests as 손님, comments on a game (300 characters, plain text); only the game's owner replies, one level; guests wait for the 3-minute rating gate, everyone 30 s between comments; writers and the teacher delete, the owner doesn't; the teacher sees real names and a recent-comments list. Open to the public for now; the operator asks for it to be closed if it goes wrong.
+- **GDD deltas.** GDD v0.32 → v0.33 ([GDD.md](../GDD/GDD.md) header, [systems.md](../GDD/systems.md) § Comments and Teacher, [platforms.md](../GDD/platforms.md) rater cookie, [Glossary.md](../GDD/Glossary.md) Comment, Reply, Rating gate); ADR row in decisions.md; Roadmap §1 gains `gallery-comments` ahead of Milestone 4. Commit: `v0.33: gallery comments — design`.
+
 ## v0.32 — Gallery: average from one rating, upload time on every card (2026-11-24) · **players see a game's stars from its first rating and how fresh it is**
 
 - **Landed.** Operator requests after Phase 9: a game's average shows from its first rating (★ 3.0 (1명)), not 3, so the hint 별점이 3개 모이면 평균이 보여요 and the `ratings_shown_at` setting are removed; every card (모든 게임 too, not only 내 게임) and the play page's title row say when the game was last uploaded, 올림 for a first upload and 업데이트 once updated (`version > 1`).
