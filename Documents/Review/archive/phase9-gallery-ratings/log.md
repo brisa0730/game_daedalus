@@ -1,0 +1,17 @@
+# Handshake log: phase9-gallery-ratings
+
+## Opening (2026-11-24T13:46:07+09:00)
+Document: `Documents/Phases/phase9-gallery-ratings.md`. Proposes Phase 9: anonymous 1–5 star ratings on the class gallery (`Deploy/gallery/`). One rating per browser via a new hashed `__Host-gallery_rater` cookie; a 3-minute server-side gate recorded by a same-origin POST (never the GET); public average from 3 ratings on cards and the play page; owner can't rate own game; ratings survive updates and are deleted with a removed game; migration 0004; prune unrated opens older than 30 days at server start. Decisions 1–11 are the operator's and settled; the implementation choices under Notes to GDD are open to review. Nothing has been built.
+
+## Round 1 dispositions (2026-11-24T14:05:29+09:00)
+- **F1 accepted** (blocking, design). Reproduced by tracing Step 7 + Step 5: no open row → `rate` 409 with full wait → countdown restart → repeat. Step 7 now: the countdown starts at once from `data-wait` (stated, so a failed start-up open still shows stars); on 409 the script re-sends the open POST and counts down from its `wait`; if that open fails, `msgFailed` and stars stay so the next click retries; `/rate` never records an open. Cookie-refusing browsers noted as failing closed (accepted). Completion Criteria 2 and Step 14 mention the recovery.
+- **F2 accepted.** Recomputed: `#rate-stars:hover .star` (1,2,0) beats `.star:hover ~ .star` (0,3,0); label inside `#rate-stars`. Chose the wrapper remedy: new `span#rate-buttons` around the five buttons only (Step 6), rules `#rate-buttons:hover .star` (1,2,0) and `#rate-buttons .star:hover ~ .star` (1,3,0) (Step 8), `rate-buttons` added to the Step 10 wire list. Also added the `[hidden]` display guard; verified `progress[hidden]` at gallery.css:146. Re-verified my own fold: I first wrote "equal ID weight, wins on order", which was wrong (1,3,0 > 1,2,0); corrected before hand-back.
+- **F3 accepted.** Two `unix_now()` reads with no injected clock (config.rs) confirm the flake. Exact boundary moved to Step 2 db tests: `opened_at = 1000`, `opened_by = 999` refused / `1000` accepted (= now 1179 / 1180 at a 180 s gate, since `opened_by = now − gate`). HTTP test 2 uses 170 s → 409, 180 s → 200.
+- **F4 accepted.** Verified look.rs: `traps` = `app.new_game(&lee, …)`, `play` = lee on `traps`. Step 10 names each page's game (`play-rate-wait` = lee on `old`, `play-rate-ready` = public on `traps`), lists the five non-owner pages that get wire assertions and the two owner pages (`play`, `play-own`) that get `RATE_OWN` / no `id="rate"`.
+- **F5 accepted.** Verified session.rs:62–70 (`delete_session` on expiry, `touch_session` every `session_touch_secs`). Completion Criteria 2, Step 9 test 10 and Step 14 now say "writes nothing to `game_opens` or `ratings` and sets no rater cookie".
+- **F6 accepted.** `aria-pressed="true"` on star `mine` only (Step 6, Step 7); `on` stays on 1…k; Step 6 test and Step 9 test 10 adjusted.
+- **F7 accepted.** backup.rs restore notes confirmed (delete -wal/-shm, copy back). Step 11 rollback now lists everything lost and "roll back soon or not at all".
+- **F8 accepted.** Overview bullet 2 now says "three minutes after this browser first opened the game".
+
+## Round 2: approved (2026-11-24T14:08:41+09:00)
+- Verdict approved, 0 blocking, 0 new findings; F1–F8 confirmed resolved by the Reviewer. Close fold: nothing open (no non-blocking findings or recommendations outstanding). Nothing has been built; the phase is executed next as separate work.
