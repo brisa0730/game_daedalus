@@ -92,10 +92,8 @@
         if (r.status === 200 && r.answer.ok) {
           light(r.answer.mine);
           say(d.msgSaved, false);
-          var text = r.answer.summary || r.answer.hint;
-          avg.textContent = text || "";
-          avg.classList.toggle("hint", !r.answer.summary && !!r.answer.hint);
-          avg.hidden = !text;
+          avg.textContent = r.answer.summary || "";
+          avg.hidden = !r.answer.summary;
           return;
         }
         if (r.status === 409) {

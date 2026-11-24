@@ -31,9 +31,9 @@ pub fn average_tenths(total: i64, count: i64) -> i64 {
     (total * 20 + count) / (2 * count)
 }
 
-/// `★ 4.3 (12명)` once the game has enough ratings to show; `None` before.
-pub fn summary(game: &Game, config: &Config) -> Option<String> {
-    (game.ratings >= config.ratings_shown_at && game.ratings > 0)
+/// `★ 4.3 (12명)` once the game has a rating; `None` before.
+pub fn summary(game: &Game) -> Option<String> {
+    (game.ratings > 0)
         .then(|| s::rating_summary(average_tenths(game.stars_total, game.ratings), game.ratings))
 }
 
@@ -144,18 +144,16 @@ pub async fn rate(
         }
     }
     let Ok(Some(game)) = state.db.live_game(&game.id).await else { return failed() };
-    let summary = summary(&game, config);
-    let hint = summary.is_none().then(|| s::average_after(config.ratings_shown_at));
-    json_answer(StatusCode::OK, json!({"ok": true, "mine": stars, "summary": summary, "hint": hint}))
+    json_answer(StatusCode::OK, json!({"ok": true, "mine": stars, "summary": summary(&game)}))
 }
 
 /// The play page's rating parts: the average for the title row, and the stars (or the owner's note) for the bar.
 /// Reads only: the GET never records an open or sets a cookie.
 pub async fn play_parts(state: &AppState, game: &Game, user: Option<&User>, headers: &HeaderMap) -> (Markup, Markup) {
     let config = &state.config;
-    let summary = summary(game, config);
+    let summary = summary(game);
+    let avg = html! { span #rating-avg.avg hidden[summary.is_none()] { (summary.as_deref().unwrap_or("")) } };
     if is_owner(game, user) {
-        let avg = html! { span #rating-avg.avg hidden[summary.is_none()] { (summary.as_deref().unwrap_or("")) } };
         return (avg, html! { p.rate-own { (s::RATE_OWN) } });
     }
     let (opened_at, mine) = match rater(headers) {
@@ -170,13 +168,6 @@ pub async fn play_parts(state: &AppState, game: &Game, user: Option<&User>, head
     };
     let mine = mine.unwrap_or(0);
     let wait = wait_secs(opened_at, unix_now() as i64, config);
-    // Rated but too few ratings to show: the same slot says when the average appears.
-    let hint = (summary.is_none() && mine > 0).then(|| s::average_after(config.ratings_shown_at));
-    let avg = html! {
-        span #rating-avg.avg.hint[hint.is_some()] hidden[summary.is_none() && hint.is_none()] {
-            (summary.as_deref().or(hint.as_deref()).unwrap_or(""))
-        }
-    };
     let stars = html! {
         div #rate.rate role="group" aria-label=(s::RATE_PROMPT)
             data-open={ "/play/" (game.id) "/open" }

@@ -55,8 +55,6 @@ pub struct Config {
     pub storage: Option<StorageConfig>,
     /// A browser may rate a game this long after it first opened the game's play page (time open, not time played).
     pub rating_gate_secs: u64,
-    /// A game's average shows once it has this many ratings.
-    pub ratings_shown_at: i64,
     /// An open record of a browser that never rated that game is pruned at start after this long.
     pub open_keep_secs: u64,
     /// The anonymous rater cookie's lifetime; it is set once and never refreshed.
@@ -96,7 +94,6 @@ impl Config {
             publish_deadline: Duration::from_secs(45),
             storage: None,
             rating_gate_secs: 180,
-            ratings_shown_at: 3,
             open_keep_secs: 30 * 24 * 3600,
             rater_cookie_secs: 365 * 24 * 3600,
         }

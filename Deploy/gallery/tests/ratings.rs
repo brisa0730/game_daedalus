@@ -109,7 +109,7 @@ async fn the_owner_cant_rate_their_own_game() {
 }
 
 #[tokio::test]
-async fn the_average_shows_from_three_ratings() {
+async fn the_average_shows_from_the_first_rating() {
     let app = TestApp::with(|c| c.rating_gate_secs = 0).await;
     let kim = app.student("kim", "김민수").await;
     let id = app.new_game(&kim, "Spike Hell").await;
@@ -119,18 +119,15 @@ async fn the_average_shows_from_three_ratings() {
         let answer = app.rate(&id, rater.as_deref(), stars).await;
         assert_eq!(answer.status, StatusCode::OK);
         let count = n as i64 + 1;
-        if count < 3 {
-            assert!(answer.json()["summary"].is_null(), "{count}");
-            assert_eq!(answer.json()["hint"], s::average_after(3));
-            for page in [app.get(GALLERY, "/", None).await, app.get(GALLERY, "/", Some(&kim)).await] {
-                assert!(!page.text().contains('★'), "no average with {count} ratings");
-            }
-            assert!(!app.get(GALLERY, &format!("/play/{id}"), None).await.text().contains('★'));
+        if count == 1 {
+            let one = s::rating_summary(50, 1);
+            assert_eq!(answer.json()["summary"], one);
+            assert!(app.get(GALLERY, "/", None).await.text().contains(&one), "one rating shows on the card");
+            assert!(app.get(GALLERY, &format!("/play/{id}"), None).await.text().contains(&one));
         }
         if count == 3 {
             // 13 / 3 = 4.33…
             assert_eq!(answer.json()["summary"], s::rating_summary(43, 3));
-            assert!(answer.json()["hint"].is_null());
         }
         last = Some(answer);
     }
@@ -239,7 +236,7 @@ async fn a_returning_browser_sees_its_stars_and_the_page_writes_nothing() {
     assert!(html.contains(r#"data-stars="3" aria-label="별 3개" aria-pressed="true""#), "{html}");
     assert_eq!(html.matches(r#"class="star on""#).count(), 3);
     assert!(html.contains(r#"<span id="rate-wait" hidden>"#), "no countdown");
-    assert!(html.contains(&s::average_after(3)), "rated, average not shown yet");
+    assert!(html.contains(&s::rating_summary(30, 1)), "its one rating shows");
     assert!(page.cookie(RATER_COOKIE).is_none(), "the GET sets no cookie");
 
     // A fresh browser's GET records nothing either.

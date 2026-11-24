@@ -57,12 +57,14 @@ pub fn game_count(n: usize) -> String {
     format!("게임 {n}개")
 }
 
-/// When a game was last uploaded, in whole Korean calendar days before today.
-pub fn uploaded_ago(days: i64) -> String {
+/// When a game was last uploaded, in whole Korean calendar days before today: 올림 for a first upload, 업데이트
+/// once it has been updated.
+pub fn uploaded_ago(days: i64, updated: bool) -> String {
+    let what = if updated { "업데이트" } else { "올림" };
     match days {
-        ..=0 => "오늘 올림".to_string(),
-        1 => "어제 올림".to_string(),
-        n => format!("{n}일 전에 올림"),
+        ..=0 => format!("오늘 {what}"),
+        1 => format!("어제 {what}"),
+        n => format!("{n}일 전에 {what}"),
     }
 }
 pub const REMOVE: &str = "삭제";
@@ -97,9 +99,6 @@ pub fn rate_wait(secs: u64) -> String {
     }
 }
 
-pub fn average_after(n: i64) -> String {
-    format!("별점이 {n}개 모이면 평균이 보여요")
-}
 
 /// A game's average in tenths of a star and how many rated it: `★ 4.3 (12명)`.
 pub fn rating_summary(tenths: i64, count: i64) -> String {

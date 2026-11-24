@@ -2,7 +2,7 @@
 //! repo's `TestResults/gallery-look/` (with the stylesheet, script, font and screenshots beside it) for the
 //! headless-Chrome screenshots, plus the rules a screenshot can't prove: no inline styles (the gallery's CSP is
 //! `style-src 'self'`), the ids the script needs, and which cards get the NEW badge and the upload time. The play
-//! pages cover every rating state: counting down, ready, rated (average hidden and shown), and the owner's own.
+//! pages cover every rating state: counting down, ready, rated (one rating and three), and the owner's own.
 
 mod support;
 
@@ -66,12 +66,15 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     let clouds = app.new_game(&kim, "구름 위 달리기").await;
     let traps = app.new_game(&lee, "함정 천국").await;
     let spikes = app.new_game(&park, "가시 조심!!").await;
+    // kim updated `clouds` yesterday: its cards say 업데이트, the others 올림.
+    let updated = app.upload(&kim, &clouds, ShareZip::new("구름 위 달리기").build()).await;
+    assert_eq!(updated.status, StatusCode::OK, "{}", updated.text());
     backdate(&app, &old, 20, 10).await;
     backdate(&app, &clouds, 9, 1).await;
     backdate(&app, &spikes, 2, 2).await;
     // lee's game is brand new: today, and NEW.
 
-    // Ratings: `old` has three (its average shows), `traps` one (hidden). Each browser opens, waits out the gate
+    // Ratings: `old` has three, `traps` one (each average shows). Each browser opens, waits out the gate
     // (backdated) and rates; `ready` opened `traps` and may rate but hasn't.
     let (_, ready) = app.open_rating(&traps, None).await;
     let ready = ready.unwrap();
@@ -104,7 +107,7 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     keep("not-found-public", app.get(GALLERY, "/nothing-here", None).await);
     keep("play-rate-wait", app.get(GALLERY, &format!("/play/{old}"), Some(&lee)).await);
     keep("play-rate-ready", app.get(GALLERY, &format!("/play/{traps}"), Some(&ready)).await);
-    keep("play-rated-hint", app.get(GALLERY, &format!("/play/{traps}"), Some(rated_traps)).await);
+    keep("play-rated-one", app.get(GALLERY, &format!("/play/{traps}"), Some(rated_traps)).await);
     keep("play-rated-avg", app.get(GALLERY, &format!("/play/{old}"), Some(rated_old)).await);
     keep("play-own", app.get(GALLERY, &format!("/play/{old}"), Some(&kim)).await);
     keep("upload", app.get(GALLERY, "/upload", Some(&kim)).await);
@@ -124,7 +127,7 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
 
     // The script's wires: every id and data attribute gallery.js reads is still rendered.
     let owner_pages = ["play", "play-own"];
-    let rating_pages = ["play-public", "play-rate-wait", "play-rate-ready", "play-rated-hint", "play-rated-avg"];
+    let rating_pages = ["play-public", "play-rate-wait", "play-rate-ready", "play-rated-one", "play-rated-avg"];
     for play in owner_pages.iter().chain(&rating_pages) {
         for id in ["game", "frame", "fullscreen", "rating-avg"] {
             assert!(page(play).contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
@@ -144,10 +147,12 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     for play in owner_pages {
         assert!(page(play).contains(s::RATE_OWN) && !page(play).contains(r#"id="rate""#), "{play}");
     }
-    // The states: counting down (a fresh browser), ready, rated with the average hidden (the hint), and shown.
+    // The states: counting down (a fresh browser), ready, rated (one rating already shows), and three.
     assert!(page("play-rate-wait").contains(&s::rate_wait(180)));
     assert!(page("play-rate-ready").contains(r#"<span id="rate-wait" hidden>"#));
-    assert!(page("play-rated-hint").contains(&s::average_after(3)));
+    let one = s::rating_summary(30, 1);
+    assert!(page("play-rated-one").contains(&one));
+    assert!(page("list-public").contains(&one), "a single rating shows on the card");
     let old_average = s::rating_summary(43, 3);
     for play in ["play-rated-avg", "play-own"] {
         assert!(page(play).contains(&old_average), "{play}");
@@ -185,15 +190,21 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
         assert_eq!(card.contains("badge"), new, "{title}");
     }
 
-    // The upload time, on my own cards only; at the limit the add card gives way to the limit line.
+    // The upload time on every card and the play page (업데이트 once updated); at the limit the add card gives way
+    // to the limit line.
     let kims = page("list-mine");
     let mine = &kims[kims.find(s::MY_GAMES).unwrap()..kims.find(s::ALL_GAMES).unwrap()];
-    assert!(mine.contains(&s::uploaded_ago(10)) && mine.contains(&s::uploaded_ago(1)));
-    assert!(!all.contains("올림"), "no upload time on other people's cards");
+    assert!(mine.contains(&s::uploaded_ago(10, false)) && mine.contains(&s::uploaded_ago(1, true)));
+    for when in [s::uploaded_ago(10, false), s::uploaded_ago(1, true), s::uploaded_ago(0, false), s::uploaded_ago(2, false)] {
+        assert!(all.contains(&when), "모든 게임: {when}");
+    }
+    assert_eq!(all.matches(r#"<span class="when">"#).count(), 4, "every card");
+    assert!(page("play-own").contains(&s::uploaded_ago(10, false)));
+    assert!(page("play-public").contains(&s::uploaded_ago(0, false)));
     assert!(mine.contains(r#"class="add-card""#), "kim has 2 of 3 games");
     let lees = page("list");
     let lee_mine = &lees[lees.find(s::MY_GAMES).unwrap()..lees.find(s::ALL_GAMES).unwrap()];
-    assert!(lee_mine.contains(&s::uploaded_ago(0)));
+    assert!(lee_mine.contains(&s::uploaded_ago(0, false)));
     app.new_game(&kim, "세 번째 게임").await;
     let full = app.get(GALLERY, "/", Some(&kim)).await.text();
     let full_mine = &full[full.find(s::MY_GAMES).unwrap()..full.find(s::ALL_GAMES).unwrap()];

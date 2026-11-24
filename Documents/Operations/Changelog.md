@@ -8,6 +8,14 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.32 — Gallery: average from one rating, upload time on every card (2026-11-24) · **players see a game's stars from its first rating and how fresh it is**
+
+- **Landed.** Operator requests after Phase 9: a game's average shows from its first rating (★ 3.0 (1명)), not 3, so the hint 별점이 3개 모이면 평균이 보여요 and the `ratings_shown_at` setting are removed; every card (모든 게임 too, not only 내 게임) and the play page's title row say when the game was last uploaded, 올림 for a first upload and 업데이트 once updated (`version > 1`).
+- **Key surfaces.** [ratings.rs](../../Deploy/gallery/src/ratings.rs) `summary(game)`, `rate`, `play_parts`; [gallery.rs](../../Deploy/gallery/src/gallery.rs) `uploaded_ago`, `card` (foot on every card, no `state`), `play_view`; [strings.rs](../../Deploy/gallery/src/strings.rs) `uploaded_ago(days, updated)`; [config.rs](../../Deploy/gallery/src/config.rs); [gallery.js](../../Deploy/gallery/static/gallery.js) and [gallery.css](../../Deploy/gallery/static/gallery.css) (hint gone, `.playbar .when`); tests: [ratings.rs](../../Deploy/gallery/tests/ratings.rs) `the_average_shows_from_the_first_rating`, [look.rs](../../Deploy/gallery/tests/look.rs) (an updated game, the time on all four 모든 게임 cards and the play pages, `play-rated-one`).
+- **Verified.** In the Linux container: `cargo test` all green; clippy clean apart from the known `result_large_err` in `play.rs` (Deferred.md, newer clippy only). The look check at 1280 × 1100, 1366 × 768 and a true 390 px frame: cards keep one height, the title row wraps without overflow.
+- **Rollback.** No migration: the previous binary runs on the same database.
+- **GDD deltas.** GDD v0.31 → v0.32 ([GDD.md](../GDD/GDD.md) header, [systems.md](../GDD/systems.md) § Share Play and Ratings, [Glossary.md](../GDD/Glossary.md) Rating); ADR row in decisions.md. Commit: `v0.32: gallery — average from one rating, upload time on every card`.
+
 ## v0.31 — Phase 9 `gallery-ratings` (2026-11-24) · **anyone can give a gallery game 1–5 stars**
 
 - **Landed.** Students asked for ratings. Per the [phase prompt](../Phases/archive/phase9-gallery-ratings.md) (design panel, handshake-approved in 2 rounds): anyone, signed in or not, rates a game 1–5 stars on its play page, one rating per browser through an anonymous `__Host-gallery_rater` cookie (only its SHA-256 stored; no user id in any row or log), changeable; accepted only 3 minutes after the browser first opened the game, checked on the server; the average (★ 4.3 (12명), half up) shows from 3 ratings on cards and the play page; the owner can't rate their own game; ratings survive updates and go with a removed game. Gallery tests 190 green (+19); clippy clean but for one pre-existing lint (Deferred.md). Not yet deployed.

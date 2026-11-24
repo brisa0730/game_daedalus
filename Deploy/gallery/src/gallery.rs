@@ -32,9 +32,14 @@ fn days_ago(then: i64, now: i64) -> i64 {
     ((now + KST_SECS).div_euclid(86_400) - (then + KST_SECS).div_euclid(86_400)).max(0)
 }
 
-/// A game card. In "My games" (`mine`) it shows when the game was last uploaded instead of the owner's name. Every
-/// card has the rating line, empty until the average shows, so cards in a row keep one height.
-fn card(state: &AppState, game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
+/// When the game was last uploaded: `3일 전에 업데이트` (`올림` until its first update).
+fn uploaded_ago(game: &Game, now: i64) -> String {
+    s::uploaded_ago(days_ago(game.updated_at, now), game.version > 1)
+}
+
+/// A game card. In "My games" (`mine`) the owner's name is left out. Every card has the rating line, empty until
+/// the game has a rating, and the foot with the upload time, so cards in a row keep one height.
+fn card(game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
     let can_remove = user.is_some_and(|user| may_remove(game, user));
     html! {
         li.card {
@@ -45,13 +50,11 @@ fn card(state: &AppState, game: &Game, user: Option<&User>, mine: bool, now: i64
                 }
                 span.title { (game.title) }
                 @if !mine { span.owner { (game.owner_name.as_deref().unwrap_or("")) } }
-                span.rating { (ratings::summary(game, &state.config).unwrap_or_default()) }
+                span.rating { (ratings::summary(game).unwrap_or_default()) }
             }
-            @if mine || can_remove {
-                div.card-foot {
-                    @if mine { span.when { (s::uploaded_ago(days_ago(game.updated_at, now))) } }
-                    @if can_remove { a.remove href={ "/games/" (game.id) "/remove" } { (s::REMOVE) } }
-                }
+            div.card-foot {
+                span.when { (uploaded_ago(game, now)) }
+                @if can_remove { a.remove href={ "/games/" (game.id) "/remove" } { (s::REMOVE) } }
             }
         }
     }
@@ -78,7 +81,7 @@ pub async fn list(State(state): State<AppState>, user: Option<Extension<CurrentU
             @if all.is_empty() {
                 p { (s::NO_GAMES) }
             } @else {
-                ul.cards { @for game in &all { (card(&state, game, user.as_ref(), false, now)) } }
+                ul.cards { @for game in &all { (card(game, user.as_ref(), false, now)) } }
             }
         }
     };
@@ -92,7 +95,7 @@ fn my_games(state: &AppState, mine: &[Game], user: Option<&User>, now: i64) -> M
         section.mine {
             h2 { (s::MY_GAMES) }
             ul.cards {
-                @for game in mine { (card(state, game, user, true, now)) }
+                @for game in mine { (card(game, user, true, now)) }
                 li.add-slot {
                     @if at_limit {
                         p.limit { (s::too_many_games(state.config.games_per_account)) }
@@ -153,6 +156,7 @@ pub async fn play_view(
                 div.play-title {
                     h1 { (game.title) }
                     span.owner { (game.owner_name.as_deref().unwrap_or("")) }
+                    span.when { (uploaded_ago(&game, unix_now() as i64)) }
                     (rating_avg)
                 }
                 (rate_box)
@@ -249,9 +253,11 @@ mod tests {
         assert_eq!(days_ago(just_after_midnight, just_after_midnight + 23 * 60 * 60), 0);
         assert_eq!(days_ago(just_after_midnight - 2 * 86_400, just_after_midnight), 2);
         assert_eq!(days_ago(just_after_midnight + 10, just_after_midnight), 0, "a clock step back is today");
-        assert_eq!(s::uploaded_ago(0), "오늘 올림");
-        assert_eq!(s::uploaded_ago(1), "어제 올림");
-        assert_eq!(s::uploaded_ago(30), "30일 전에 올림");
+        assert_eq!(s::uploaded_ago(0, false), "오늘 올림");
+        assert_eq!(s::uploaded_ago(1, false), "어제 올림");
+        assert_eq!(s::uploaded_ago(30, false), "30일 전에 올림");
+        assert_eq!(s::uploaded_ago(0, true), "오늘 업데이트");
+        assert_eq!(s::uploaded_ago(3, true), "3일 전에 업데이트");
     }
 
     #[test]
