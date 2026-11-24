@@ -57,13 +57,27 @@ pub fn game_count(n: usize) -> String {
     format!("게임 {n}개")
 }
 
-/// When a game was last uploaded, in whole Korean calendar days before today: 올림 for a first upload, 업데이트
-/// once it has been updated.
+/// 올림 for a first upload, 업데이트 once the game has been updated.
+fn upload_word(updated: bool) -> &'static str {
+    if updated { "업데이트" } else { "올림" }
+}
+
+/// When a game was last uploaded, under 24 hours ago: 방금 under a minute, then whole minutes under an hour, then
+/// whole hours.
+pub fn uploaded_recently(secs: i64, updated: bool) -> String {
+    let what = upload_word(updated);
+    match secs {
+        ..60 => format!("방금 {what}"),
+        60..3_600 => format!("{}분 전에 {what}", secs / 60),
+        _ => format!("{}시간 전에 {what}", secs / 3_600),
+    }
+}
+
+/// When a game was last uploaded, 24 hours ago or more, in whole Korean calendar days before today.
 pub fn uploaded_ago(days: i64, updated: bool) -> String {
-    let what = if updated { "업데이트" } else { "올림" };
+    let what = upload_word(updated);
     match days {
-        ..=0 => format!("오늘 {what}"),
-        1 => format!("어제 {what}"),
+        ..=1 => format!("어제 {what}"),
         n => format!("{n}일 전에 {what}"),
     }
 }

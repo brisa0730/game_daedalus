@@ -17,6 +17,7 @@ use gallery::strings as s;
 use support::*;
 
 const DAY: i64 = 86_400;
+const HOUR: i64 = 3_600;
 
 fn out_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../TestResults/gallery-look")
@@ -41,13 +42,13 @@ fn no_inline_style(name: &str, html: &str) {
 }
 
 /// Sets a game's first and latest upload times directly in the test's database (the `Db` pool is private).
-async fn backdate(app: &TestApp, id: &str, created_days: i64, updated_days: i64) {
+async fn backdate(app: &TestApp, id: &str, created_ago: i64, updated_ago: i64) {
     let url = format!("sqlite://{}", app.state.config.db_path().display());
     let pool = sqlx::SqlitePool::connect(&url).await.unwrap();
     let now = unix_now() as i64;
     sqlx::query("UPDATE games SET created_at = ?, updated_at = ? WHERE id = ?")
-        .bind(now - created_days * DAY)
-        .bind(now - updated_days * DAY)
+        .bind(now - created_ago)
+        .bind(now - updated_ago)
         .bind(id)
         .execute(&pool)
         .await
@@ -75,13 +76,13 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     let clouds = app.new_game(&kim, "구름 위 달리기").await;
     let traps = app.new_game(&lee, "함정 천국").await;
     let spikes = app.new_game(&park, "가시 조심!!").await;
-    // kim updated `clouds` yesterday: its cards say 업데이트, the others 올림.
+    // kim updated `clouds` 23 hours ago (the widest upload time): its cards say 업데이트, the others 올림.
     let updated = app.upload(&kim, &clouds, ShareZip::new("구름 위 달리기").build()).await;
     assert_eq!(updated.status, StatusCode::OK, "{}", updated.text());
-    backdate(&app, &old, 20, 10).await;
-    backdate(&app, &clouds, 9, 1).await;
-    backdate(&app, &spikes, 2, 2).await;
-    // lee's game is brand new: today, and NEW.
+    backdate(&app, &old, 20 * DAY, 10 * DAY).await;
+    backdate(&app, &clouds, 9 * DAY, 23 * HOUR).await;
+    backdate(&app, &spikes, 2 * DAY, 2 * DAY).await;
+    // lee's game is brand new: 방금, and NEW.
 
     // Ratings: `old` has three, `traps` one (each average shows). Each browser opens, waits out the gate
     // (backdated) and rates; `ready` opened `traps` and may rate but hasn't.
@@ -270,17 +271,17 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     // to the limit line.
     let kims = page("list-mine");
     let mine = &kims[kims.find(s::MY_GAMES).unwrap()..kims.find(s::ALL_GAMES).unwrap()];
-    assert!(mine.contains(&s::uploaded_ago(10, false)) && mine.contains(&s::uploaded_ago(1, true)));
-    for when in [s::uploaded_ago(10, false), s::uploaded_ago(1, true), s::uploaded_ago(0, false), s::uploaded_ago(2, false)] {
+    assert!(mine.contains(&s::uploaded_ago(10, false)) && mine.contains(&s::uploaded_recently(23 * HOUR, true)));
+    for when in [s::uploaded_ago(10, false), s::uploaded_recently(23 * HOUR, true), s::uploaded_recently(0, false), s::uploaded_ago(2, false)] {
         assert!(all.contains(&when), "모든 게임: {when}");
     }
     assert_eq!(all.matches(r#"<span class="when">"#).count(), 4, "every card");
     assert!(page("play-own").contains(&s::uploaded_ago(10, false)));
-    assert!(page("play-public").contains(&s::uploaded_ago(0, false)));
+    assert!(page("play-public").contains(&s::uploaded_recently(0, false)));
     assert!(mine.contains(r#"class="add-card""#), "kim has 2 of 3 games");
     let lees = page("list");
     let lee_mine = &lees[lees.find(s::MY_GAMES).unwrap()..lees.find(s::ALL_GAMES).unwrap()];
-    assert!(lee_mine.contains(&s::uploaded_ago(0, false)));
+    assert!(lee_mine.contains(&s::uploaded_recently(0, false)));
     app.new_game(&kim, "세 번째 게임").await;
     let full = app.get(GALLERY, "/", Some(&kim)).await.text();
     let full_mine = &full[full.find(s::MY_GAMES).unwrap()..full.find(s::ALL_GAMES).unwrap()];

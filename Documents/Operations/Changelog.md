@@ -8,6 +8,14 @@
 - **GDD deltas.** GDD/Operations/Roadmap/Issues touches + commit message verbatim.
 Omit any bullet that has nothing to say. If an entry wants >6 bullets, the extra detail belongs in the phase log. -->
 
+## v0.37 — Gallery: minutes and hours for a recent upload (2026-11-24) · **a game uploaded less than a day ago says how many minutes or hours ago**
+
+- **Landed.** Operator request: under 24 hours the upload time on a card and the play page is 방금 (under a minute), N분 전에 (under an hour) or N시간 전에, then 올림 / 업데이트; from 24 hours it stays 어제 / N일 전에 in Korean calendar days (24 hours back always crosses a Korean midnight, so 오늘 no longer appears). Server-rendered and not refreshed while a page stays open: the operator's call. Comments keep 오늘 / 어제 / N일 전. `cargo test` 221 green (+1), clippy clean.
+- **Key surfaces.** [strings.rs](../../Deploy/gallery/src/strings.rs) `uploaded_recently` (new), `uploaded_ago` (24 hours and over); [gallery.rs](../../Deploy/gallery/src/gallery.rs) `upload_time` picks one; [look.rs](../../Deploy/gallery/tests/look.rs) `backdate` takes seconds, kim's updated game is 23 hours old so the widest label (23시간 전에 업데이트) is on screen.
+- **Verified.** On the Mac: look pages served on localhost, `list-mine` at 1280 × 900 and in a 390 px frame: the label and 삭제 share one line, no overflow.
+- **Rollback.** No migration: v0.36's binary runs on the same database.
+- **GDD deltas.** GDD v0.36 → v0.37 ([GDD.md](../GDD/GDD.md) header, [systems.md](../GDD/systems.md) § Play). Commit: `v0.37: gallery — minutes and hours for a recent upload`.
+
 ## v0.36 — Gallery: the rating average as stars (2026-11-24) · **a game's average shows as five stars filled to it, not as a number**
 
 - **Landed.** Operator request: the average (★ 4.3 (12명)) becomes five 7 × 7 pixel stars, gold up to the average to the tenth and grey after it, then (12명), on the game's cards and next to its title on the play page. The number moves to the hover text and the screen-reader label (5점 만점에 4.3점, 12명). The average's stars are 14 px (the rating buttons' are 20 px in 28 px buttons) and not clickable, and redraw after a vote from the server's markup. Per the [plan](../Plans/archive/gallery-star-average.md) (critic pass, then handshake-approved in 1 round). `cargo test` 220 green (+2), clippy clean.

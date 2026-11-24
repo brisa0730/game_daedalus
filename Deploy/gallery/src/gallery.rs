@@ -32,9 +32,15 @@ pub(crate) fn days_ago(then: i64, now: i64) -> i64 {
     ((now + KST_SECS).div_euclid(86_400) - (then + KST_SECS).div_euclid(86_400)).max(0)
 }
 
-/// When the game was last uploaded: `3일 전에 업데이트` (`올림` until its first update).
+/// When the game was last uploaded: `25분 전에 업데이트`, `3시간 전에 업데이트` under 24 hours, then
+/// `3일 전에 업데이트` (`올림` until its first update).
 fn uploaded_ago(game: &Game, now: i64) -> String {
-    s::uploaded_ago(days_ago(game.updated_at, now), game.version > 1)
+    upload_time(game.updated_at, game.version > 1, now)
+}
+
+fn upload_time(then: i64, updated: bool, now: i64) -> String {
+    let secs = now - then;
+    if secs < 86_400 { s::uploaded_recently(secs, updated) } else { s::uploaded_ago(days_ago(then, now), updated) }
 }
 
 /// A game card. In "My games" (`mine`) the owner's name is left out. Every card has the rating line, empty until
@@ -258,11 +264,25 @@ mod tests {
         assert_eq!(days_ago(just_after_midnight, just_after_midnight + 23 * 60 * 60), 0);
         assert_eq!(days_ago(just_after_midnight - 2 * 86_400, just_after_midnight), 2);
         assert_eq!(days_ago(just_after_midnight + 10, just_after_midnight), 0, "a clock step back is today");
-        assert_eq!(s::uploaded_ago(0, false), "오늘 올림");
         assert_eq!(s::uploaded_ago(1, false), "어제 올림");
         assert_eq!(s::uploaded_ago(30, false), "30일 전에 올림");
-        assert_eq!(s::uploaded_ago(0, true), "오늘 업데이트");
         assert_eq!(s::uploaded_ago(3, true), "3일 전에 업데이트");
+    }
+
+    #[test]
+    fn under_a_day_the_time_is_minutes_then_hours() {
+        let now = 1_793_633_400;
+        let at = |ago: i64, updated: bool| upload_time(now - ago, updated, now);
+        assert_eq!(at(0, false), "방금 올림");
+        assert_eq!(at(59, false), "방금 올림");
+        assert_eq!(at(-30, false), "방금 올림", "a clock step back is just now");
+        assert_eq!(at(60, false), "1분 전에 올림");
+        assert_eq!(at(59 * 60 + 59, true), "59분 전에 업데이트");
+        assert_eq!(at(3_600, true), "1시간 전에 업데이트");
+        assert_eq!(at(86_399, false), "23시간 전에 올림");
+        // 24 hours back always crosses a Korean midnight: from there on, calendar days.
+        assert_eq!(at(86_400, true), "어제 업데이트");
+        assert_eq!(at(3 * 86_400, false), "3일 전에 올림");
     }
 
     #[test]
