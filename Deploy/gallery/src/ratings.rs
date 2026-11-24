@@ -31,10 +31,53 @@ pub fn average_tenths(total: i64, count: i64) -> i64 {
     (total * 20 + count) / (2 * count)
 }
 
-/// `★ 4.3 (12명)` once the game has a rating; `None` before.
-pub fn summary(game: &Game) -> Option<String> {
-    (game.ratings > 0)
-        .then(|| s::rating_summary(average_tenths(game.stars_total, game.ratings), game.ratings))
+/// Where the gold of the average stars stops, in half units of the 39 × 7 image (one CSS px each at 78 × 14):
+/// five 7-unit stars 1 unit apart, a part star measured on the star and not the gap, rounded to a whole pixel so
+/// the edge is never a blurred column. Integers only: 4.3 is 68 (34 units), 5.0 is 78.
+pub fn gold_halves(tenths: i64) -> i64 {
+    let tenths_of_unit = (tenths / 10 * 80 + tenths % 10 * 7).min(390);
+    (tenths_of_unit + 2) / 5
+}
+
+/// The rows of one 7 × 7 pixel star (x, y, width): the same shape as the rating buttons' star.
+const STAR_ROWS: [(i64, i64, i64); 9] =
+    [(3, 0, 1), (2, 1, 3), (0, 2, 7), (1, 3, 5), (2, 4, 3), (1, 5, 2), (4, 5, 2), (1, 6, 1), (5, 6, 1)];
+
+/// One path drawing five stars 8 units apart.
+fn five_stars() -> String {
+    let mut d = String::new();
+    for k in 0..5 {
+        for (x, y, w) in STAR_ROWS {
+            d.push_str(&format!("M{} {y}h{w}v1h-{w}z", x + 8 * k));
+        }
+    }
+    d
+}
+
+/// The average once the game has a rating (`None` before): five stars gold up to the average, then `(12명)`.
+/// The number is in the hover text and the screen-reader label only. The gold copy sits in a nested svg, which
+/// clips at its own width, so a page of cards needs no clip ids; sizes are attributes (the CSP has no inline style).
+pub fn summary(game: &Game) -> Option<Markup> {
+    (game.ratings > 0).then(|| {
+        let tenths = average_tenths(game.stars_total, game.ratings);
+        let label = s::rating_label(tenths, game.ratings);
+        let gold = gold_halves(tenths);
+        let gold = if gold % 2 == 0 { (gold / 2).to_string() } else { format!("{}.5", gold / 2) };
+        let stars = five_stars();
+        html! {
+            span.avg-rating title=(label) {
+                span.avg-stars role="img" aria-label=(label) {
+                    svg viewBox="0 0 39 7" width="78" height="14" shape-rendering="crispEdges" aria-hidden="true" {
+                        path.avg-off d=(stars) {}
+                        svg width=(gold) height="7" {
+                            path.avg-on d=(stars) {}
+                        }
+                    }
+                }
+                span.avg-count aria-hidden="true" { (s::rating_count(game.ratings)) }
+            }
+        }
+    })
 }
 
 /// Seconds until this browser may rate: the whole gate when it hasn't opened the game yet.
@@ -144,7 +187,7 @@ pub async fn rate(
         }
     }
     let Ok(Some(game)) = state.db.live_game(&game.id).await else { return failed() };
-    json_answer(StatusCode::OK, json!({"ok": true, "mine": stars, "summary": summary(&game)}))
+    json_answer(StatusCode::OK, json!({"ok": true, "mine": stars, "summary": summary(&game).map(Markup::into_string)}))
 }
 
 /// The play page's rating parts: the average for the title row, and the stars (or the owner's note) for the bar.
@@ -152,7 +195,7 @@ pub async fn rate(
 pub async fn play_parts(state: &AppState, game: &Game, user: Option<&User>, headers: &HeaderMap) -> (Markup, Markup) {
     let config = &state.config;
     let summary = summary(game);
-    let avg = html! { span #rating-avg.avg hidden[summary.is_none()] { (summary.as_deref().unwrap_or("")) } };
+    let avg = html! { span #rating-avg.avg hidden[summary.is_none()] { @if let Some(summary) = summary { (summary) } } };
     if is_owner(game, user) {
         return (avg, html! { p.rate-own { (s::RATE_OWN) } });
     }
@@ -217,8 +260,47 @@ mod tests {
         assert_eq!(average_tenths(14, 3), 47);
         assert_eq!(average_tenths(3, 3), 10);
         assert_eq!(average_tenths(15, 3), 50);
-        assert_eq!(s::rating_summary(43, 12), "★ 4.3 (12명)");
-        assert_eq!(s::rating_summary(10, 3), "★ 1.0 (3명)");
+        assert_eq!(s::rating_label(43, 12), "5점 만점에 4.3점, 12명");
+        assert_eq!(s::rating_label(10, 3), "5점 만점에 1.0점, 3명");
+        assert_eq!(s::rating_count(12), "(12명)");
+    }
+
+    #[test]
+    fn the_gold_stops_on_a_whole_pixel_inside_the_star() {
+        // 1.0: past the first star (the gap after it is empty). 4.3: two columns into the fifth star; 4.7: five.
+        for (tenths, halves) in [(10, 16), (43, 68), (47, 74), (50, 78), (30, 48), (49, 77), (41, 65)] {
+            assert_eq!(gold_halves(tenths), halves, "{tenths}");
+        }
+        assert_eq!(gold_halves(average_tenths(17, 4)), 68, "4.25 shows as 4.3");
+    }
+
+    #[test]
+    fn the_average_is_stars_with_the_count() {
+        let game = Game {
+            id: "abc".into(),
+            owner_id: None,
+            owner_name: None,
+            title: "t".into(),
+            build_name: "b".into(),
+            version: 1,
+            created_at: 0,
+            updated_at: 0,
+            published_version: None,
+            ratings: 3,
+            stars_total: 13,
+        };
+        let html = summary(&game).unwrap().into_string();
+        assert!(html.contains(r#"title="5점 만점에 4.3점, 3명""#), "{html}");
+        assert!(html.contains(r#"role="img" aria-label="5점 만점에 4.3점, 3명""#), "{html}");
+        assert!(html.contains(r#"<svg width="34" height="7">"#), "{html}");
+        assert!(html.contains(r#"<span class="avg-count" aria-hidden="true">(3명)</span>"#), "{html}");
+        assert!(html.contains(r#"class="avg-off""#) && html.contains(r#"class="avg-on""#), "both layers: {html}");
+        assert_eq!(html.matches(r#" d="M"#).count(), 2, "five stars in each layer");
+        assert!(!html.contains("class=\"star"), "never the buttons' class");
+        // 49 / 10 = 4.9: 77 halves, the half-pixel width.
+        let near_five = Game { ratings: 10, stars_total: 49, ..game.clone() };
+        assert!(summary(&near_five).unwrap().into_string().contains(r#"<svg width="38.5" height="7">"#));
+        assert!(summary(&Game { ratings: 0, ..game }).is_none());
     }
 
     #[test]

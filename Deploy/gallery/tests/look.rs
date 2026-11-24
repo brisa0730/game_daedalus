@@ -216,14 +216,24 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     // The states: counting down (a fresh browser), ready, rated (one rating already shows), and three.
     assert!(page("play-rate-wait").contains(&s::rate_wait(180)));
     assert!(page("play-rate-ready").contains(r#"<span id="rate-wait" hidden>"#));
-    let one = s::rating_summary(30, 1);
+    // The averages are stars: the label for hover and screen readers, the gold clipped to the average.
+    let label = |tenths, count| format!(r#"aria-label="{}""#, s::rating_label(tenths, count));
+    let one = label(30, 1);
     assert!(page("play-rated-one").contains(&one));
     assert!(page("list-public").contains(&one), "a single rating shows on the card");
-    let old_average = s::rating_summary(43, 3);
+    let old_average = label(43, 3);
     for play in ["play-rated-avg", "play-own"] {
         assert!(page(play).contains(&old_average), "{play}");
+        assert!(page(play).contains(r#"<svg width="34" height="7">"#), "{play}: 4.3 clips two columns into the fifth star");
     }
     assert!(page("list-public").contains(&old_average));
+    assert_eq!(page("list-public").matches(r#"class="avg-stars""#).count(), 2, "one per rated game, none on the rest");
+    for play in ["play-rated-one", "play-rated-avg", "play-own"] {
+        let html = page(play);
+        let avg = &html[html.find(r#"id="rating-avg""#).unwrap()..];
+        assert_eq!(html.matches(r#"class="avg-stars""#).count(), 1, "{play}");
+        assert!(avg[..avg.find("</span></span>").unwrap()].contains(r#"class="avg-stars""#), "{play}: inside #rating-avg");
+    }
     // The teacher's list edits both names per student, under the hint that the nickname is public.
     assert!(page("teacher").contains(s::NAMES_HINT));
     // Each student row and the add-one form: the nickname box is always named `nickname`, never `name` (which the

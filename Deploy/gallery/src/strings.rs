@@ -100,9 +100,15 @@ pub fn rate_wait(secs: u64) -> String {
 }
 
 
-/// A game's average in tenths of a star and how many rated it: `★ 4.3 (12명)`.
-pub fn rating_summary(tenths: i64, count: i64) -> String {
-    format!("★ {}.{} ({count}명)", tenths / 10, tenths % 10)
+/// A game's average in tenths of a star and how many rated it, for the hover text and screen readers:
+/// `5점 만점에 4.3점, 12명`. On screen the average is stars.
+pub fn rating_label(tenths: i64, count: i64) -> String {
+    format!("5점 만점에 {}.{}점, {count}명", tenths / 10, tenths % 10)
+}
+
+/// The visible count after the average stars: `(12명)`.
+pub fn rating_count(count: i64) -> String {
+    format!("({count}명)")
 }
 
 /// A star button's accessible name.

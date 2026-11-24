@@ -3,10 +3,10 @@
 // 16:9 (letterboxed) on any screen. Stars: the page records this browser's open with a POST, counts down to the
 // rating gate, and saves a rating without leaving the page; a click hands the keyboard straight back to the game.
 // Comments: a guest's button counts down on the same clock; posting, replying, deleting and "more" are all fetches,
-// and new items are markup the server rendered (never user text put into HTML here). The game gets focus at start
-// and after its frame loads only when nothing else has it, so typing a comment is never interrupted. Messages come
-// from data attributes rendered from strings.rs. It never navigates for a rating or a comment and never listens
-// for messages from games.
+// and new items are markup the server rendered (never user text put into HTML here), as are the average's stars
+// after a vote. The game gets focus at start and after its frame loads only when nothing else has it, so typing a
+// comment is never interrupted. Messages come from data attributes rendered from strings.rs. It never navigates
+// for a rating or a comment and never listens for messages from games.
 (function () {
   // The rating gate's clock, shared by the stars and a guest's comment button.
   var gate = { deadline: 0, listeners: [], timer: null, reopen: null };
@@ -114,7 +114,7 @@
         if (r.status === 200 && r.answer.ok) {
           light(r.answer.mine);
           tell(note, d.msgSaved, false);
-          avg.textContent = r.answer.summary || "";
+          avg.innerHTML = r.answer.summary || "";
           avg.hidden = !r.answer.summary;
           return;
         }

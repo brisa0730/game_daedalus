@@ -352,7 +352,7 @@ async fn comments_keep_no_link_between_accounts_and_browsers() {
     assert_eq!(app.rate(&t.game, Some(&guest), 5).await.status, StatusCode::OK);
     let item = app.comment(&t.game, Some(&guest), "guest", "guest").await;
     let html = item.json()["html"].as_str().unwrap().to_string();
-    assert!(!html.contains('★'), "{html}");
+    assert!(!html.contains("avg-stars") && !html.contains("5점 만점에"), "{html}");
     let token = guest.split_once('=').unwrap().1;
     let hex: String = gallery::session::token_hash(token).iter().map(|b| format!("{b:02x}")).collect();
     let page = app.get(GALLERY, &format!("/play/{}", t.game), Some(&guest)).await.text();

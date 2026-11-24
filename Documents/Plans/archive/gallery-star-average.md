@@ -1,6 +1,6 @@
 # Plan: Gallery Star Average
 
-**Date:** 2026-11-24 | **Status:** approved by handshake (round 1); awaiting commit
+**Date:** 2026-11-24 | **Status:** complete
 
 ## Overview
 
@@ -229,3 +229,11 @@ and the test sweep all check out against the code. Nothing blocks. Fold in F1 (a
 the plan's first choice is effectively invisible), F2 (the 5.0 screenshot check has no fixture behind it), and
 the F3/F4 corrections. F5 is a small usability call. Compiling, the tests, clippy and the screenshots are still
 unrun and are the Author's to do.
+
+
+---
+
+**Approval:** User confirmed 2026-11-24 (handshake approved in round 1).
+**Execution:** COMPLETE 2026-11-24.
+**Verification:** `cargo test` 220 green (+2) and clippy clean in the Linux container; look check over CDP at 1280 × 900, 390 × 844 and 1366 × 768 (no overflow, font loaded, exact fill with crisp edges). Code review: PASS, no HIGH/MED; LOW 1, 2 and 6 folded (both layers and the half-pixel width tested, the `[hidden]` rule commented), 4 (the five-star path rebuilt per card) left as negligible.
+**Version note:** `cursor: default` sits on `.avg-rating` (cards and play page), not only `#rating-avg` as Step 3 says.

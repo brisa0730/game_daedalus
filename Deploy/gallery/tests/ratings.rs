@@ -120,21 +120,22 @@ async fn the_average_shows_from_the_first_rating() {
         assert_eq!(answer.status, StatusCode::OK);
         let count = n as i64 + 1;
         if count == 1 {
-            let one = s::rating_summary(50, 1);
-            assert_eq!(answer.json()["summary"], one);
+            let one = label(50, 1);
+            assert!(summary_of(&answer).contains(&one));
             assert!(app.get(GALLERY, "/", None).await.text().contains(&one), "one rating shows on the card");
             assert!(app.get(GALLERY, &format!("/play/{id}"), None).await.text().contains(&one));
         }
         if count == 3 {
             // 13 / 3 = 4.33…
-            assert_eq!(answer.json()["summary"], s::rating_summary(43, 3));
+            assert!(summary_of(&answer).contains(&label(43, 3)));
         }
         last = Some(answer);
     }
     // 17 / 4 = 4.25, half up.
-    let summary = s::rating_summary(43, 4);
-    assert_eq!(summary, "★ 4.3 (4명)");
-    assert_eq!(last.unwrap().json()["summary"], summary);
+    let summary = label(43, 4);
+    assert_eq!(summary, r#"aria-label="5점 만점에 4.3점, 4명""#);
+    let last = summary_of(&last.unwrap());
+    assert!(last.contains(&summary) && last.contains("(4명)") && last.contains(r#"<svg width="34" height="7">"#), "{last}");
     assert!(app.get(GALLERY, "/", None).await.text().contains(&summary), "모든 게임 card");
     let mine = app.get(GALLERY, "/", Some(&kim)).await.text();
     assert_eq!(mine.matches(&summary).count(), 2, "내 게임 and 모든 게임 cards");
@@ -168,6 +169,16 @@ async fn ratings_store_nothing_about_who_rated() {
     let session = login.cookie("__Host-gallery_session").unwrap();
     let logout = app.post_form("/logout", Some(&format!("{session}; {rater}")), "").await;
     assert!(logout.cookie(RATER_COOKIE).is_none());
+}
+
+/// The average's screen-reader label as it appears in the markup (the same text is also the `title`).
+fn label(tenths: i64, count: i64) -> String {
+    format!(r#"aria-label="{}""#, s::rating_label(tenths, count))
+}
+
+/// The rate answer's average: the stars' markup.
+fn summary_of(answer: &Answer) -> String {
+    answer.json()["summary"].as_str().unwrap().to_string()
 }
 
 async fn rated(app: &TestApp, id: &str) {
@@ -220,7 +231,7 @@ async fn ratings_survive_an_update() {
     assert_eq!(updated.status, StatusCode::OK, "{}", updated.text());
     let game = app.state.db.live_game(&id).await.unwrap().unwrap();
     assert_eq!((game.version, game.ratings, game.stars_total), (2, 3, 15));
-    assert!(app.get(GALLERY, "/", None).await.text().contains(&s::rating_summary(50, 3)));
+    assert!(app.get(GALLERY, "/", None).await.text().contains(&label(50, 3)));
 }
 
 #[tokio::test]
@@ -236,7 +247,7 @@ async fn a_returning_browser_sees_its_stars_and_the_page_writes_nothing() {
     assert!(html.contains(r#"data-stars="3" aria-label="별 3개" aria-pressed="true""#), "{html}");
     assert_eq!(html.matches(r#"class="star on""#).count(), 3);
     assert!(html.contains(r#"<span id="rate-wait" hidden>"#), "no countdown");
-    assert!(html.contains(&s::rating_summary(30, 1)), "its one rating shows");
+    assert!(html.contains(&label(30, 1)), "its one rating shows");
     assert!(page.cookie(RATER_COOKIE).is_none(), "the GET sets no cookie");
 
     // A fresh browser's GET records nothing either.
