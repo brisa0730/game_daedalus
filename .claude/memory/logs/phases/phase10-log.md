@@ -14,10 +14,10 @@ Prompt: [phase10-gallery-comments.md](../../../../Documents/Phases/archive/phase
 4. `gallery.js`: one gate clock shared by the stars and a guest's comment button; the load handler focuses the game only when nothing else has focus; `player.js` focuses the canvas only when its frame has focus. A second `function say` in the upload half would have replaced the comments' helper (same IIFE scope), hence `tell`.
 
 ## Verification
-- Docker `rust:1` (1.100) from the laptop; the image lacks clippy until `rustup component add clippy`. 218 tests (+27), clippy clean with `-A clippy::result_large_err`.
+- Docker `rust:1` (1.100) from the laptop; the image lacks clippy until `rustup component add clippy`. 218 tests (+27), clippy clean, nothing allowed (after the follow-up below).
 - Look check: 81 screenshots with measured checks (overflow, font, 16:9, frame in view at 1366 × 768, textarea 16 px, buttons ≥ 44 px, reply indent ≤ 12 px); the comment states looked at. Script check in headless Chrome against a fake server: 22 checks.
 - Code review: no HIGH/MED. LOWs fixed: `replies_of` scoped to the game, a 410 delete drops the item, focus back to the box after posting, a 선생님 test. LOWs left as is: the guest gap check scans `comments` (no `guest_hash` index; class scale), blank-looking characters beyond the spec's list (e.g. U+2800) pass, a crafted 64+ byte delete body gets the too-long message.
 
 ## Not done here
 - Deploy on the Mac Mini with v0.34 (prompt Step 16: copy the pre-deploy backup to `pre-v0.35.db` at once, rehearse the new binary on it) and the operator check on the live gallery; then flip Comment and Reply to Active in the Glossary.
-- The Deferred.md `result_large_err` entry's trigger ("the next change to `play.rs`") fired with v0.34's `play.rs` change, not this phase's; left for the operator to schedule.
+- Follow-up (operator OK): the Deferred.md `result_large_err` entry, whose trigger fired with v0.34's `play.rs` change, is fixed (`gated` boxes its refusal) and the entry deleted.

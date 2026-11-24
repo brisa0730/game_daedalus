@@ -83,12 +83,13 @@ pub async fn enter(
     response
 }
 
-/// The live game, if the request carries a valid gate cookie for it.
-async fn gated(state: &AppState, id: &str, headers: &HeaderMap) -> Result<Game, Response> {
-    let Some(game) = live(state, id).await else { return Err(StatusCode::NOT_FOUND.into_response()) };
+/// The live game, if the request carries a valid gate cookie for it; otherwise the answer to send (boxed: a
+/// `Response` is large next to a `Game`).
+async fn gated(state: &AppState, id: &str, headers: &HeaderMap) -> Result<Game, Box<Response>> {
+    let Some(game) = live(state, id).await else { return Err(Box::new(StatusCode::NOT_FOUND.into_response())) };
     let token = cookie(headers, &gate_cookie_name(&game.id)).unwrap_or("");
     if !state.key.verify(Purpose::Gate, &game.id, token, unix_now()) {
-        return Err(reopen_page());
+        return Err(Box::new(reopen_page()));
     }
     Ok(game)
 }
@@ -109,7 +110,7 @@ pub async fn player_page(
 ) -> Response {
     let game = match gated(&state, &id, &headers).await {
         Ok(game) => game,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let from_bucket = state.storage.as_ref().and(state.config.storage.as_ref()).filter(|_| {
         game.published_version == Some(game.version) && query.local.as_deref() != Some("1")
@@ -150,7 +151,7 @@ pub static PLAYER_JS_URL: LazyLock<String> = LazyLock::new(|| crate::pages::vers
 
 pub async fn player_js(State(state): State<AppState>, Path(id): Path<String>, headers: HeaderMap) -> Response {
     if let Err(response) = gated(&state, &id, &headers).await {
-        return response;
+        return *response;
     }
     (
         [(header::CONTENT_TYPE, "application/javascript; charset=utf-8"), (header::CACHE_CONTROL, "private, no-cache")],
@@ -167,7 +168,7 @@ pub async fn build_file(
 ) -> Response {
     let game = match gated(&state, &id, &headers).await {
         Ok(game) => game,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     if !build_files(&game.build_name).contains(&file) {
         return StatusCode::NOT_FOUND.into_response();
