@@ -1,4 +1,6 @@
-//! Cleaning text that comes from users: game titles, display names and login IDs.
+//! Cleaning text that comes from users: game titles, display names, login IDs and comments.
+
+use unicode_normalization::UnicodeNormalization;
 
 /// Trimmed, without control or bidi-override characters, whitespace runs collapsed, at most `max_chars`
 /// characters; `None` when nothing is left.
@@ -26,6 +28,79 @@ pub fn clean_label(raw: &str, max_chars: usize) -> Option<String> {
 
 fn is_bidi_control(c: char) -> bool {
     matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}' | '\u{061C}')
+}
+
+/// A comment's most characters (after cleaning; a newline counts one) and most lines.
+pub const COMMENT_MAX_CHARS: usize = 300;
+pub const COMMENT_MAX_LINES: usize = 5;
+
+/// Why a comment was refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommentProblem {
+    Empty,
+    TooLong,
+}
+
+/// Characters that draw nothing: a line of only these (and whitespace) is blank, so an invisible comment is refused.
+fn is_invisible(c: char) -> bool {
+    matches!(
+        c,
+        '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' | '\u{3164}' | '\u{115F}' | '\u{1160}' | '\u{FFA0}'
+    )
+}
+
+/// A comment as stored: NFC; control and bidi characters dropped (a tab is a space); in each line whitespace runs
+/// collapse and the ends are trimmed; blank lines at the ends go and runs of them become one; lines after the
+/// fifth are joined onto the fifth. Refused, never cut: nothing visible left, or more than 300 characters.
+pub fn clean_comment(raw: &str) -> Result<String, CommentProblem> {
+    let nfc: String = raw.nfc().collect();
+    let unified = nfc.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines: Vec<String> = Vec::new();
+    for line in unified.split('\n') {
+        let mut out = String::new();
+        let mut pending_space = false;
+        for c in line.chars() {
+            let c = if c == '\t' { ' ' } else { c };
+            if c.is_control() || is_bidi_control(c) {
+                continue;
+            }
+            if c.is_whitespace() {
+                pending_space = !out.is_empty();
+                continue;
+            }
+            if pending_space {
+                out.push(' ');
+                pending_space = false;
+            }
+            out.push(c);
+        }
+        let blank = out.chars().all(|c| c.is_whitespace() || is_invisible(c));
+        if blank && lines.last().is_none_or(|l| l.is_empty()) {
+            continue;
+        }
+        lines.push(if blank { String::new() } else { out });
+    }
+    while lines.last().is_some_and(|l| l.is_empty()) {
+        lines.pop();
+    }
+    if lines.is_empty() {
+        return Err(CommentProblem::Empty);
+    }
+    if lines.len() > COMMENT_MAX_LINES {
+        let rest: Vec<String> = lines.split_off(COMMENT_MAX_LINES).into_iter().filter(|l| !l.is_empty()).collect();
+        let last = &mut lines[COMMENT_MAX_LINES - 1];
+        for part in rest {
+            if !last.is_empty() {
+                last.push(' ');
+            }
+            last.push_str(&part);
+        }
+    }
+    let body = lines.join("\n");
+    if body.chars().count() > COMMENT_MAX_CHARS {
+        return Err(CommentProblem::TooLong);
+    }
+    Ok(body)
 }
 
 /// A login ID: lowercase ASCII `a-z 0-9 - _`, 3–20 characters. Upper case is folded; anything else is refused.
@@ -96,6 +171,21 @@ mod tests {
         assert_eq!(check_new_password("KIM01ABC", "KIM01ABC", "x", "kim01abc"), Err(SameAsLogin));
         assert_eq!(check("bear-moon-234", "bear-moon-234"), Err(SameAsCurrent));
         assert_eq!(check("        ", "        "), Ok(()), "kept as typed, spaces count");
+    }
+
+    #[test]
+    fn comments_are_cleaned_and_never_cut() {
+        assert_eq!(clean_comment("  안녕  \n\n\n 하세요 ").as_deref(), Ok("안녕\n\n하세요"));
+        assert_eq!(clean_comment("a\u{0007}b\u{202E}c\r\nd\te").as_deref(), Ok("abc\nd e"));
+        assert_eq!(clean_comment("\u{200B}\u{3164} \n\u{FEFF}"), Err(CommentProblem::Empty));
+        assert_eq!(clean_comment(" \n \t "), Err(CommentProblem::Empty));
+        let ok = "가".repeat(300);
+        assert_eq!(clean_comment(&ok).as_deref(), Ok(ok.as_str()));
+        assert_eq!(clean_comment(&"가".repeat(301)), Err(CommentProblem::TooLong));
+        let nfd = "\u{1100}\u{1161}".repeat(300);
+        assert_eq!(clean_comment(&nfd).as_deref(), Ok(ok.as_str()), "NFC first: 300 syllables typed as jamo");
+        assert_eq!(clean_comment("a\nb\nc\nd\ne\nf\ng\nh").as_deref(), Ok("a\nb\nc\nd\ne f g h"));
+        assert_eq!(clean_comment("<b>x</b>").as_deref(), Ok("<b>x</b>"), "escaping is maud's job");
     }
 
     #[test]

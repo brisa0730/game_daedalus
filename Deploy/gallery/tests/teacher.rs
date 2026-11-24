@@ -156,14 +156,29 @@ async fn real_names_never_leave_the_teacher_pages() {
     let game = app.new_game(&kim, "Spike Hell").await;
     let id = app.state.db.user_by_login("kim").await.unwrap().unwrap().id;
     let lee = app.student("lee", "이도윤").await;
+    // kim (real 김실명) comments on lee's game and replies on her own.
+    let lees = app.new_game(&lee, "Lee's Game").await;
+    let lee_id = app.user_id("lee").await.to_string();
+    let on_lees = app.comment(&lees, Some(&kim), &id.to_string(), "kim on lee's game").await;
+    assert_eq!(on_lees.status, StatusCode::OK, "{}", on_lees.text());
+    let parent = comment_id(&app.comment(&game, Some(&lee), &lee_id, "lee on kim's game").await);
+    assert_eq!(app.reply(&game, Some(&kim), &id.to_string(), parent, "kim's reply").await.status, StatusCode::OK);
 
     assert!(created.text().contains("김실명"), "the slip");
     assert!(app.get(GALLERY, "/teacher", Some(&teacher)).await.text().contains("김실명"));
     assert!(app.get(GALLERY, &format!("/teacher/students/{id}/remove"), Some(&teacher)).await.text().contains("김실명"));
 
     let play = format!("/play/{game}");
+    let play_lees = format!("/play/{lees}");
+    let more = format!("/play/{game}/comments");
+    let more_lees = format!("/play/{lees}/comments");
     let remove_game = format!("/games/{game}/remove");
     for (path, cookie) in [
+        (play_lees.as_str(), None),
+        (play_lees.as_str(), Some(&lee)),
+        (more.as_str(), None),
+        (more.as_str(), Some(&kim)),
+        (more_lees.as_str(), Some(&lee)),
         ("/", None),
         ("/", Some(&lee)),
         ("/", Some(&kim)),
@@ -182,6 +197,27 @@ async fn real_names_never_leave_the_teacher_pages() {
         if path == "/" || path.starts_with("/play/") {
             assert!(html.contains("별빛"), "{path} shows the nickname");
         }
+    }
+}
+
+#[tokio::test]
+async fn the_teacher_sees_real_names_only_on_the_teacher_page() {
+    let app = TestApp::with(|c| c.comment_gap_secs = 0).await;
+    let teacher = app.teacher().await;
+    let created = app.post_form("/teacher/students/create", Some(&teacher), &form_text("kim, 김실명, 별빛")).await;
+    let password = slip_passwords(&created.text()).remove(0);
+    let kim = app.sign_in("kim", &password).await;
+    let kim_id = app.user_id("kim").await.to_string();
+    let lee = app.student("lee", "이도윤").await;
+    let lees = app.new_game(&lee, "Lee's Game").await;
+    assert_eq!(app.comment(&lees, Some(&kim), &kim_id, "kim was here").await.status, StatusCode::OK);
+
+    let page = app.get(GALLERY, "/teacher", Some(&teacher)).await.text();
+    assert!(page.contains("김실명 (별빛)"), "최근 댓글");
+    for path in [format!("/play/{lees}"), format!("/play/{lees}/comments")] {
+        let html = app.get(GALLERY, &path, Some(&teacher)).await.text();
+        assert!(html.contains("별빛") && !html.contains("김실명"), "{path}");
+        assert!(html.contains("comment-del"), "{path}: the teacher deletes every comment");
     }
 }
 

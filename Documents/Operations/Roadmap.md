@@ -21,14 +21,12 @@ Active work plan: the **ordered milestone/phase sequence** (§1), plus pre-launc
 | 7 | `first-release` (package 0.1.0 published on OpenUPM ahead of combat: MIT license, the Starter sample, Korean install guide, clean-install and fixture checks on both editors from file, Git URL and the registry; install hand check passed in v0.29) | v0.24, v0.25 | [Changelog v0.24, v0.25](Changelog.md), [prompt](../Phases/archive/phase7-first-release.md), [log](../../.claude/memory/logs/phases/phase7-log.md) |
 | 8 | `stages` (troll games made of stages, one scene each: an Exit's Next stage, a quick fade, one death total, Share builds the chain; editor check and play-check passed; not yet in a package release) | v0.26 | [Changelog v0.26](Changelog.md), [prompt](../Phases/archive/phase8-stages.md), [log](../../.claude/memory/logs/phases/phase8-log.md) |
 | 9 | `gallery-ratings` (anonymous 1–5 star ratings on the class gallery, one per browser, 3-minute gate, average from 3 ratings; deploy and operator check on the live gallery open) | v0.31 | [Changelog v0.31](Changelog.md), [prompt](../Phases/archive/phase9-gallery-ratings.md), [log](../../.claude/memory/logs/phases/phase9-log.md) |
+| 10 | `gallery-comments` (comments on the class gallery: guests as 손님 after the rating gate, owner-only replies, writer hides / teacher erases, real names only on the teacher page; deploy with v0.34 and operator check on the live gallery open) | v0.35 | [Changelog v0.35](Changelog.md), [prompt](../Phases/archive/phase10-gallery-comments.md), [log](../../.claude/memory/logs/phases/phase10-log.md) |
 | 6 | `share-my-game` (Milestone 3 `class-gallery` complete: Daedalus → Share my game makes the Share zip; the gallery's own check accepts it on both editors; real upload, play and update on the live gallery passed; operator editor check not yet done (Deferred.md)) | v0.17 | [Changelog v0.17](Changelog.md), [prompt](../Phases/archive/phase6-share-my-game.md), [log](../../.claude/memory/logs/phases/phase6-log.md) |
 
 ## 1. Milestones & Phases
 
 Each milestone ends with something playable.
-
-### Next: `gallery-comments` (class gallery, ahead of Milestone 4)
-Comments under each gallery game, guests included, with owner-only replies and teacher deletion (systems.md § Comments, decisions.md 2026-11-24). Ships with the still-undeployed v0.31–v0.32 rating changes in one Mac Mini deploy (backup first).
 
 ### Milestone 4 — `combat-and-enemies` (days 16–19)
 **Inherited from `first-release`:** a level saved before combat plays exactly as before. A Player setting "Hazard damage" defaults to all HP, and Players saved at data version 1 upgrade to that value.

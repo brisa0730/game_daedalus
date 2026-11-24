@@ -22,7 +22,7 @@ use crate::upload::json_answer;
 pub const RATER_COOKIE: &str = "__Host-gallery_rater";
 
 /// The request's rater token, if it carries a well-formed one.
-fn rater(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn rater(headers: &HeaderMap) -> Option<String> {
     session::cookie(headers, RATER_COOKIE).filter(|t| session::is_token(t)).map(str::to_string)
 }
 

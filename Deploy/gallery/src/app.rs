@@ -20,7 +20,7 @@ use crate::db::Db;
 use crate::play_token::Key;
 use crate::session::Throttle;
 use crate::storage::{NaverStorage, Storage};
-use crate::{gallery, guard, pages, play, ratings, session, teacher, upload};
+use crate::{comments, gallery, guard, pages, play, ratings, session, teacher, upload};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -129,11 +129,15 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
         route(Method::GET, "/play/{id}", Open, get(gallery::play_view)),
         route(Method::POST, "/play/{id}/open", Open, post(ratings::open)),
         route(Method::POST, "/play/{id}/rate", Open, post(ratings::rate).layer(DefaultBodyLimit::max(64))),
+        route(Method::GET, "/play/{id}/comments", Open, get(comments::more)),
+        route(Method::POST, "/play/{id}/comments", Open, post(comments::post).layer(DefaultBodyLimit::max(4096))),
+        route(Method::POST, "/comments/{id}/delete", Open, post(comments::delete).layer(DefaultBodyLimit::max(64))),
         route(Method::GET, "/games/{id}/remove", Page, get(gallery::remove_confirm)),
         route(Method::POST, "/games/{id}/remove", Page, post(gallery::remove)),
         route(Method::GET, "/upload", Page, get(upload::upload_page)),
         route(Method::POST, "/upload", Api, post(upload::post_upload)),
         route(Method::GET, "/teacher", Teacher, get(teacher::page)),
+        route(Method::GET, "/teacher/comments", Teacher, get(comments::recent_more)),
         route(Method::POST, "/teacher/students/preview", Teacher, post(teacher::preview)),
         route(Method::POST, "/teacher/students/create", Teacher, post(teacher::create)),
         route(Method::POST, "/teacher/students/{id}/reset", Teacher, post(teacher::reset)),

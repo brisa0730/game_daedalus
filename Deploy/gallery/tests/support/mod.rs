@@ -331,6 +331,33 @@ impl TestApp {
         self.post_form(&format!("/play/{id}/rate"), cookie, &format!("stars={stars}")).await
     }
 
+    pub async fn user_id(&self, login: &str) -> i64 {
+        self.state.db.user_by_login(login).await.unwrap().expect("a user").id
+    }
+
+    /// The play page's comment POST: `as` is `guest` or the user id the page showed.
+    pub async fn comment(&self, game: &str, cookie: Option<&str>, as_: &str, text: &str) -> Answer {
+        let form = format!("as={}&text={}", url_encode(as_), url_encode(text));
+        self.post_form(&format!("/play/{game}/comments"), cookie, &form).await
+    }
+
+    /// The owner's reply POST under comment `parent`.
+    pub async fn reply(&self, game: &str, cookie: Option<&str>, as_: &str, parent: i64, text: &str) -> Answer {
+        let form = format!("as={}&text={}&parent={parent}", url_encode(as_), url_encode(text));
+        self.post_form(&format!("/play/{game}/comments"), cookie, &form).await
+    }
+
+    pub async fn delete_comment(&self, id: i64, cookie: Option<&str>, as_: &str) -> Answer {
+        self.post_form(&format!("/comments/{id}/delete"), cookie, &format!("as={}", url_encode(as_))).await
+    }
+
+    /// A guest browser that opened the game long enough ago to pass the gate: its rater cookie (`name=value`).
+    pub async fn guest(&self, game: &str) -> String {
+        let (_, rater) = self.open_rating(game, None).await;
+        self.backdate_open(game, 200).await;
+        rater.expect("a rater cookie")
+    }
+
     /// Moves every open record of a game `secs` into the past (the `Db` pool is private).
     pub async fn backdate_open(&self, id: &str, secs: i64) {
         let pool = self.raw_pool().await;
@@ -362,6 +389,20 @@ impl TestApp {
         }
         self.send(req.body(Body::empty()).unwrap()).await
     }
+}
+
+/// The id of the comment item in a comment POST's answer.
+pub fn comment_id(answer: &Answer) -> i64 {
+    let html = answer.json()["html"].as_str().expect("an html item").to_string();
+    let start = html.find(r#"data-id=""#).expect("a data-id") + r#"data-id=""#.len();
+    html[start..].split('"').next().unwrap().parse().unwrap()
+}
+
+/// The value of the first `name="…"` attribute in a page.
+pub fn attr(html: &str, name: &str) -> Option<String> {
+    let key = format!(r#"{name}=""#);
+    let start = html.find(&key)? + key.len();
+    Some(html[start..].split('"').next().unwrap().replace("&amp;", "&"))
 }
 
 /// The iframe's `src` on a play view page (maud escapes `&` as `&amp;`).

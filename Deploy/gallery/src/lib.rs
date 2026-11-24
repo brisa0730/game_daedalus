@@ -6,6 +6,7 @@ pub mod accounts;
 pub mod app;
 pub mod backup;
 pub mod cli;
+pub mod comments;
 pub mod config;
 pub mod db;
 pub mod files;

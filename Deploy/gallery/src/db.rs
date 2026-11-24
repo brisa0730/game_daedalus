@@ -1,4 +1,4 @@
-//! The SQLite database: users, sessions, known browsers, games and ratings. Every SQL statement lives in this file.
+//! The SQLite database: users, sessions, known browsers, games, ratings and comments. Every SQL statement lives in this file.
 
 use std::path::Path;
 use std::time::Duration;
@@ -101,6 +101,89 @@ pub struct StudentRow {
     pub display_name: String,
     pub real_name: String,
     pub live_games: i64,
+}
+
+/// A comment or reply as the pages show it (v0.35). The writer's names are joined in when it is read, so a renamed
+/// nickname shows on old comments too. The guest hash is never read into it: `by_this_browser` is computed in SQL.
+#[derive(Clone, Debug)]
+pub struct CommentRow {
+    pub id: i64,
+    pub game_id: String,
+    pub parent_id: Option<i64>,
+    /// `None` for a guest (손님).
+    pub user_id: Option<i64>,
+    pub body: String,
+    pub created_at: i64,
+    /// Its writer deleted it (it is only hidden), and whether its parent was.
+    pub hidden: bool,
+    pub parent_hidden: bool,
+    pub nickname: Option<String>,
+    pub real_name: Option<String>,
+    /// The writer is the teacher.
+    pub teacher: bool,
+    /// A guest comment written from the viewing browser (the viewer's rater hash matches).
+    pub by_this_browser: bool,
+    pub game_title: String,
+}
+
+impl CommentRow {
+    fn from_row(row: &SqliteRow) -> CommentRow {
+        CommentRow {
+            id: row.get("id"),
+            game_id: row.get("game_id"),
+            parent_id: row.get("parent_id"),
+            user_id: row.get("user_id"),
+            body: row.get("body"),
+            created_at: row.get("created_at"),
+            hidden: row.get("hidden"),
+            parent_hidden: row.get("parent_hidden"),
+            nickname: row.get("nickname"),
+            real_name: row.get("real_name"),
+            teacher: row.get("teacher"),
+            by_this_browser: row.get("by_this_browser"),
+            game_title: row.get("game_title"),
+        }
+    }
+}
+
+/// Why `insert_comment` wrote nothing, read after the fact (the insert itself checks everything).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    GameGone,
+    Owner,
+    /// A guest before the gate: seconds left.
+    Gate(u64),
+    /// The writer's last top-level comment was too recent: seconds left.
+    Gap(u64),
+    /// The gallery-wide guest cap.
+    Busy,
+}
+
+/// Why `insert_reply` wrote nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReplyRefusal {
+    GameGone,
+    NotOwner,
+    /// No such comment on this game, or it was deleted.
+    ParentGone,
+    /// The parent is itself a reply.
+    NotTopLevel,
+}
+
+/// The columns of a `CommentRow`; `?1` is the viewer's rater hash (or NULL).
+const COMMENT_COLUMNS: &str = "c.id, c.game_id, c.parent_id, c.user_id, c.body, c.created_at, \
+     c.hidden_at IS NOT NULL AS hidden, p.hidden_at IS NOT NULL AS parent_hidden, \
+     u.display_name AS nickname, u.real_name AS real_name, COALESCE(u.role = 'teacher', 0) AS teacher, \
+     COALESCE(c.guest_hash IS NOT NULL AND c.guest_hash = ?1, 0) AS by_this_browser, g.title AS game_title \
+     FROM comments c LEFT JOIN comments p ON p.id = c.parent_id LEFT JOIN users u ON u.id = c.user_id \
+     JOIN games g ON g.id = c.game_id";
+
+/// Rows read with one more than the page, and the cursor for the next page when there were more.
+fn paged(mut rows: Vec<CommentRow>, limit: i64) -> (Vec<CommentRow>, Option<i64>) {
+    let more = rows.len() as i64 > limit;
+    rows.truncate(limit.max(0) as usize);
+    let next = if more { rows.last().map(|r| r.id) } else { None };
+    (rows, next)
 }
 
 /// A new game's row, inserted only after its files are in place.
@@ -499,8 +582,8 @@ impl Db {
         Ok(())
     }
 
-    /// Removes a game: the row stays (its id is never used again), its ratings and open records go, in one
-    /// transaction. Owner, teacher and account removal all come through here.
+    /// Removes a game: the row stays (its id is never used again), its ratings, open records and comments go, in
+    /// one transaction. Owner, teacher and account removal all come through here.
     pub async fn tombstone_game(&self, id: &str, now: i64) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("UPDATE games SET removed_at = ? WHERE id = ? AND removed_at IS NULL")
@@ -508,6 +591,7 @@ impl Db {
             .bind(id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM comments WHERE game_id = ?").bind(id).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM ratings WHERE game_id = ?").bind(id).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM game_opens WHERE game_id = ?").bind(id).execute(&mut *tx).await?;
         tx.commit().await
@@ -579,6 +663,245 @@ impl Db {
         .bind(before)
         .execute(&self.pool)
         .await?;
+        Ok(done.rows_affected())
+    }
+
+    // Comments
+
+    /// Writes a top-level comment, in one statement that checks everything: the game is live and the writer isn't
+    /// its owner; a guest (`hash`, no `user`) first opened it at or before `opened_by` (the gate); the writer's last
+    /// top-level comment (hidden ones included) is at least `gap` old; and, for a guest, fewer than `cap` guest
+    /// comments in the last `window` seconds. A signed-in writer passes `hash: None`. `None` means nothing was written.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn insert_comment(
+        &self,
+        game_id: &str,
+        user: Option<i64>,
+        hash: Option<&[u8]>,
+        body: &str,
+        now: i64,
+        opened_by: i64,
+        gap: i64,
+        cap: i64,
+        window: i64,
+    ) -> Result<Option<i64>> {
+        let row = sqlx::query(
+            "INSERT INTO comments (game_id, user_id, guest_hash, body, created_at) SELECT ?1, ?2, ?3, ?4, ?5 \
+             WHERE EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL AND (?2 IS NULL OR owner_id IS NOT ?2)) \
+             AND (?2 IS NOT NULL OR EXISTS \
+                 (SELECT 1 FROM game_opens WHERE game_id = ?1 AND rater_hash = ?3 AND opened_at <= ?6)) \
+             AND NOT EXISTS (SELECT 1 FROM comments WHERE parent_id IS NULL AND (user_id = ?2 OR guest_hash = ?3) \
+                 AND created_at > ?5 - ?7) \
+             AND (?2 IS NOT NULL OR \
+                 (SELECT COUNT(*) FROM comments WHERE guest_hash IS NOT NULL AND created_at > ?5 - ?9) < ?8) \
+             RETURNING id",
+        )
+        .bind(game_id)
+        .bind(user)
+        .bind(hash)
+        .bind(body)
+        .bind(now)
+        .bind(opened_by)
+        .bind(gap)
+        .bind(cap)
+        .bind(window)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
+    /// Why `insert_comment` with the same inputs wrote nothing (read only), in the order the page explains them.
+    /// `None` when every check passes now (a race that cleared meanwhile).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn comment_refusal(
+        &self,
+        game_id: &str,
+        user: Option<i64>,
+        hash: Option<&[u8]>,
+        now: i64,
+        opened_by: i64,
+        gap: i64,
+        cap: i64,
+        window: i64,
+    ) -> Result<Option<Refusal>> {
+        let row = sqlx::query(
+            "SELECT EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL), \
+                    (SELECT owner_id FROM games WHERE id = ?1 AND removed_at IS NULL), \
+                    (SELECT opened_at FROM game_opens WHERE game_id = ?1 AND rater_hash = ?3), \
+                    (SELECT MAX(created_at) FROM comments WHERE parent_id IS NULL AND (user_id = ?2 OR guest_hash = ?3)), \
+                    (SELECT COUNT(*) FROM comments WHERE guest_hash IS NOT NULL AND created_at > ?4)",
+        )
+        .bind(game_id)
+        .bind(user)
+        .bind(hash)
+        .bind(now - window)
+        .fetch_one(&self.pool)
+        .await?;
+        let live: bool = row.get(0);
+        let owner: Option<i64> = row.get(1);
+        let opened_at: Option<i64> = row.get(2);
+        let last: Option<i64> = row.get(3);
+        let recent_guests: i64 = row.get(4);
+        if !live {
+            return Ok(Some(Refusal::GameGone));
+        }
+        if user.is_some() && owner == user {
+            return Ok(Some(Refusal::Owner));
+        }
+        if user.is_none() {
+            let left = opened_at.map_or(now - opened_by, |opened| opened - opened_by);
+            if left > 0 {
+                return Ok(Some(Refusal::Gate(left as u64)));
+            }
+        }
+        if let Some(last) = last.filter(|last| *last > now - gap) {
+            return Ok(Some(Refusal::Gap((last + gap - now) as u64)));
+        }
+        if user.is_none() && recent_guests >= cap {
+            return Ok(Some(Refusal::Busy));
+        }
+        Ok(None)
+    }
+
+    /// Writes the owner's reply under a visible top-level comment of their live game, in one statement. Replies
+    /// skip the gap and don't start its clock. `None` means nothing was written.
+    pub async fn insert_reply(&self, game_id: &str, parent_id: i64, owner_id: i64, body: &str, now: i64) -> Result<Option<i64>> {
+        let row = sqlx::query(
+            "INSERT INTO comments (game_id, parent_id, user_id, body, created_at) SELECT ?1, ?2, ?3, ?4, ?5 \
+             WHERE EXISTS (SELECT 1 FROM comments WHERE id = ?2 AND game_id = ?1 AND parent_id IS NULL AND hidden_at IS NULL) \
+             AND EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL AND owner_id = ?3) \
+             RETURNING id",
+        )
+        .bind(game_id)
+        .bind(parent_id)
+        .bind(owner_id)
+        .bind(body)
+        .bind(now)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
+    /// Why `insert_reply` with the same inputs wrote nothing (read only). `None` when every check passes now.
+    pub async fn reply_refusal(&self, game_id: &str, parent_id: i64, owner_id: i64) -> Result<Option<ReplyRefusal>> {
+        let row = sqlx::query(
+            "SELECT (SELECT owner_id FROM games WHERE id = ?1 AND removed_at IS NULL), \
+                    EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL), \
+                    (SELECT parent_id IS NULL FROM comments WHERE id = ?2 AND game_id = ?1 AND hidden_at IS NULL)",
+        )
+        .bind(game_id)
+        .bind(parent_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let owner: Option<i64> = row.get(0);
+        let live: bool = row.get(1);
+        let top_level: Option<bool> = row.get(2);
+        Ok(if !live {
+            Some(ReplyRefusal::GameGone)
+        } else if owner != Some(owner_id) {
+            Some(ReplyRefusal::NotOwner)
+        } else {
+            match top_level {
+                None => Some(ReplyRefusal::ParentGone),
+                Some(false) => Some(ReplyRefusal::NotTopLevel),
+                Some(true) => None,
+            }
+        })
+    }
+
+    /// A page of a game's visible top-level comments, newest first, before the cursor `before` (an id), and the
+    /// next cursor when there are more.
+    pub async fn comments_page(
+        &self,
+        game_id: &str,
+        before: Option<i64>,
+        limit: i64,
+        viewer_hash: Option<&[u8]>,
+    ) -> Result<(Vec<CommentRow>, Option<i64>)> {
+        let rows = sqlx::query(&format!(
+            "SELECT {COMMENT_COLUMNS} WHERE c.game_id = ?2 AND c.parent_id IS NULL AND c.hidden_at IS NULL \
+             AND (?3 IS NULL OR c.id < ?3) ORDER BY c.id DESC LIMIT ?4"
+        ))
+        .bind(viewer_hash)
+        .bind(game_id)
+        .bind(before)
+        .bind(limit + 1)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(paged(rows.iter().map(CommentRow::from_row).collect(), limit))
+    }
+
+    /// The visible replies under these comments of a game, oldest first. Replies of a hidden comment are never
+    /// returned.
+    pub async fn replies_of(&self, game_id: &str, parents: &[i64], viewer_hash: Option<&[u8]>) -> Result<Vec<CommentRow>> {
+        let (Some(low), Some(high)) = (parents.iter().min(), parents.iter().max()) else { return Ok(Vec::new()) };
+        let rows = sqlx::query(&format!(
+            "SELECT {COMMENT_COLUMNS} WHERE c.game_id = ?4 AND c.parent_id BETWEEN ?2 AND ?3 \
+             AND c.hidden_at IS NULL AND p.hidden_at IS NULL ORDER BY c.id"
+        ))
+        .bind(viewer_hash)
+        .bind(low)
+        .bind(high)
+        .bind(game_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .iter()
+            .map(CommentRow::from_row)
+            .filter(|r| r.parent_id.is_some_and(|p| parents.contains(&p)))
+            .collect())
+    }
+
+    /// One comment or reply, hidden ones included (`hidden`, `parent_hidden` say so).
+    pub async fn comment_by_id(&self, id: i64, viewer_hash: Option<&[u8]>) -> Result<Option<CommentRow>> {
+        let row = sqlx::query(&format!("SELECT {COMMENT_COLUMNS} WHERE c.id = ?2"))
+            .bind(viewer_hash)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.as_ref().map(CommentRow::from_row))
+    }
+
+    /// 최근 댓글: every comment and reply on live games, newest first, before the cursor. A hidden one (or one under
+    /// a hidden comment) is listed only while it was hidden at or after `hidden_since`.
+    pub async fn recent_comments(&self, before: Option<i64>, limit: i64, hidden_since: i64) -> Result<(Vec<CommentRow>, Option<i64>)> {
+        let rows = sqlx::query(&format!(
+            "SELECT {COMMENT_COLUMNS} WHERE g.removed_at IS NULL AND (?2 IS NULL OR c.id < ?2) \
+             AND COALESCE(c.hidden_at, p.hidden_at, ?3) >= ?3 ORDER BY c.id DESC LIMIT ?4"
+        ))
+        .bind(None::<Vec<u8>>)
+        .bind(before)
+        .bind(hidden_since)
+        .bind(limit + 1)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(paged(rows.iter().map(CommentRow::from_row).collect(), limit))
+    }
+
+    /// A writer's delete: hides their own visible comment (`user`, or a guest's `hash`; a browser can delete what
+    /// it wrote as a guest even while signed in). `false` means nothing was hidden.
+    pub async fn hide_comment(&self, id: i64, user: Option<i64>, hash: Option<&[u8]>, now: i64) -> Result<bool> {
+        let done = sqlx::query(
+            "UPDATE comments SET hidden_at = ?1 WHERE id = ?2 AND hidden_at IS NULL AND (user_id = ?3 OR guest_hash = ?4)",
+        )
+        .bind(now)
+        .bind(id)
+        .bind(user)
+        .bind(hash)
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    /// The teacher's delete: erases the comment at once, with its replies (they cascade).
+    pub async fn erase_comment(&self, id: i64) -> Result<bool> {
+        let done = sqlx::query("DELETE FROM comments WHERE id = ?").bind(id).execute(&self.pool).await?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    /// Erases comments hidden before `before`, with their replies.
+    pub async fn purge_hidden_comments(&self, before: i64) -> Result<u64> {
+        let done = sqlx::query("DELETE FROM comments WHERE hidden_at < ?").bind(before).execute(&self.pool).await?;
         Ok(done.rows_affected())
     }
 
@@ -785,5 +1108,165 @@ mod tests {
         assert_eq!(db.live_game("abc").await.unwrap().unwrap().version, 2);
         db.tombstone_game("abc", 3).await.unwrap();
         assert!(!db.set_version("abc", 2, "T3", "b", 1, 4).await.unwrap());
+    }
+
+    /// kim (id 1) owns "abc"; lee is another student.
+    async fn db_for_comments() -> (tempfile::TempDir, Db, i64, i64) {
+        let (dir, db) = db_with_game().await;
+        let lee = db.create_user("lee", "이", Role::Student, "h", 1).await.unwrap();
+        (dir, db, 1, lee)
+    }
+
+    #[tokio::test]
+    async fn the_gap_is_checked_in_the_insert() {
+        let (_dir, db, _kim, lee) = db_for_comments().await;
+        assert!(db.insert_comment("abc", Some(lee), None, "hi", 1000, 1000, 30, 20, 600).await.unwrap().is_some());
+        assert!(db.insert_comment("abc", Some(lee), None, "hi", 1029, 1029, 30, 20, 600).await.unwrap().is_none(), "29 s later");
+        let refusal = db.comment_refusal("abc", Some(lee), None, 1029, 1029, 30, 20, 600).await.unwrap();
+        assert_eq!(refusal, Some(Refusal::Gap(1)));
+        assert!(db.insert_comment("abc", Some(lee), None, "hi", 1030, 1030, 30, 20, 600).await.unwrap().is_some(), "30 s later");
+    }
+
+    #[tokio::test]
+    async fn the_guest_cap_counts_the_whole_gallery() {
+        let (_dir, db, _kim, lee) = db_for_comments().await;
+        for (n, hash) in [&b"a"[..], &b"b"[..], &b"c"[..]].into_iter().enumerate() {
+            db.record_open("abc", hash, 0).await.unwrap();
+            let written = db.insert_comment("abc", None, Some(hash), "hi", 1000, 1000, 30, 2, 600).await.unwrap();
+            assert_eq!(written.is_some(), n < 2, "guest {n}");
+        }
+        let refusal = db.comment_refusal("abc", None, Some(b"c"), 1000, 1000, 30, 2, 600).await.unwrap();
+        assert_eq!(refusal, Some(Refusal::Busy));
+        let signed_in = db.insert_comment("abc", Some(lee), None, "hi", 1000, 1000, 30, 2, 600).await.unwrap();
+        assert!(signed_in.is_some(), "signed-in writers are never capped");
+        let later = db.insert_comment("abc", None, Some(b"c"), "hi", 1601, 1601, 30, 2, 600).await.unwrap();
+        assert!(later.is_some(), "the window passed");
+    }
+
+    #[tokio::test]
+    async fn a_guest_waits_for_the_gate_and_the_owner_writes_no_comment() {
+        let (_dir, db, kim, _lee) = db_for_comments().await;
+        assert!(db.insert_comment("abc", None, Some(b"g"), "hi", 1000, 1000, 30, 20, 600).await.unwrap().is_none(), "no open");
+        let no_open = db.comment_refusal("abc", None, Some(b"g"), 1000, 820, 30, 20, 600).await.unwrap();
+        assert_eq!(no_open, Some(Refusal::Gate(180)));
+        db.record_open("abc", b"g", 900).await.unwrap();
+        assert!(db.insert_comment("abc", None, Some(b"g"), "hi", 1000, 899, 30, 20, 600).await.unwrap().is_none());
+        let early = db.comment_refusal("abc", None, Some(b"g"), 1000, 820, 30, 20, 600).await.unwrap();
+        assert_eq!(early, Some(Refusal::Gate(80)));
+        assert!(db.insert_comment("abc", None, Some(b"g"), "hi", 1000, 900, 30, 20, 600).await.unwrap().is_some());
+        assert!(db.insert_comment("abc", Some(kim), None, "mine", 1000, 1000, 30, 20, 600).await.unwrap().is_none());
+        let own = db.comment_refusal("abc", Some(kim), None, 1000, 1000, 30, 20, 600).await.unwrap();
+        assert_eq!(own, Some(Refusal::Owner));
+        let gone = db.comment_refusal("nope", Some(kim), None, 1000, 1000, 30, 20, 600).await.unwrap();
+        assert_eq!(gone, Some(Refusal::GameGone));
+    }
+
+    #[tokio::test]
+    async fn only_the_owner_replies_to_a_visible_top_level_comment() {
+        let (_dir, db, kim, lee) = db_for_comments().await;
+        let top = db.insert_comment("abc", Some(lee), None, "hi", 1000, 1000, 30, 20, 600).await.unwrap().unwrap();
+        let reply = db.insert_reply("abc", top, kim, "thanks", 1001).await.unwrap().unwrap();
+        assert!(db.insert_reply("abc", top, kim, "again", 1001).await.unwrap().is_some(), "replies don't wait");
+        assert!(db.insert_reply("abc", reply, kim, "x", 1002).await.unwrap().is_none());
+        assert_eq!(db.reply_refusal("abc", reply, kim).await.unwrap(), Some(ReplyRefusal::NotTopLevel));
+        assert!(db.insert_reply("abc", top, lee, "x", 1002).await.unwrap().is_none());
+        assert_eq!(db.reply_refusal("abc", top, lee).await.unwrap(), Some(ReplyRefusal::NotOwner));
+        let other = NewGame { id: "def", owner_id: lee, title: "U", build_name: "b", bytes: 1, now: 1 };
+        assert!(db.insert_game(&other, 10).await.unwrap());
+        let theirs = db.insert_comment("def", Some(kim), None, "hi", 2000, 2000, 30, 20, 600).await.unwrap().unwrap();
+        assert!(db.insert_reply("abc", theirs, kim, "x", 2001).await.unwrap().is_none(), "another game's comment");
+        assert_eq!(db.reply_refusal("abc", theirs, kim).await.unwrap(), Some(ReplyRefusal::ParentGone));
+        assert!(db.hide_comment(top, Some(lee), None, 3000).await.unwrap());
+        assert!(db.insert_reply("abc", top, kim, "x", 3001).await.unwrap().is_none(), "a hidden comment");
+        assert_eq!(db.reply_refusal("abc", top, kim).await.unwrap(), Some(ReplyRefusal::ParentGone));
+    }
+
+    #[tokio::test]
+    async fn hiding_purging_and_removal() {
+        let (_dir, db, kim, lee) = db_for_comments().await;
+        let old = db.insert_comment("abc", Some(lee), None, "old", 1000, 1000, 0, 20, 600).await.unwrap().unwrap();
+        let old_reply = db.insert_reply("abc", old, kim, "re", 1001).await.unwrap().unwrap();
+        let recent = db.insert_comment("abc", Some(lee), None, "recent", 1002, 1002, 0, 20, 600).await.unwrap().unwrap();
+        let kept = db.insert_comment("abc", Some(lee), None, "kept", 1003, 1003, 0, 20, 600).await.unwrap().unwrap();
+        assert!(!db.hide_comment(old, Some(kim), None, 2000).await.unwrap(), "only its writer");
+        assert!(db.hide_comment(old, Some(lee), None, 2000).await.unwrap());
+        assert!(!db.hide_comment(old, Some(lee), None, 2001).await.unwrap(), "already hidden");
+        assert!(db.hide_comment(recent, Some(lee), None, 9000).await.unwrap());
+        let (page, more) = db.comments_page("abc", None, 20, None).await.unwrap();
+        assert_eq!(page.iter().map(|c| c.id).collect::<Vec<_>>(), vec![kept]);
+        assert_eq!(more, None);
+        assert!(db.replies_of("abc", &[old], None).await.unwrap().is_empty(), "replies of a hidden comment");
+        let reply = db.comment_by_id(old_reply, None).await.unwrap().unwrap();
+        assert!(!reply.hidden && reply.parent_hidden);
+        // Hidden since 5000: `old` (hidden at 2000) and its reply drop out of 최근 댓글; `recent` stays.
+        let (listed, _) = db.recent_comments(None, 50, 5000).await.unwrap();
+        assert_eq!(listed.iter().map(|c| c.id).collect::<Vec<_>>(), vec![kept, recent]);
+        assert_eq!(db.purge_hidden_comments(5000).await.unwrap(), 1);
+        assert!(db.comment_by_id(old_reply, None).await.unwrap().is_none(), "the reply cascades");
+        assert!(db.comment_by_id(recent, None).await.unwrap().is_some());
+        db.tombstone_game("abc", 9500).await.unwrap();
+        assert!(db.comment_by_id(kept, None).await.unwrap().is_none());
+        assert!(db.comment_by_id(recent, None).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn a_comment_has_exactly_one_writer() {
+        let (_dir, db, _kim, lee) = db_for_comments().await;
+        for (user, hash) in [(Some(lee), Some(&b"g"[..])), (None, None)] {
+            let written = sqlx::query(
+                "INSERT INTO comments (game_id, user_id, guest_hash, body, created_at) VALUES ('abc', ?, ?, 'x', 1)",
+            )
+            .bind(user)
+            .bind(hash)
+            .execute(&db.pool)
+            .await;
+            assert!(written.is_err(), "{user:?} {hash:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn paging_hands_back_a_cursor() {
+        let (_dir, db, _kim, lee) = db_for_comments().await;
+        let mut ids = Vec::new();
+        for n in 0..5 {
+            ids.push(db.insert_comment("abc", Some(lee), None, "c", 1000 + n, 1000, 0, 20, 600).await.unwrap().unwrap());
+        }
+        let (first, more) = db.comments_page("abc", None, 2, None).await.unwrap();
+        assert_eq!(first.iter().map(|c| c.id).collect::<Vec<_>>(), vec![ids[4], ids[3]]);
+        let (rest, more) = db.comments_page("abc", more, 3, None).await.unwrap();
+        assert_eq!(rest.iter().map(|c| c.id).collect::<Vec<_>>(), vec![ids[2], ids[1], ids[0]]);
+        assert_eq!(more, None);
+    }
+
+    /// A database from before v0.35 (four migrations) opens with migration 0005; its games and ratings stay.
+    #[tokio::test]
+    async fn the_comments_migration_keeps_todays_games() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("gallery.db");
+        let options = SqliteConnectOptions::new().filename(&path).create_if_missing(true);
+        let pool = SqlitePool::connect_with(options).await.unwrap();
+        let mut first = sqlx::migrate!("./migrations");
+        first.migrations = first.migrations[..4].to_vec().into();
+        first.run(&pool).await.unwrap();
+        sqlx::query("INSERT INTO users (login, display_name, role, password_hash, created_at) VALUES ('kim', '김', 'student', 'h', 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO games (id, owner_id, title, build_name, version, bytes, created_at, updated_at) \
+             VALUES ('abc', 1, 'T', 'b', 1, 1, 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO ratings (game_id, rater_hash, stars, rated_at) VALUES ('abc', x'01', 4, 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        pool.close().await;
+        let db = Db::open_existing(&path).await.unwrap();
+        let g = db.live_game("abc").await.unwrap().unwrap();
+        assert_eq!((g.ratings, g.stars_total), (1, 4));
+        assert!(db.comments_page("abc", None, 20, None).await.unwrap().0.is_empty());
     }
 }

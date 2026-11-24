@@ -6,7 +6,8 @@
 //! `gallery.db-wal` and `gallery.db-shm` (a live log replayed onto the restored file would corrupt or mix it); copy
 //! the chosen `<to>/db/gallery-YYYY-MM-DD.db` to `gallery.db` and `<to>/games/` back to `games/` (its `.gone`
 //! file is harmless there); bootstrap the job. Copies are dated in UTC: the 03:30 Korean-time run carries the
-//! previous day's date.
+//! previous day's date, so that night's run overwrites a copy taken the same day: before a deploy, copy the copy
+//! it prints at once to a fixed `<to>/pre-v<version>.db` (outside `db/`, so never rotated) and roll back to that.
 //!
 //! It protects against database corruption and mistakes within 7 days, not against losing the disk: the backup
 //! sits on the same disk.

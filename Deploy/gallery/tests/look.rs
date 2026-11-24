@@ -2,7 +2,9 @@
 //! repo's `TestResults/gallery-look/` (with the stylesheet, script, font and screenshots beside it) for the
 //! headless-Chrome screenshots, plus the rules a screenshot can't prove: no inline styles (the gallery's CSP is
 //! `style-src 'self'`), the ids the script needs, and which cards get the NEW badge and the upload time. The play
-//! pages cover every rating state: counting down, ready, rated (one rating and three), and the owner's own.
+//! pages cover every rating state: counting down, ready, rated (one rating and three), and the owner's own, and
+//! every comment state: a student's box, a guest still waiting, the owner's reply buttons, the teacher's view, and
+//! the teacher page's 최근 댓글 with a deleted (지움) row.
 
 mod support;
 
@@ -55,12 +57,19 @@ async fn backdate(app: &TestApp, id: &str, created_days: i64, updated_days: i64)
 
 #[tokio::test]
 async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
-    let app = TestApp::with(|c| c.games_per_account = 3).await;
+    let app = TestApp::with(|c| {
+        c.games_per_account = 3;
+        c.comment_gap_secs = 0;
+        c.comments_page = 4;
+    })
+    .await;
     let teacher = app.teacher().await;
     let kim = app.student("kim", "김하늘").await;
     let lee = app.student("lee", "이도윤").await;
     let park = app.student("park", "박서연").await;
     let fresh = app.student("choi", "최민준").await;
+    // A nickname at the longest the teacher can type (20), unbroken.
+    let jang = app.student("jang", &"W".repeat(20)).await;
 
     let old = app.new_game(&kim, "절대 못 깨는 길").await;
     let clouds = app.new_game(&kim, "구름 위 달리기").await;
@@ -88,6 +97,28 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     }
     let (rated_old, rated_traps) = (&raters[0], &raters[3]);
 
+    // Comments on kim's `old`: 300 unbroken Latin letters, 300 Korean syllables, five lines from a guest, the long
+    // nickname, the teacher, kim's 만든이 reply, and one park deleted (지움 on the teacher page).
+    let lee_id = app.user_id("lee").await.to_string();
+    let park_id = app.user_id("park").await.to_string();
+    let jang_id = app.user_id("jang").await.to_string();
+    let teacher_id = app.user_id("teach").await.to_string();
+    let kim_id = app.user_id("kim").await.to_string();
+    let long_latin = app.comment(&old, Some(&lee), &lee_id, &"W".repeat(300)).await;
+    assert_eq!(long_latin.status, StatusCode::OK, "{}", long_latin.text());
+    let syllables: String = "가나다라마바사아자차".chars().cycle().take(300).collect();
+    assert_eq!(app.comment(&old, Some(&park), &park_id, &syllables).await.status, StatusCode::OK);
+    let guest = app.guest(&old).await;
+    let lines = "첫째 줄\n둘째 줄: 가시가 너무 많아요\n셋째 줄\n넷째 줄\n다섯째 줄, 그래도 재밌어요!";
+    assert_eq!(app.comment(&old, Some(&guest), "guest", lines).await.status, StatusCode::OK);
+    assert_eq!(app.comment(&old, Some(&jang), &jang_id, "닉네임이 길어요").await.status, StatusCode::OK);
+    let by_teacher = app.comment(&old, Some(&teacher), &teacher_id, "잘 만들었네요. 마지막 함정이 재밌어요.").await;
+    assert_eq!(by_teacher.status, StatusCode::OK);
+    let reply = app.reply(&old, Some(&kim), &kim_id, comment_id(&by_teacher), "고마워요! 다음 판은 더 어렵게 만들게요").await;
+    assert_eq!(reply.status, StatusCode::OK, "{}", reply.text());
+    let deleted = comment_id(&app.comment(&old, Some(&park), &park_id, "지울 댓글").await);
+    assert_eq!(app.delete_comment(deleted, Some(&park), &park_id).await.status, StatusCode::OK);
+
     let mut pages: Vec<(&str, String)> = Vec::new();
     let mut keep = |name: &'static str, answer: Answer| {
         let html = answer.text();
@@ -110,6 +141,10 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     keep("play-rated-one", app.get(GALLERY, &format!("/play/{traps}"), Some(rated_traps)).await);
     keep("play-rated-avg", app.get(GALLERY, &format!("/play/{old}"), Some(rated_old)).await);
     keep("play-own", app.get(GALLERY, &format!("/play/{old}"), Some(&kim)).await);
+    keep("play-comments", app.get(GALLERY, &format!("/play/{old}"), Some(&lee)).await);
+    keep("play-comments-guest-wait", app.get(GALLERY, &format!("/play/{old}"), None).await);
+    keep("play-comments-owner", app.get(GALLERY, &format!("/play/{old}"), Some(&kim)).await);
+    keep("play-comments-teacher", app.get(GALLERY, &format!("/play/{old}"), Some(&teacher)).await);
     keep("upload", app.get(GALLERY, "/upload", Some(&kim)).await);
     keep("upload-first", app.get(GALLERY, "/upload", Some(&fresh)).await);
     keep("password", app.get(GALLERY, "/password", Some(&kim)).await);
@@ -147,6 +182,37 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     for play in owner_pages {
         assert!(page(play).contains(s::RATE_OWN) && !page(play).contains(r#"id="rate""#), "{play}");
     }
+    // Comments: the box's wires on every non-owner page, the reply template on the owner's, never autofocus.
+    let comment_pages = ["play-comments", "play-comments-guest-wait", "play-comments-teacher", "play-public"];
+    for play in comment_pages {
+        let html = page(play);
+        for id in ["comments", "comment-box", "comment-text", "comment-count", "comment-send", "comment-msg", "comment-list", "comments-empty"] {
+            assert!(html.contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
+        }
+        for data in ["post", "as", "guest", "max", "wait", "msg-empty", "msg-wait-min", "msg-wait-sec", "msg-posted",
+            "msg-failed", "msg-confirm", "msg-gone", "label-send", "label-delete", "label-cancel"] {
+            assert!(html.contains(&format!("data-{data}=")), "{play}: data-{data}");
+        }
+        assert!(html.contains(r#"class="to-comments""#), "{play}: 댓글 ↓");
+        assert!(!html.contains(r#"id="reply-form""#), "{play}");
+    }
+    for play in ["play-comments", "play-comments-guest-wait", "play-comments-owner", "play-comments-teacher"] {
+        let html = page(play);
+        assert!(html.contains(r#"id="comments-more""#), "{play}: more than a page");
+        assert!(!html.contains("autofocus"), "{play}");
+        assert!(!html.contains("지울 댓글"), "{play}: a deleted comment");
+    }
+    let owner = page("play-comments-owner");
+    assert!(owner.contains(r#"id="reply-form""#) && !owner.contains(r#"id="comment-text""#) && owner.contains("comment-reply"));
+    assert!(page("play-comments-guest-wait").contains(r#"data-guest="1""#) && page("play-comments-guest-wait").contains(r#"data-wait="180""#));
+    assert!(page("play-comments").contains(&s::comment_as("이도윤")));
+    let teacher_play = page("play-comments-teacher");
+    assert_eq!(teacher_play.matches("comment-del").count(), teacher_play.matches(r#"<li class="comment"#).count(), "delete on every item");
+    let recent = page("teacher");
+    for id in ["recent", "recent-comments"] {
+        assert!(recent.contains(&format!(r#"id="{id}""#)), "teacher: #{id}");
+    }
+    assert!(recent.contains(&format!(r#"<span class="gone">{}</span>"#, s::HIDDEN_MARK)), "teacher: 지움");
     // The states: counting down (a fresh browser), ready, rated (one rating already shows), and three.
     assert!(page("play-rate-wait").contains(&s::rate_wait(180)));
     assert!(page("play-rate-ready").contains(r#"<span id="rate-wait" hidden>"#));
@@ -164,7 +230,7 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     // add-one form uses for the real name), with autofill off, so a remembered real name is never offered there.
     let teacher_html = page("teacher");
     let rows = teacher_html.matches(r#"/rename""#).count();
-    assert_eq!(rows, 4, "one rename form per student");
+    assert_eq!(rows, 5, "one rename form per student");
     assert_eq!(teacher_html.matches(r#"name="real_name""#).count(), rows);
     assert_eq!(teacher_html.matches(r#"name="nickname""#).count(), rows + 1);
     assert_eq!(teacher_html.matches(r#"autocomplete="off""#).count(), 2 * rows + 2);

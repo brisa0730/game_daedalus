@@ -1,5 +1,7 @@
 // The games host's player page: loads the build named in the canvas's data attributes with Unity's loader,
-// shows the page's loading box until Unity starts, and keeps keyboard focus on the game. Messages come from data
+// shows the page's loading box until Unity starts, and keeps keyboard focus on the game. At start, and when Unity
+// starts (which can be many seconds in), it takes focus only while its frame has it: a player who moved to the
+// gallery's comment box keeps typing there; a click on the game (or the frame getting focus) hands it back. Messages come from data
 // attributes (strings.rs). The box's bar is indeterminate: Unity's own progress counts unpacked bytes against the
 // packed (Brotli) file size, so it reports 0.9 long before a slow download ends and then stays there.
 // A published game loads from the Naver bucket (`data-fallback`): any load failure reloads the page once with
@@ -14,7 +16,7 @@
   function started() {
     running = true;
     loading.hidden = true;
-    focus();
+    if (document.hasFocus()) focus();
   }
   function fail() {
     if (running) return;
@@ -50,5 +52,5 @@
   document.body.appendChild(script);
   canvas.addEventListener("click", focus);
   window.addEventListener("focus", focus);
-  focus();
+  if (document.hasFocus()) focus();
 })();

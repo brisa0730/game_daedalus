@@ -12,7 +12,7 @@ use crate::config::unix_now;
 use crate::db::{Game, Role, User};
 use crate::pages::{self, Nav};
 use crate::play_token::{ENTER_TTL_SECS, Purpose};
-use crate::ratings;
+use crate::{comments, ratings};
 use crate::session::CurrentUser;
 use crate::strings as s;
 use crate::upload::{screenshot_url, valid_game_id};
@@ -28,7 +28,7 @@ fn is_new(created_at: i64, now: i64) -> bool {
 }
 
 /// Whole Korean calendar days from `then` to `now` (never negative).
-fn days_ago(then: i64, now: i64) -> i64 {
+pub(crate) fn days_ago(then: i64, now: i64) -> i64 {
     ((now + KST_SECS).div_euclid(86_400) - (then + KST_SECS).div_euclid(86_400)).max(0)
 }
 
@@ -137,7 +137,8 @@ pub async fn screenshot(State(state): State<AppState>, Path(file): Path<String>)
 
 /// The play view: the game full-page in the games host's sandboxed frame, entered with a fresh 60 s grant. Open to
 /// anyone: the frame keeps the game away from the gallery, not people away from the game; this page's address is
-/// the one to share. The rating parts only read (ratings.rs): the page's script records the open.
+/// the one to share. The rating parts only read (ratings.rs): the page's script records the open. The comments
+/// section follows the frame (comments.rs).
 pub async fn play_view(
     State(state): State<AppState>,
     user: Option<Extension<CurrentUser>>,
@@ -147,6 +148,8 @@ pub async fn play_view(
     let user = user.map(|Extension(CurrentUser(user))| user);
     let Some(game) = live(&state, &id).await else { return pages::not_found(user.as_ref()) };
     let (rating_avg, rate_box) = ratings::play_parts(&state, &game, user.as_ref(), &headers).await;
+    let viewer = comments::Viewer::new(&game, user.clone(), &headers);
+    let comments = comments::section(&state, &game, &viewer).await;
     let grant = state.key.sign(Purpose::Enter, &game.id, unix_now() + ENTER_TTL_SECS);
     let src = format!("{}/enter/{}?grant={}", state.config.games_origin, game.id, grant);
     let body = html! {
@@ -160,6 +163,7 @@ pub async fn play_view(
                     (rating_avg)
                 }
                 (rate_box)
+                a.to-comments href="#comments" { (s::COMMENTS_JUMP) }
                 button #fullscreen type="button" {
                     svg viewBox="0 0 7 7" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true" {
                         path d="M0 0h3v1H1v2H0zM4 0h3v3H6V1H4zM0 4h1v2h2v1H0zM6 4h1v3H4V6h2z" fill="currentColor" {}
@@ -172,6 +176,7 @@ pub async fn play_view(
                 iframe #game src=(src) sandbox="allow-scripts allow-same-origin allow-pointer-lock"
                     allow="fullscreen; gamepad; autoplay" title=(game.title) {}
             }
+            (comments)
         }
     };
     pages::page(StatusCode::OK, &game.title, user.as_ref(), None, body)

@@ -1,5 +1,6 @@
 //! The teacher page: the students list (real name and public nickname, both editable), adding students one at
-//! a time or by pasting a list (with a preview), the printable slips, password resets and removing an account. Every route here is teacher-only (route table).
+//! a time or by pasting a list (with a preview), the printable slips, password resets and removing an account, and
+//! 최근 댓글 at the top (comments.rs). Every route here is teacher-only (route table).
 
 use std::collections::HashSet;
 
@@ -12,6 +13,7 @@ use serde::Deserialize;
 
 use crate::accounts::{HashError, generate_password};
 use crate::app::AppState;
+use crate::comments;
 use crate::config::{GALLERY_HOST, unix_now};
 use crate::db::{Role, User};
 use crate::gallery::remove_game;
@@ -103,8 +105,10 @@ async fn check_lines(state: &AppState, text: &str) -> Vec<Line> {
 
 pub async fn page(State(state): State<AppState>, Extension(CurrentUser(user)): Extension<CurrentUser>) -> Response {
     let students = state.db.students().await.unwrap_or_default();
+    let recent = comments::recent_section(&state, &user).await;
     let body = html! {
         h1 { (s::TEACHER_TITLE) }
+        (recent)
         section {
             h2 { (s::STUDENTS) }
             @if students.is_empty() {

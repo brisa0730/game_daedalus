@@ -109,6 +109,84 @@ pub fn rating_summary(tenths: i64, count: i64) -> String {
 pub fn star_label(k: i64) -> String {
     format!("별 {k}개")
 }
+// Comments
+pub const COMMENTS_HEADING: &str = "댓글";
+pub const COMMENTS_JUMP: &str = "댓글 ↓";
+pub const RECENT_COMMENTS: &str = "최근 댓글";
+pub const GUEST_NAME: &str = "손님";
+pub const TEACHER_BADGE: &str = "선생님";
+pub const MAKER_BADGE: &str = "만든이";
+pub const HIDDEN_MARK: &str = "지움";
+pub const COMMENT_PLACEHOLDER: &str = "만든 친구가 읽어요. 재미있었던 점, 아쉬운 점을 남겨 주세요.";
+pub const COMMENT_AS_GUEST: &str = "'손님'으로 남겨져요. 이 브라우저에서만 지울 수 있어요.";
+pub const COMMENT_PRIVACY: &str = "이름·전화번호 같은 개인 정보는 쓰지 마세요.";
+pub const COMMENT_SEND: &str = "남기기";
+pub const REPLY: &str = "답글";
+pub const REPLY_SEND: &str = "답글 남기기";
+pub const COMMENT_DELETE: &str = "삭제";
+pub const COMMENTS_MORE: &str = "댓글 더 보기";
+pub const COMMENT_EMPTY: &str = "댓글을 써 주세요.";
+pub const COMMENT_TOO_LONG: &str = "300자까지 쓸 수 있어요.";
+pub const COMMENT_GAP: &str = "{n}초 후에 다시 남길 수 있어요.";
+pub const COMMENT_GATE_MINUTES: &str = "{n}분 후에 댓글을 남길 수 있어요";
+pub const COMMENT_GATE_SECONDS: &str = "{n}초 후에 댓글을 남길 수 있어요";
+pub const COMMENT_FAILED: &str = "남기지 못했어요. 다시 눌러 보세요.";
+pub const COMMENT_GONE: &str = "이미 지워진 댓글이에요.";
+pub const COMMENT_OWN: &str = "내 게임에는 답글만 달 수 있어요.";
+pub const COMMENT_BUSY: &str = "지금은 손님 댓글이 많아요. 잠시 후에 다시 써 주세요.";
+pub const COMMENT_SIGNED_OUT: &str = "로그인이 끝났어요. 새 탭에서 로그인한 뒤 다시 눌러 주세요.";
+pub const COMMENT_WHO_CHANGED: &str = "다른 이름으로 로그인되어 있어요. 새로 고친 뒤 다시 남겨 주세요.";
+pub const COMMENT_POSTED: &str = "댓글을 남겼어요";
+pub const COMMENT_CONFIRM: &str = "이 댓글을 지울까요? 답글도 함께 지워져요. 되돌릴 수 없어요.";
+pub const COMMENTS_EMPTY: &str = "아직 댓글이 없어요.";
+pub const COMMENT_OWNER_NOTE: &str = "불편한 댓글은 선생님께 알려 주세요.";
+pub const COMMENTS_CLOSED: &str = "지금은 댓글을 남길 수 없어요.";
+/// The send button's countdown; the script fills `{n}` from these same strings (data attributes).
+pub const COMMENT_WAIT_MINUTES: &str = "{n}분 후에 남길 수 있어요";
+pub const COMMENT_WAIT_SECONDS: &str = "{n}초 후에 남길 수 있어요";
+
+/// Whole minutes rounded up while a minute or more remains, then seconds, filled into one of two templates.
+fn minutes_or_seconds(secs: u64, minutes: &str, seconds: &str) -> String {
+    if secs >= 60 {
+        minutes.replace("{n}", &secs.div_ceil(60).to_string())
+    } else {
+        seconds.replace("{n}", &secs.to_string())
+    }
+}
+
+/// The send button's countdown (gallery.js does the same).
+pub fn comment_wait(secs: u64) -> String {
+    minutes_or_seconds(secs, COMMENT_WAIT_MINUTES, COMMENT_WAIT_SECONDS)
+}
+
+/// The message for a guest before the gate, with the same rule as the button, so the two agree.
+pub fn comment_gate(secs: u64) -> String {
+    minutes_or_seconds(secs, COMMENT_GATE_MINUTES, COMMENT_GATE_SECONDS)
+}
+
+pub fn comment_gap(secs: u64) -> String {
+    COMMENT_GAP.replace("{n}", &secs.to_string())
+}
+
+/// `'별빛' 이름으로 남겨져요` (no particle right after the name).
+pub fn comment_as(nickname: &str) -> String {
+    format!("'{nickname}' 이름으로 남겨져요")
+}
+
+/// When a comment was written, in Korean calendar days: 오늘 / 어제 / N일 전.
+pub fn comment_ago(days: i64) -> String {
+    match days {
+        ..=0 => "오늘".to_string(),
+        1 => "어제".to_string(),
+        n => format!("{n}일 전"),
+    }
+}
+
+/// A writer as 최근 댓글 shows them: `김실명 (별빛)`, or just the nickname when there is no real name (the teacher).
+pub fn teacher_view_name(real_name: &str, nickname: &str) -> String {
+    if real_name.is_empty() { nickname.to_string() } else { format!("{real_name} ({nickname})") }
+}
+
 pub const PLAYER_LOADING: &str = "게임을 불러오는 중…";
 pub const PLAYER_LOAD_FAILED: &str = "게임을 불러오지 못했어요. 갤러리에서 다시 열어 주세요.";
 

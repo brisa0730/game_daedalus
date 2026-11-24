@@ -59,6 +59,19 @@ pub struct Config {
     pub open_keep_secs: u64,
     /// The anonymous rater cookie's lifetime; it is set once and never refreshed.
     pub rater_cookie_secs: u64,
+    /// Comments (v0.35). **The one constant to change to close comments**: when false nothing new can be written,
+    /// and existing comments stay readable and deletable (so the teacher can still clean up).
+    pub comments_open: bool,
+    /// Every writer waits this long after their last top-level comment (the owner's replies don't wait).
+    pub comment_gap_secs: u64,
+    /// At most this many guest comments in `guest_cap_window_secs`, across the whole gallery.
+    pub guest_comment_cap: i64,
+    pub guest_cap_window_secs: u64,
+    /// A comment its writer deleted (hidden) stays on the teacher's 최근 댓글 this long, then is erased at start.
+    pub hidden_comment_keep_secs: u64,
+    /// Top-level comments per page on a play page, and items per page on 최근 댓글.
+    pub comments_page: i64,
+    pub recent_comments_page: i64,
 }
 
 impl Config {
@@ -96,6 +109,13 @@ impl Config {
             rating_gate_secs: 180,
             open_keep_secs: 30 * 24 * 3600,
             rater_cookie_secs: 365 * 24 * 3600,
+            comments_open: true,
+            comment_gap_secs: 30,
+            guest_comment_cap: 20,
+            guest_cap_window_secs: 600,
+            hidden_comment_keep_secs: 30 * 24 * 3600,
+            comments_page: 20,
+            recent_comments_page: 50,
         }
     }
 

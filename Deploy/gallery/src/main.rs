@@ -100,6 +100,11 @@ async fn serve(data: &Path) -> Result<(), String> {
         Ok(pruned) => tracing::info!(pruned, "old open records pruned"),
         Err(error) => tracing::warn!(%error, "pruning old open records failed"),
     }
+    // Comments their writers deleted stay on the teacher's 최근 댓글 for 30 days, then go (with their replies).
+    match db.purge_hidden_comments(now - config.hidden_comment_keep_secs as i64).await {
+        Ok(erased) => tracing::info!(erased, "old hidden comments erased"),
+        Err(error) => tracing::warn!(%error, "erasing old hidden comments failed"),
+    }
     let (live, removed) = db.game_folders().await.map_err(|e| format!("read games: {e}"))?;
     // A sweep problem must not keep the gallery down (launchd would restart it forever): log it and serve.
     if let Err(error) = upload::sweep(&config, &live, &removed) {
