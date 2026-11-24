@@ -51,7 +51,7 @@ pub fn token_hash(token: &str) -> Vec<u8> {
     Sha256::digest(token.as_bytes()).to_vec()
 }
 
-fn is_token(value: &str) -> bool {
+pub(crate) fn is_token(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 

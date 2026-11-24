@@ -92,8 +92,9 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .thumb img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
 .badge { position: absolute; top: 8px; left: 8px; font-family: var(--pixel); font-size: 0.8rem; line-height: 1; color: var(--bg); background: var(--accent); padding: 5px 7px 4px; }
 .card .title { display: block; padding: 10px 12px 0; font-family: var(--pixel); font-size: 1.3rem; line-height: 1.3; overflow-wrap: anywhere; }
-.card .owner { display: block; padding: 2px 12px 12px; color: var(--muted); font-size: 0.9rem; }
-.card .title:last-child { padding-bottom: 12px; }
+.card .owner { display: block; padding: 2px 12px 0; color: var(--muted); font-size: 0.9rem; }
+/* Always there, empty until a game has enough ratings, so cards in a row keep one height. */
+.card .rating { display: block; min-height: 1.5em; padding: 2px 12px 12px; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
 .card-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 0 12px 12px; color: var(--muted); font-size: 0.85rem; }
 .card-foot .remove { margin-left: auto; color: var(--danger); border: 2px solid #6b3a4a; border-radius: 4px; padding: 4px 10px; text-decoration: none; }
 .card-foot .remove:hover { background: #2e2238; }
@@ -116,6 +117,22 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .play-title { flex: 1 1 260px; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
 .play-title h1 { margin: 0; font-size: 1.8rem; overflow-wrap: anywhere; }
 .playbar .owner { color: var(--muted); }
+.playbar .avg { color: var(--muted); }
+.playbar .avg.hint { font-size: 0.85rem; }
+/* Stars: buttons only (no control whose value moves with arrow keys); the hover preview lights up to the pointer. */
+.rate { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); }
+#rate-stars { display: inline-flex; align-items: center; gap: 8px; }
+#rate-stars[hidden] { display: none; }
+#rate-buttons { display: inline-flex; gap: 2px; }
+#rate-buttons[hidden] { display: none; }
+.star { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; min-width: 28px; padding: 4px; color: var(--muted); background: transparent; border: 0; }
+.star:hover { background: transparent; }
+.star.on { color: var(--accent); }
+#rate-buttons:hover .star { color: var(--accent); }
+#rate-buttons .star:hover ~ .star { color: var(--muted); }
+#rate-note { color: var(--grass); font-size: 0.85rem; }
+#rate-note.error { color: var(--danger); }
+.rate-own { margin: 0; color: var(--muted); font-size: 0.9rem; }
 #fullscreen { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-family: var(--pixel); }
 .frame { width: min(100%, calc((100dvh - 220px) * 16 / 9)); aspect-ratio: 16 / 9; margin-inline: auto; background: #000; outline: 4px solid var(--line); }
 #game { display: block; width: 100%; height: 100%; border: 0; }

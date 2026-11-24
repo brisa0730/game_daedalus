@@ -78,6 +78,38 @@ pub const BACK_TO_GAMES: &str = "← 게임 목록";
 pub const FULLSCREEN: &str = "전체 화면";
 
 pub const REOPEN_FROM_GALLERY: &str = "갤러리에서 게임을 다시 열어 주세요.";
+
+// Ratings
+pub const RATE_PROMPT: &str = "재미있었나요?";
+pub const RATE_SAVED: &str = "저장됐어요";
+pub const RATE_OWN: &str = "내 게임에는 별점을 줄 수 없어요";
+pub const RATE_FAILED: &str = "저장하지 못했어요. 다시 눌러 보세요.";
+/// The countdown's two forms; the script fills `{n}` from these same strings (data attributes).
+pub const RATE_WAIT_MINUTES: &str = "{n}분 후에 별점을 줄 수 있어요";
+pub const RATE_WAIT_SECONDS: &str = "{n}초 후에 별점을 줄 수 있어요";
+
+/// The countdown: whole minutes rounded up while a minute or more remains, then seconds (gallery.js does the same).
+pub fn rate_wait(secs: u64) -> String {
+    if secs >= 60 {
+        RATE_WAIT_MINUTES.replace("{n}", &secs.div_ceil(60).to_string())
+    } else {
+        RATE_WAIT_SECONDS.replace("{n}", &secs.to_string())
+    }
+}
+
+pub fn average_after(n: i64) -> String {
+    format!("별점이 {n}개 모이면 평균이 보여요")
+}
+
+/// A game's average in tenths of a star and how many rated it: `★ 4.3 (12명)`.
+pub fn rating_summary(tenths: i64, count: i64) -> String {
+    format!("★ {}.{} ({count}명)", tenths / 10, tenths % 10)
+}
+
+/// A star button's accessible name.
+pub fn star_label(k: i64) -> String {
+    format!("별 {k}개")
+}
 pub const PLAYER_LOADING: &str = "게임을 불러오는 중…";
 pub const PLAYER_LOAD_FAILED: &str = "게임을 불러오지 못했어요. 갤러리에서 다시 열어 주세요.";
 

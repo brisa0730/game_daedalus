@@ -22,6 +22,12 @@ Never add an entry without a concrete trigger — open-ended "do this someday" e
 
 ## Pending
 
+### A newer clippy flags `result_large_err` in the games host's gate check
+- **Severity:** LOW · **Source:** Phase 9 (`gallery-ratings`, v0.31)
+- **Description:** `cargo clippy --all-targets -- -D warnings` on Rust 1.100 (the `rust:1` Docker image used from the Windows laptop) fails on [play.rs](../../Deploy/gallery/src/play.rs) `gated`, whose `Result<Game, Response>` error is ≥ 128 bytes. The code is unchanged since v0.23 and passed the Mac's clippy then; Phase 9 ran clippy with only this lint allowed (clean).
+- **Why deferred:** not this phase's code, and the Mac's toolchain may not flag it.
+- **Trigger to act:** `cargo clippy` on the Mac Mini fails with this lint (after a `rustup update`), or the next change to `play.rs`. Fix shape: return `Result<Game, Box<Response>>` or answer early with a small error enum.
+
 ### A game that stalled once stayed stalled until Chrome's cache was cleared (cause unknown)
 - **Severity:** LOW · **Source:** ISS-002 (Phase 5 `gallery-server`, v0.16; closed v0.30)
 - **Description:** in Phase 5 one game's load stalled, survived a Chrome restart, and cleared only when Chrome's HTTP cache was cleared (a cached partial download is the leading guess). Since v0.23 games load from the Naver bucket with versioned, `immutable` files, so it can only recur on the Mac fallback (`suwon-play`), where `Accept-Ranges: none` is the safeguard.

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Request, State};
 use axum::http::{Method, StatusCode, header};
 use axum::middleware::from_fn_with_state;
@@ -19,7 +20,7 @@ use crate::db::Db;
 use crate::play_token::Key;
 use crate::session::Throttle;
 use crate::storage::{NaverStorage, Storage};
-use crate::{gallery, guard, pages, play, session, teacher, upload};
+use crate::{gallery, guard, pages, play, ratings, session, teacher, upload};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -126,6 +127,8 @@ pub fn gallery_routes() -> Vec<RouteSpec> {
         route(Method::GET, "/", Open, get(gallery::list)),
         route(Method::GET, "/shots/{file}", Open, get(gallery::screenshot)),
         route(Method::GET, "/play/{id}", Open, get(gallery::play_view)),
+        route(Method::POST, "/play/{id}/open", Open, post(ratings::open)),
+        route(Method::POST, "/play/{id}/rate", Open, post(ratings::rate).layer(DefaultBodyLimit::max(64))),
         route(Method::GET, "/games/{id}/remove", Page, get(gallery::remove_confirm)),
         route(Method::POST, "/games/{id}/remove", Page, post(gallery::remove)),
         route(Method::GET, "/upload", Page, get(upload::upload_page)),

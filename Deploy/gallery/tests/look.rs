@@ -1,7 +1,8 @@
 //! The look check: every gallery page, rendered from real handlers with fixture data, saved as HTML into the
 //! repo's `TestResults/gallery-look/` (with the stylesheet, script, font and screenshots beside it) for the
 //! headless-Chrome screenshots, plus the rules a screenshot can't prove: no inline styles (the gallery's CSP is
-//! `style-src 'self'`), the ids the script needs, and which cards get the NEW badge and the upload time.
+//! `style-src 'self'`), the ids the script needs, and which cards get the NEW badge and the upload time. The play
+//! pages cover every rating state: counting down, ready, rated (average hidden and shown), and the owner's own.
 
 mod support;
 
@@ -70,6 +71,20 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     backdate(&app, &spikes, 2, 2).await;
     // lee's game is brand new: today, and NEW.
 
+    // Ratings: `old` has three (its average shows), `traps` one (hidden). Each browser opens, waits out the gate
+    // (backdated) and rates; `ready` opened `traps` and may rate but hasn't.
+    let (_, ready) = app.open_rating(&traps, None).await;
+    let ready = ready.unwrap();
+    let mut raters = Vec::new();
+    for (game, stars) in [(&old, 5), (&old, 4), (&old, 4), (&traps, 3)] {
+        let (_, rater) = app.open_rating(game, None).await;
+        app.backdate_open(game, 200).await;
+        let rater = rater.unwrap();
+        assert_eq!(app.rate(game, Some(&rater), stars).await.status, StatusCode::OK);
+        raters.push(rater);
+    }
+    let (rated_old, rated_traps) = (&raters[0], &raters[3]);
+
     let mut pages: Vec<(&str, String)> = Vec::new();
     let mut keep = |name: &'static str, answer: Answer| {
         let html = answer.text();
@@ -87,6 +102,11 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     keep("list-public", app.get(GALLERY, "/", None).await);
     keep("play-public", app.get(GALLERY, &format!("/play/{traps}"), None).await);
     keep("not-found-public", app.get(GALLERY, "/nothing-here", None).await);
+    keep("play-rate-wait", app.get(GALLERY, &format!("/play/{old}"), Some(&lee)).await);
+    keep("play-rate-ready", app.get(GALLERY, &format!("/play/{traps}"), Some(&ready)).await);
+    keep("play-rated-hint", app.get(GALLERY, &format!("/play/{traps}"), Some(rated_traps)).await);
+    keep("play-rated-avg", app.get(GALLERY, &format!("/play/{old}"), Some(rated_old)).await);
+    keep("play-own", app.get(GALLERY, &format!("/play/{old}"), Some(&kim)).await);
     keep("upload", app.get(GALLERY, "/upload", Some(&kim)).await);
     keep("upload-first", app.get(GALLERY, "/upload", Some(&fresh)).await);
     keep("password", app.get(GALLERY, "/password", Some(&kim)).await);
@@ -103,11 +123,36 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     let page = |name: &str| pages.iter().find(|(n, _)| *n == name).map(|(_, h)| h.as_str()).unwrap();
 
     // The script's wires: every id and data attribute gallery.js reads is still rendered.
-    for play in ["play", "play-public"] {
-        for id in ["game", "frame", "fullscreen"] {
+    let owner_pages = ["play", "play-own"];
+    let rating_pages = ["play-public", "play-rate-wait", "play-rate-ready", "play-rated-hint", "play-rated-avg"];
+    for play in owner_pages.iter().chain(&rating_pages) {
+        for id in ["game", "frame", "fullscreen", "rating-avg"] {
             assert!(page(play).contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
         }
     }
+    for play in rating_pages {
+        let html = page(play);
+        for id in ["rate", "rate-wait", "rate-stars", "rate-buttons", "rate-note"] {
+            assert!(html.contains(&format!(r#"id="{id}""#)), "{play}: #{id}");
+        }
+        for data in ["open", "rate", "wait", "mine", "msg-wait-min", "msg-wait-sec", "msg-saved", "msg-failed"] {
+            assert!(html.contains(&format!("data-{data}=")), "{play}: data-{data}");
+        }
+        assert_eq!(html.matches(r#"class="star"#).count(), 5, "{play}: five stars");
+        assert!(!html.contains(s::RATE_OWN), "{play}");
+    }
+    for play in owner_pages {
+        assert!(page(play).contains(s::RATE_OWN) && !page(play).contains(r#"id="rate""#), "{play}");
+    }
+    // The states: counting down (a fresh browser), ready, rated with the average hidden (the hint), and shown.
+    assert!(page("play-rate-wait").contains(&s::rate_wait(180)));
+    assert!(page("play-rate-ready").contains(r#"<span id="rate-wait" hidden>"#));
+    assert!(page("play-rated-hint").contains(&s::average_after(3)));
+    let old_average = s::rating_summary(43, 3);
+    for play in ["play-rated-avg", "play-own"] {
+        assert!(page(play).contains(&old_average), "{play}");
+    }
+    assert!(page("list-public").contains(&old_average));
     // The teacher's list edits both names per student, under the hint that the nickname is public.
     assert!(page("teacher").contains(s::NAMES_HINT));
     // Each student row and the add-one form: the nickname box is always named `nickname`, never `name` (which the
@@ -168,7 +213,7 @@ async fn every_page_renders_without_inline_styles_and_keeps_its_wires() {
     assert_eq!(font.status, StatusCode::OK);
     std::fs::write(out.join(FONT_PATH.trim_start_matches('/')), &font.body).unwrap();
     let results = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../TestResults");
-    let pictures: Vec<PathBuf> = ["6000.6.8f1-share-check-screenshot.png", "6000.6.8f1-traps-counter.png", "6000.6.8f1-traps-win.png"]
+    let pictures: Vec<PathBuf> = ["6000.6.9f1-share-check-screenshot.png", "6000.6.9f1-traps-counter.png", "6000.6.9f1-traps-win.png"]
         .iter()
         .map(|f| results.join(f))
         .filter(|p| p.exists())

@@ -95,6 +95,11 @@ async fn serve(data: &Path) -> Result<(), String> {
     db.prune_sessions(now - config.session_idle_secs as i64, now - config.session_max_secs as i64)
         .await
         .map_err(|e| format!("prune sessions: {e}"))?;
+    // Open records of browsers that never rated: unlike sessions they guard nothing, so a failure only logs.
+    match db.prune_opens(now - config.open_keep_secs as i64).await {
+        Ok(pruned) => tracing::info!(pruned, "old open records pruned"),
+        Err(error) => tracing::warn!(%error, "pruning old open records failed"),
+    }
     let (live, removed) = db.game_folders().await.map_err(|e| format!("read games: {e}"))?;
     // A sweep problem must not keep the gallery down (launchd would restart it forever): log it and serve.
     if let Err(error) = upload::sweep(&config, &live, &removed) {

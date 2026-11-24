@@ -320,6 +320,41 @@ impl TestApp {
         enter.cookie(&format!("__Host-g_{id}")).expect("a gate cookie")
     }
 
+    /// The play page's open POST; returns the answer and the browser's rater cookie (`name=value`) if one was set.
+    pub async fn open_rating(&self, id: &str, cookie: Option<&str>) -> (Answer, Option<String>) {
+        let answer = self.post_form(&format!("/play/{id}/open"), cookie, "").await;
+        let rater = answer.cookie(gallery::ratings::RATER_COOKIE);
+        (answer, rater)
+    }
+
+    pub async fn rate(&self, id: &str, cookie: Option<&str>, stars: i64) -> Answer {
+        self.post_form(&format!("/play/{id}/rate"), cookie, &format!("stars={stars}")).await
+    }
+
+    /// Moves every open record of a game `secs` into the past (the `Db` pool is private).
+    pub async fn backdate_open(&self, id: &str, secs: i64) {
+        let pool = self.raw_pool().await;
+        sqlx::query("UPDATE game_opens SET opened_at = ? WHERE game_id = ?")
+            .bind(unix_now() as i64 - secs)
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        pool.close().await;
+    }
+
+    /// The single number a query returns, straight from the test's database.
+    pub async fn count_rows(&self, sql: &str) -> i64 {
+        let pool = self.raw_pool().await;
+        let n: i64 = sqlx::query_scalar(sql).fetch_one(&pool).await.unwrap();
+        pool.close().await;
+        n
+    }
+
+    pub async fn raw_pool(&self) -> sqlx::SqlitePool {
+        sqlx::SqlitePool::connect(&format!("sqlite://{}", self.state.config.db_path().display())).await.unwrap()
+    }
+
     pub async fn enter(&self, path: &str, dest: &str, site: Option<&str>) -> Answer {
         let mut req = Request::builder().uri(path).header("host", GAMES).header("sec-fetch-dest", dest);
         if let Some(site) = site {

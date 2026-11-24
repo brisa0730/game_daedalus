@@ -3,7 +3,7 @@
 
 use axum::Extension;
 use axum::extract::{Path, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use maud::{Markup, html};
 
@@ -12,6 +12,7 @@ use crate::config::unix_now;
 use crate::db::{Game, Role, User};
 use crate::pages::{self, Nav};
 use crate::play_token::{ENTER_TTL_SECS, Purpose};
+use crate::ratings;
 use crate::session::CurrentUser;
 use crate::strings as s;
 use crate::upload::{screenshot_url, valid_game_id};
@@ -31,8 +32,9 @@ fn days_ago(then: i64, now: i64) -> i64 {
     ((now + KST_SECS).div_euclid(86_400) - (then + KST_SECS).div_euclid(86_400)).max(0)
 }
 
-/// A game card. In "My games" (`mine`) it shows when the game was last uploaded instead of the owner's name.
-fn card(game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
+/// A game card. In "My games" (`mine`) it shows when the game was last uploaded instead of the owner's name. Every
+/// card has the rating line, empty until the average shows, so cards in a row keep one height.
+fn card(state: &AppState, game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
     let can_remove = user.is_some_and(|user| may_remove(game, user));
     html! {
         li.card {
@@ -43,6 +45,7 @@ fn card(game: &Game, user: Option<&User>, mine: bool, now: i64) -> Markup {
                 }
                 span.title { (game.title) }
                 @if !mine { span.owner { (game.owner_name.as_deref().unwrap_or("")) } }
+                span.rating { (ratings::summary(game, &state.config).unwrap_or_default()) }
             }
             @if mine || can_remove {
                 div.card-foot {
@@ -75,7 +78,7 @@ pub async fn list(State(state): State<AppState>, user: Option<Extension<CurrentU
             @if all.is_empty() {
                 p { (s::NO_GAMES) }
             } @else {
-                ul.cards { @for game in &all { (card(game, user.as_ref(), false, now)) } }
+                ul.cards { @for game in &all { (card(&state, game, user.as_ref(), false, now)) } }
             }
         }
     };
@@ -89,7 +92,7 @@ fn my_games(state: &AppState, mine: &[Game], user: Option<&User>, now: i64) -> M
         section.mine {
             h2 { (s::MY_GAMES) }
             ul.cards {
-                @for game in mine { (card(game, user, true, now)) }
+                @for game in mine { (card(state, game, user, true, now)) }
                 li.add-slot {
                     @if at_limit {
                         p.limit { (s::too_many_games(state.config.games_per_account)) }
@@ -131,14 +134,16 @@ pub async fn screenshot(State(state): State<AppState>, Path(file): Path<String>)
 
 /// The play view: the game full-page in the games host's sandboxed frame, entered with a fresh 60 s grant. Open to
 /// anyone: the frame keeps the game away from the gallery, not people away from the game; this page's address is
-/// the one to share.
+/// the one to share. The rating parts only read (ratings.rs): the page's script records the open.
 pub async fn play_view(
     State(state): State<AppState>,
     user: Option<Extension<CurrentUser>>,
     Path(id): Path<String>,
+    headers: HeaderMap,
 ) -> Response {
     let user = user.map(|Extension(CurrentUser(user))| user);
     let Some(game) = live(&state, &id).await else { return pages::not_found(user.as_ref()) };
+    let (rating_avg, rate_box) = ratings::play_parts(&state, &game, user.as_ref(), &headers).await;
     let grant = state.key.sign(Purpose::Enter, &game.id, unix_now() + ENTER_TTL_SECS);
     let src = format!("{}/enter/{}?grant={}", state.config.games_origin, game.id, grant);
     let body = html! {
@@ -148,7 +153,9 @@ pub async fn play_view(
                 div.play-title {
                     h1 { (game.title) }
                     span.owner { (game.owner_name.as_deref().unwrap_or("")) }
+                    (rating_avg)
                 }
+                (rate_box)
                 button #fullscreen type="button" {
                     svg viewBox="0 0 7 7" width="16" height="16" shape-rendering="crispEdges" aria-hidden="true" {
                         path d="M0 0h3v1H1v2H0zM4 0h3v3H6V1H4zM0 4h1v2h2v1H0zM6 4h1v3H4V6h2z" fill="currentColor" {}
@@ -166,7 +173,7 @@ pub async fn play_view(
     pages::page(StatusCode::OK, &game.title, user.as_ref(), None, body)
 }
 
-async fn live(state: &AppState, id: &str) -> Option<Game> {
+pub(crate) async fn live(state: &AppState, id: &str) -> Option<Game> {
     if !valid_game_id(id) {
         return None;
     }

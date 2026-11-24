@@ -1,4 +1,4 @@
-//! The SQLite database: users, sessions, known browsers and games. Every SQL statement lives in this file.
+//! The SQLite database: users, sessions, known browsers, games and ratings. Every SQL statement lives in this file.
 
 use std::path::Path;
 use std::time::Duration;
@@ -70,6 +70,9 @@ pub struct Game {
     pub updated_at: i64,
     /// The version whose build files are on the Naver bucket (storage.rs); `None` until a publish finishes.
     pub published_version: Option<i64>,
+    /// How many ratings the game has, and their stars added up (ratings.rs turns them into the average).
+    pub ratings: i64,
+    pub stars_total: i64,
 }
 
 impl Game {
@@ -84,6 +87,8 @@ impl Game {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             published_version: row.get("published_version"),
+            ratings: row.get("ratings"),
+            stars_total: row.get("stars_total"),
         }
     }
 }
@@ -108,8 +113,11 @@ pub struct NewGame<'a> {
     pub now: i64,
 }
 
-const GAME_COLUMNS: &str =
-    "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, g.created_at, g.updated_at, g.published_version FROM games g LEFT JOIN users u ON u.id = g.owner_id";
+const GAME_COLUMNS: &str = "g.id, g.owner_id, u.display_name AS owner_name, g.title, g.build_name, g.version, \
+     g.created_at, g.updated_at, g.published_version, \
+     (SELECT COUNT(*) FROM ratings r WHERE r.game_id = g.id) AS ratings, \
+     (SELECT COALESCE(SUM(r.stars), 0) FROM ratings r WHERE r.game_id = g.id) AS stars_total \
+     FROM games g LEFT JOIN users u ON u.id = g.owner_id";
 
 #[derive(Clone)]
 pub struct Db {
@@ -491,13 +499,87 @@ impl Db {
         Ok(())
     }
 
+    /// Removes a game: the row stays (its id is never used again), its ratings and open records go, in one
+    /// transaction. Owner, teacher and account removal all come through here.
     pub async fn tombstone_game(&self, id: &str, now: i64) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
         sqlx::query("UPDATE games SET removed_at = ? WHERE id = ? AND removed_at IS NULL")
             .bind(now)
             .bind(id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
-        Ok(())
+        sqlx::query("DELETE FROM ratings WHERE game_id = ?").bind(id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM game_opens WHERE game_id = ?").bind(id).execute(&mut *tx).await?;
+        tx.commit().await
+    }
+
+    // Ratings
+
+    /// Records that this browser opened a live game, keeping its first open. Returns that first open, or `None`
+    /// when the game isn't live (the insert checks it, so an open racing a removal leaves nothing).
+    pub async fn record_open(&self, game_id: &str, rater_hash: &[u8], now: i64) -> Result<Option<i64>> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO game_opens (game_id, rater_hash, opened_at) SELECT ?1, ?2, ?3 \
+             WHERE EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL)",
+        )
+        .bind(game_id)
+        .bind(rater_hash)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
+        let row = sqlx::query(
+            "SELECT o.opened_at FROM game_opens o JOIN games g ON g.id = o.game_id \
+             WHERE o.game_id = ? AND o.rater_hash = ? AND g.removed_at IS NULL",
+        )
+        .bind(game_id)
+        .bind(rater_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.get(0)))
+    }
+
+    /// This browser's first open of the game and its stars, if any. Read only (the play page's GET).
+    pub async fn rating_state(&self, game_id: &str, rater_hash: &[u8]) -> Result<(Option<i64>, Option<i64>)> {
+        let row = sqlx::query(
+            "SELECT (SELECT opened_at FROM game_opens WHERE game_id = ?1 AND rater_hash = ?2), \
+                    (SELECT stars FROM ratings WHERE game_id = ?1 AND rater_hash = ?2)",
+        )
+        .bind(game_id)
+        .bind(rater_hash)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok((row.get(0), row.get(1)))
+    }
+
+    /// Sets this browser's stars on a live game, replacing any earlier ones, only if it first opened the game at or
+    /// before `opened_by` (the gate, checked in the same statement). `false` means nothing was written.
+    pub async fn rate(&self, game_id: &str, rater_hash: &[u8], stars: i64, opened_by: i64, now: i64) -> Result<bool> {
+        let done = sqlx::query(
+            "INSERT INTO ratings (game_id, rater_hash, stars, rated_at) SELECT ?1, ?2, ?3, ?4 \
+             WHERE EXISTS (SELECT 1 FROM game_opens WHERE game_id = ?1 AND rater_hash = ?2 AND opened_at <= ?5) \
+             AND EXISTS (SELECT 1 FROM games WHERE id = ?1 AND removed_at IS NULL) \
+             ON CONFLICT (game_id, rater_hash) DO UPDATE SET stars = excluded.stars, rated_at = excluded.rated_at",
+        )
+        .bind(game_id)
+        .bind(rater_hash)
+        .bind(stars)
+        .bind(now)
+        .bind(opened_by)
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    /// Deletes open records from before `before` of browsers that never rated that game.
+    pub async fn prune_opens(&self, before: i64) -> Result<u64> {
+        let done = sqlx::query(
+            "DELETE FROM game_opens WHERE opened_at < ? AND NOT EXISTS \
+             (SELECT 1 FROM ratings r WHERE r.game_id = game_opens.game_id AND r.rater_hash = game_opens.rater_hash)",
+        )
+        .bind(before)
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected())
     }
 
     /// `(id, version)` of every live game, and the ids of removed ones: the startup sweep keeps exactly the live
@@ -559,6 +641,88 @@ mod tests {
         assert_eq!((kim.real_name.as_str(), kim.display_name.as_str()), ("김민수", "김민수"));
         let teacher = db.user_by_login("teach").await.unwrap().unwrap();
         assert_eq!((teacher.real_name.as_str(), teacher.display_name.as_str()), ("", "선생님"));
+    }
+
+    /// A database from before v0.31 (three migrations) opens with migration 0004, and its games have no ratings.
+    #[tokio::test]
+    async fn the_ratings_migration_keeps_todays_games() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("gallery.db");
+        let options = SqliteConnectOptions::new().filename(&path).create_if_missing(true);
+        let pool = SqlitePool::connect_with(options).await.unwrap();
+        let mut first = sqlx::migrate!("./migrations");
+        first.migrations = first.migrations[..3].to_vec().into();
+        first.run(&pool).await.unwrap();
+        sqlx::query("INSERT INTO users (login, display_name, role, password_hash, created_at) VALUES ('kim', '김', 'student', 'h', 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO games (id, owner_id, title, build_name, version, bytes, created_at, updated_at) \
+             VALUES ('abc', 1, 'T', 'b', 1, 1, 1, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+        let db = Db::open_existing(&path).await.unwrap();
+        let g = db.live_game("abc").await.unwrap().unwrap();
+        assert_eq!((g.ratings, g.stars_total), (0, 0));
+    }
+
+    async fn db_with_game() -> (tempfile::TempDir, Db) {
+        let (dir, db) = temp_db().await;
+        let id = db.create_user("kim", "김", Role::Student, "h", 1).await.unwrap();
+        let game = NewGame { id: "abc", owner_id: id, title: "T", build_name: "b", bytes: 1, now: 1 };
+        assert!(db.insert_game(&game, 10).await.unwrap());
+        (dir, db)
+    }
+
+    #[tokio::test]
+    async fn an_open_keeps_the_first_time_and_needs_a_live_game() {
+        let (_dir, db) = db_with_game().await;
+        assert_eq!(db.record_open("abc", b"r", 1000).await.unwrap(), Some(1000));
+        assert_eq!(db.record_open("abc", b"r", 1100).await.unwrap(), Some(1000));
+        assert_eq!(db.record_open("nope", b"r", 1100).await.unwrap(), None);
+        db.tombstone_game("abc", 1200).await.unwrap();
+        assert_eq!(db.record_open("abc", b"s", 1300).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn a_rating_needs_an_open_old_enough_and_replaces_the_last() {
+        let (_dir, db) = db_with_game().await;
+        assert!(!db.rate("abc", b"r", 4, 5000, 5000).await.unwrap(), "no open");
+        db.record_open("abc", b"r", 1000).await.unwrap();
+        // The gate is opened_at <= now - gate: at a 180 s gate, now 1179 is refused and 1180 accepted.
+        assert!(!db.rate("abc", b"r", 4, 1179 - 180, 1179).await.unwrap());
+        assert!(db.rate("abc", b"r", 4, 1180 - 180, 1180).await.unwrap());
+        assert!(db.rate("abc", b"r", 2, 1200 - 180, 1200).await.unwrap());
+        let g = db.live_game("abc").await.unwrap().unwrap();
+        assert_eq!((g.ratings, g.stars_total), (1, 2));
+        assert_eq!(db.rating_state("abc", b"r").await.unwrap(), (Some(1000), Some(2)));
+        assert_eq!(db.rating_state("abc", b"x").await.unwrap(), (None, None));
+    }
+
+    #[tokio::test]
+    async fn pruning_keeps_rated_and_recent_opens() {
+        let (_dir, db) = db_with_game().await;
+        db.record_open("abc", b"old", 100).await.unwrap();
+        db.record_open("abc", b"rated", 100).await.unwrap();
+        db.record_open("abc", b"new", 900).await.unwrap();
+        assert!(db.rate("abc", b"rated", 5, 100, 400).await.unwrap());
+        assert_eq!(db.prune_opens(500).await.unwrap(), 1);
+        assert_eq!(db.rating_state("abc", b"old").await.unwrap().0, None);
+        assert_eq!(db.rating_state("abc", b"rated").await.unwrap().0, Some(100));
+        assert_eq!(db.rating_state("abc", b"new").await.unwrap().0, Some(900));
+    }
+
+    #[tokio::test]
+    async fn removing_a_game_deletes_its_ratings_and_opens() {
+        let (_dir, db) = db_with_game().await;
+        db.record_open("abc", b"r", 100).await.unwrap();
+        assert!(db.rate("abc", b"r", 5, 100, 400).await.unwrap());
+        db.tombstone_game("abc", 500).await.unwrap();
+        assert_eq!(db.rating_state("abc", b"r").await.unwrap(), (None, None));
     }
 
     #[tokio::test]
